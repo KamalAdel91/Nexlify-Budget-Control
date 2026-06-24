@@ -37,7 +37,8 @@ doctype_js = {
         "Purchase Invoice": "public/js/budget_check.js",
         "Journal Entry": "public/js/budget_check.js",
         "Expense Claim": "public/js/budget_check.js",
-        "Project": ["public/js/budget_check.js", "public/js/project.js"],
+        "Project": "public/js/project.js",
+        "Project Cost Budget": "public/js/project_cost_budget.js",
 }
 
 fixtures = [
