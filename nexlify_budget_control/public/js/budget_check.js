@@ -106,29 +106,63 @@ function nexlify_check_budget_before_submit(frm, doctype) {
                 doc_date: doc_date,
             },
             callback: function (r) {
-                const result = r.message || {};
+                if (!r || !r.message) {
+                    console.warn("NEXLIFY: get_budget_check_preview returned empty response, allowing submit");
+                    resolve();
+                    return;
+                }
+
+                const result = r.message;
+
+                // Check for server-side error in response
+                if (result.error) {
+                    console.error("NEXLIFY: Budget preview error:", result.error);
+                    frappe.msgprint({
+                        title: "Budget Check Error",
+                        message: "Could not verify budget before submit: " + result.error,
+                        indicator: "orange",
+                    });
+                    resolve();
+                    return;
+                }
+
+                console.log("NEXLIFY: Budget check result for", doctype, "-", frm.doc.name, result);
 
                 if (result.category_violation) {
+                    console.log("NEXLIFY: Category violation detected");
                     nexlify_show_category_violation_dialog(result.category_violation, resolve, reject);
                 } else if (result.date_violation) {
+                    console.log("NEXLIFY: Date violation detected");
                     nexlify_show_date_violation_dialog(result.date_violation, resolve, reject);
                 } else if (result.exceeded) {
+                    console.log("NEXLIFY: Budget exceeded");
                     nexlify_show_budget_dialog(result.exceeded, true, resolve, reject);
                 } else if (result.warning) {
+                    console.log("NEXLIFY: Budget warning");
                     nexlify_show_budget_dialog(result.warning, false, resolve, reject);
                 } else if (result.monthly_exceeded) {
+                    console.log("NEXLIFY: Monthly budget exceeded");
                     nexlify_show_monthly_dialog(result.monthly_exceeded, resolve, reject);
                 } else {
+                    console.log("NEXLIFY: Budget check passed, no violations");
                     resolve();
                 }
             },
             error: function (r) {
-                console.error("NEXLIFY: get_budget_check_preview FAILED", r);
+                console.error("NEXLIFY: get_budget_check_preview AJAX FAILED", r);
+                console.error("NEXLIFY: Request details:", {
+                    doctype: doctype,
+                    docname: frm.doc.name,
+                    company: frm.doc.company,
+                    project: projects[0],
+                    accounts: accounts,
+                });
                 frappe.msgprint({
                     title: "Budget Check Error",
-                    message: "Could not verify budget before submit. Check the browser console for details. Submission was allowed to proceed without a budget check.",
+                    message: "Could not verify budget before submit. The budget check service is temporarily unavailable. Submission was allowed to proceed without a budget check.",
                     indicator: "orange",
                 });
+                // Allow submit since we couldn't verify
                 resolve();
             },
         });

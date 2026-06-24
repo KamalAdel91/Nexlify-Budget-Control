@@ -1,27 +1,38 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "allow_rename": 1,
  "autoname": "format:PCB-{YYYY}-{#####}",
  "creation": "2026-06-20 07:30:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "restriction_section",
+  "restrict_to_budget_categories",
   "company",
-  "project",
   "from_date",
-  "to_date",
   "currency",
+  "column_break_hckp",
+  "project",
+  "to_date",
   "conversion_rate",
-  "status_section",
-  "status",
-  "submitted_by",
-  "approved_by",
-  "approval_date",
-  "rejection_reason",
   "details_section",
-  "details"
+  "details",
+  "amended_from"
  ],
  "fields": [
+  {
+   "fieldname": "restriction_section",
+   "fieldtype": "Section Break",
+   "label": "Restriction"
+  },
+  {
+   "default": "0",
+   "description": "When enabled, any document (MR/PO/PI/JE/Expense Claim) touching this project must use ONLY accounts that belong to one of this budget's Budget Categories.",
+   "fieldname": "restrict_to_budget_categories",
+   "fieldtype": "Check",
+   "label": "Restrict to Budget Categories Only"
+  },
   {
    "fieldname": "company",
    "fieldtype": "Link",
@@ -70,48 +81,6 @@
    "reqd": 1
   },
   {
-   "fieldname": "status_section",
-   "fieldtype": "Section Break",
-   "label": "Status"
-  },
-  {
-   "default": "Draft",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Status",
-   "options": "Draft\nPending Approval\nApproved\nRejected",
-   "reqd": 1
-  },
-  {
-   "fieldname": "submitted_by",
-   "fieldtype": "Link",
-   "label": "Submitted By",
-   "options": "User",
-   "read_only": 1
-  },
-  {
-   "fieldname": "approved_by",
-   "fieldtype": "Link",
-   "label": "Approved By",
-   "options": "User",
-   "read_only": 1
-  },
-  {
-   "fieldname": "approval_date",
-   "fieldtype": "Datetime",
-   "label": "Approval Date",
-   "read_only": 1
-  },
-  {
-   "depends_on": "eval:doc.status == 'Rejected'",
-   "fieldname": "rejection_reason",
-   "fieldtype": "Small Text",
-   "label": "Rejection Reason",
-   "mandatory_depends_on": "eval:doc.status == 'Rejected'"
-  },
-  {
    "fieldname": "details_section",
    "fieldtype": "Section Break",
    "label": "Budget Details"
@@ -122,11 +91,26 @@
    "label": "Budget Details",
    "options": "Project Cost Budget Detail",
    "reqd": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Project Cost Budget",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_hckp",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-06-20 19:32:11.402117",
+ "modified": "2026-06-24 16:24:52.367341",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Cost Budget",

@@ -12,7 +12,7 @@ ONLY if there is no other Project Cost Budget Detail row for the same
 (project, budget_category) whose effective period DOES include the
 document's date.
 
-Strict category restriction: if a project's Approved Project Cost
+Strict category restriction: if a project's Submitted Project Cost
 Budget has "Restrict to Budget Categories Only" enabled, ANY document
 touching an account not covered by one of that budget's Budget
 Categories is blocked entirely (unless the submitter has the budget
@@ -34,12 +34,18 @@ under-report and never show a violation for a brand-new document.
 The Python-side frappe.throw messages are intentionally kept brief
 (estimated/actual/deviation only, no document tables) - the rich,
 detailed preview lives in the client-side budget_check.js dialog.
+
+PROJECT SYNC NOTE: Project Cost Budget is itself submittable.
+on_project_cost_budget_submit / on_project_cost_budget_cancel keep
+Project.custom_budget_cost and Project.is_active in step with the
+lifecycle of whichever Project Cost Budget is currently linked to
+the project (see those two functions below for the exact rules).
 """
 
 import calendar
 
 import frappe
-from frappe.utils import flt, getdate
+from frappe.utils import flt, getdate, get_traceback
 from nexlify_budget_control.nexlify_budget_control.budget_utils import (
     convert_to_doc_currency,
     get_accounts_for_category,
@@ -48,6 +54,16 @@ from nexlify_budget_control.nexlify_budget_control.budget_utils import (
     get_cumulative_amount,
     get_material_request_amount,
     get_purchase_order_amount,
+)
+from nexlify_budget_control.nexlify_budget_control.constants import (
+    ACTION_NONE,
+    ACTION_STOP,
+    ACTION_WARN,
+    APPLICABLE_FIELD_MAP,
+    DEFAULT_PAGE_SIZE,
+    DEFAULT_WARNING_THRESHOLD_PERCENT,
+    MONTHLY_ACTION_MAP,
+    MONTH_ORDER,
 )
 from nexlify_budget_control.nexlify_budget_control.notifications import (
     notify_project_stakeholders,
@@ -191,6 +207,45 @@ def on_expense_claim_submit(doc, method=None):
 
 
 # ---------------------------------------------------------------------------
+# Project Cost Budget lifecycle sync (submittable doc itself)
+# ---------------------------------------------------------------------------
+
+
+def on_project_cost_budget_submit(doc, method=None):
+    """
+    When a Project Cost Budget is submitted, it becomes the active
+    budget for its project: Project.custom_budget_cost is pointed at
+    this document, and the project is marked active.
+    """
+    if not doc.project:
+        return
+    frappe.db.set_value(
+        "Project",
+        doc.project,
+        {
+            "custom_budget_cost": doc.name,
+            "is_active": "Yes",
+        },
+    )
+
+
+def on_project_cost_budget_cancel(doc, method=None):
+    """
+    When a Project Cost Budget is cancelled, the project is marked
+    inactive - but ONLY if this cancelled document is still the one
+    currently linked on the project. custom_budget_cost itself is left
+    untouched (it still points at this now-cancelled document) until a
+    new Project Cost Budget is submitted for the same project, which
+    will overwrite it via on_project_cost_budget_submit above.
+    """
+    if not doc.project:
+        return
+    current_linked = frappe.db.get_value("Project", doc.project, "custom_budget_cost")
+    if current_linked == doc.name:
+        frappe.db.set_value("Project", doc.project, "is_active", "No")
+
+
+# ---------------------------------------------------------------------------
 # Core enforcement
 # ---------------------------------------------------------------------------
 
@@ -295,7 +350,7 @@ def _get_affected_detail_rows(company, project, categories, doc_date):
 		INNER JOIN `tabProject Cost Budget` p ON d.parent = p.name
 		WHERE p.project = %(project)s
 			AND p.company = %(company)s
-			AND p.status = 'Approved'
+			AND p.docstatus = 1
 			AND d.budget_category IN %(categories)s
 	""",
         {"company": company, "project": project, "categories": categories},
@@ -469,7 +524,17 @@ def _recalculate_row(row, parent, doc_date):
     estimated = flt(row.estimated_amount)
     row.variance = estimated - flt(row.cumulative_expense_amount)
     row.variance_percentage = (row.variance / estimated * 100) if estimated else 0.0
-    row.db_update()
+
+    # Use db_set for each field to properly trigger hooks and validations
+    # db_update() bypasses hooks and can leave data in an inconsistent state
+    row.db_set("actual_expense_amount", row.actual_expense_amount, update_modified=False)
+    row.db_set("material_request_amount", row.material_request_amount, update_modified=False)
+    row.db_set("purchase_order_amount", row.purchase_order_amount, update_modified=False)
+    row.db_set("cumulative_expense_amount", row.cumulative_expense_amount, update_modified=False)
+    row.db_set("actual_amount_till_month", row.actual_amount_till_month, update_modified=False)
+    row.db_set("cumulative_amount_till_month", row.cumulative_amount_till_month, update_modified=False)
+    row.db_set("variance", row.variance, update_modified=False)
+    row.db_set("variance_percentage", row.variance_percentage, update_modified=False)
 
 
 def _get_monthly_budget_till_date(row, parent, eff_from, eff_to, month_end):
@@ -817,7 +882,12 @@ def _can_bypass_budget():
     return bypass_role in frappe.get_roles(frappe.session.user)
 
 
+@frappe.request_cache
 def _is_budget_control_enabled():
+    """
+    Check if Nexlify Budget Control is enabled.
+    Uses request-level caching to avoid repeated DB queries.
+    """
     return bool(
         frappe.db.get_single_value("Projects Settings", "enable_nexlify_budget_control")
     )
@@ -838,7 +908,7 @@ def _enforce_category_restriction(
         """
 		SELECT name FROM `tabProject Cost Budget`
 		WHERE project = %(project)s AND company = %(company)s
-			AND status = 'Approved' AND restrict_to_budget_categories = 1
+			AND docstatus = 1 AND restrict_to_budget_categories = 1
 	""",
         {"project": project, "company": company},
         as_dict=True,
@@ -915,6 +985,10 @@ def get_budget_check_preview(
     this point), so the stored cumulative_expense_amount on each budget
     row does NOT include this document's contribution - we add it
     explicitly before comparing against the estimate.
+
+    Error handling: If any error occurs during preview, we return the
+    result with no violations rather than raising an exception. This
+    allows the submit to proceed without budget check if preview fails.
     """
     import json
 
@@ -923,6 +997,13 @@ def get_budget_check_preview(
     if isinstance(amounts_by_account, str):
         amounts_by_account = json.loads(amounts_by_account)
     amounts_by_account = amounts_by_account or {}
+
+    # Validate inputs
+    if not isinstance(accounts, list):
+        return {"error": "accounts must be a list"}
+
+    # Ensure all accounts are strings
+    accounts = [str(a) for a in accounts]
 
     result = {
         "category_violation": None,
@@ -937,7 +1018,7 @@ def get_budget_check_preview(
         """
 		SELECT name FROM `tabProject Cost Budget`
 		WHERE project = %(project)s AND company = %(company)s
-			AND status = 'Approved' AND restrict_to_budget_categories = 1
+			AND docstatus = 1 AND restrict_to_budget_categories = 1
 	""",
         {"project": project, "company": company},
         as_dict=True,
@@ -1017,7 +1098,7 @@ def get_budget_check_preview(
         if not row.get(applicable_field):
             continue
 
-        # ★ ★ ★  ADD THIS LINE — refreshes cached values with live query  ★ ★ ★
+        # Refreshes cached values with live query
         _recalculate_row(row, parent, doc_date)
 
         row_accounts = get_accounts_for_category(row.budget_category)
@@ -1059,9 +1140,6 @@ def get_budget_check_preview(
             if row.monthly_distribution and not result["exceeded"]:
                 monthly_action = _get_action(row, "monthly", trigger_stage)
                 if monthly_action != "None":
-                    # ★ ★ ★  ADD THIS LINE  ★ ★ ★
-                    _recalculate_row(row, parent, doc_date)
-
                     eff_from = getdate(row.from_date or parent.from_date)
                     eff_to = getdate(row.to_date or parent.to_date)
                     month_end = _end_of_month_for(doc_date, eff_to)
@@ -1077,28 +1155,28 @@ def get_budget_check_preview(
                     actual_till_month_with_current = (
                         flt(row.actual_amount_till_month) + current_amt
                     )
-                if actual_till_month_with_current > monthly_budget_doc:
-                    result["monthly_exceeded"] = {
-                        "project": parent.project,
-                        "company": parent.company,
-                        "current_doctype": current_doctype,
-                        "current_docname": current_docname,
-                        "budget_category": row.budget_category,
-                        "monthly_budget": monthly_budget_doc,
-                        "actual_till_month": actual_till_month_with_current,
-                        "actual_till_month_stored": flt(row.actual_amount_till_month),
-                        "current_doc_amount": current_amt,
-                        "currency": parent.currency,
-                        "action": monthly_action,
-                        "can_bypass": _can_bypass_budget(),
-                        "documents": _get_related_documents(
-                            parent.company,
-                            parent.project,
-                            current_doctype,
-                            current_docname,
-                            {},
-                        ),
-                    }
+                    if actual_till_month_with_current > monthly_budget_doc:
+                        result["monthly_exceeded"] = {
+                            "project": parent.project,
+                            "company": parent.company,
+                            "current_doctype": current_doctype,
+                            "current_docname": current_docname,
+                            "budget_category": row.budget_category,
+                            "monthly_budget": monthly_budget_doc,
+                            "actual_till_month": actual_till_month_with_current,
+                            "actual_till_month_stored": flt(row.actual_amount_till_month),
+                            "current_doc_amount": current_amt,
+                            "currency": parent.currency,
+                            "action": monthly_action,
+                            "can_bypass": _can_bypass_budget(),
+                            "documents": _get_related_documents(
+                                parent.company,
+                                parent.project,
+                                current_doctype,
+                                current_docname,
+                                {},
+                            ),
+                        }
 
     return result
 
@@ -1114,3 +1192,66 @@ def get_related_documents_page(
     return _get_related_documents(
         company, project, exclude_doctype, exclude_name, pages
     )
+    
+@frappe.whitelist()
+def get_project_budget_dashboard(project):
+    """
+    Returns a live snapshot of the project's active (submitted) Project
+    Cost Budget: each Budget Category row with its estimated amount,
+    live actual/cumulative spend, remaining balance, and percentage used.
+    Numbers are recalculated live (not read from the stored cache) so the
+    dashboard always reflects the current state.
+    """
+    budget_name = frappe.db.get_value("Project", project, "custom_budget_cost")
+    if not budget_name:
+        return {"has_budget": False}
+
+    parent = frappe.get_doc("Project Cost Budget", budget_name)
+    if parent.docstatus != 1:
+        return {
+            "has_budget": True,
+            "budget_name": budget_name,
+            "is_submitted": False,
+            "docstatus": parent.docstatus,
+        }
+
+    rows = []
+    total_estimated = 0.0
+    total_cumulative = 0.0
+
+    for row in parent.details:
+        # Live recalculation - reuses the same logic as real enforcement
+        _recalculate_row(row, parent, getdate(frappe.utils.today()))
+
+        estimated = flt(row.estimated_amount)
+        cumulative = flt(row.cumulative_expense_amount)
+        remaining = estimated - cumulative
+        pct_used = (cumulative / estimated * 100) if estimated else 0.0
+
+        rows.append({
+            "budget_category": row.budget_category,
+            "estimated_amount": estimated,
+            "actual_expense_amount": flt(row.actual_expense_amount),
+            "material_request_amount": flt(row.material_request_amount),
+            "purchase_order_amount": flt(row.purchase_order_amount),
+            "cumulative_expense_amount": cumulative,
+            "remaining_amount": remaining,
+            "percentage_used": pct_used,
+        })
+
+        total_estimated += estimated
+        total_cumulative += cumulative
+
+    return {
+        "has_budget": True,
+        "budget_name": budget_name,
+        "is_submitted": True,
+        "currency": parent.currency,
+        "from_date": parent.from_date,
+        "to_date": parent.to_date,
+        "total_estimated": total_estimated,
+        "total_cumulative": total_cumulative,
+        "total_remaining": total_estimated - total_cumulative,
+        "total_percentage_used": (total_cumulative / total_estimated * 100) if total_estimated else 0.0,
+        "rows": rows,
+    }

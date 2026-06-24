@@ -138,33 +138,47 @@ def get_actual_expense(company, project, accounts, from_date=None, to_date=None)
 	Notes, and any other document type that posts to these accounts -
 	since all of them ultimately produce GL Entry rows. Cancelled entries
 	are automatically excluded via is_cancelled.
+
+	NOTE: Parameters are passed safely to prevent SQL injection - the WHERE
+	clause conditions are built using a fixed template, never user input.
 	"""
 	if not accounts:
 		return 0.0
 
-	conditions = [
-		"gle.is_cancelled = 0",
-		"gle.company = %(company)s",
-		"gle.project = %(project)s",
-		"gle.account IN %(accounts)s",
-	]
-	params = {"company": company, "project": project, "accounts": accounts}
+	# Validate inputs to prevent potential injection
+	if not isinstance(accounts, (list, tuple)):
+		return 0.0
 
+	params = {
+		"company": company,
+		"project": project,
+		"accounts": tuple(accounts),
+	}
+
+	# Build date conditions safely using a fixed template
+	date_conditions = []
 	if from_date:
-		conditions.append("gle.posting_date >= %(from_date)s")
+		date_conditions.append("AND gle.posting_date >= %(from_date)s")
 		params["from_date"] = getdate(from_date)
 	if to_date:
-		conditions.append("gle.posting_date <= %(to_date)s")
+		date_conditions.append("AND gle.posting_date <= %(to_date)s")
 		params["to_date"] = getdate(to_date)
 
-	query = f"""
-		SELECT SUM(gle.debit) - SUM(gle.credit) AS net_amount
+	date_filter = " ".join(date_conditions)
+
+	# Fixed query template - no user input in the SQL structure
+	query = """
+		SELECT COALESCE(SUM(gle.debit), 0) - COALESCE(SUM(gle.credit), 0) AS net_amount
 		FROM `tabGL Entry` gle
-		WHERE {" AND ".join(conditions)}
-	"""
+		WHERE gle.is_cancelled = 0
+			AND gle.company = %(company)s
+			AND gle.project = %(project)s
+			AND gle.account IN %(accounts)s
+			{date_filter}
+	""".format(date_filter=date_filter)
 
 	result = frappe.db.sql(query, params, as_dict=True)
-	return flt(result[0].net_amount) if result and result[0].net_amount else 0.0
+	return flt(result[0].net_amount) if result else 0.0
 
 
 # ---------------------------------------------------------------------------
