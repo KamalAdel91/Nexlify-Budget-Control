@@ -5,12 +5,12 @@
 //
 // This preview runs BEFORE the document is submitted (still Draft in the
 // DB), so the server can't see this document's own pending amount via
-// live queries. We send amounts_by_account explicitly so the preview can
-// add it on top of the stored cumulative before comparing to the estimate.
-//
-// Carry-forward: PO linked to MR or PI linked to PO are NOT new spending
-// (the budget was already counted at the earlier stage). Their amounts
-// are set to 0 in get_items so the preview doesn't double-count them.
+// live queries. We send each item's raw amount plus its prior-stage link
+// (material_request / purchase_order name) so the server can compute the
+// real incremental amount itself - using the exact same logic as the
+// actual on_submit enforcement (_get_current_doc_amount_for_row). This
+// keeps the preview and the real enforcement permanently in sync; the
+// client no longer decides what counts as "already counted".
 // ---------------------------------------------------------------------------
 
 const NEXLIFY_DOCTYPE_CONFIG = {
@@ -29,7 +29,8 @@ const NEXLIFY_DOCTYPE_CONFIG = {
                 .filter((i) => i.project && i.expense_account)
                 .map((i) => ({
                     account: i.expense_account,
-                    amount: i.material_request ? 0 : (i.amount || 0),
+                    amount: i.amount || 0,
+                    material_request: i.material_request || null,
                 })),
         get_projects: (frm) => [...new Set((frm.doc.items || []).map((i) => i.project).filter((p) => p))],
     },
@@ -40,16 +41,33 @@ const NEXLIFY_DOCTYPE_CONFIG = {
                 .filter((i) => i.project && i.expense_account)
                 .map((i) => ({
                     account: i.expense_account,
-                    amount: i.purchase_order ? 0 : (i.amount || 0),
+                    amount: i.amount || 0,
+                    purchase_order: i.purchase_order || null,
                 })),
         get_projects: (frm) => [...new Set((frm.doc.items || []).map((i) => i.project).filter((p) => p))],
     },
     "Journal Entry": {
         trigger_stage: "actual",
-        get_items: (frm) =>
-            (frm.doc.accounts || [])
-                .filter((a) => a.project && a.account)
-                .map((a) => ({ account: a.account, amount: a.debit_in_account_currency || 0 })),
+        // Net debit minus credit per (project, account) within this
+        // document before sending to the server - a Journal Entry often
+        // debits and credits the same account (transfers, corrections),
+        // and only the net effect represents real new spending. Rows
+        // with a net of zero or negative are dropped entirely so they
+        // never trigger a false violation.
+        get_items: (frm) => {
+            const netByKey = {};
+            (frm.doc.accounts || []).forEach((a) => {
+                if (!a.project || !a.account) return;
+                const key = a.project + "::" + a.account;
+                const debit = a.debit_in_account_currency || 0;
+                const credit = a.credit_in_account_currency || 0;
+                netByKey[key] = (netByKey[key] || { project: a.project, account: a.account, amount: 0 });
+                netByKey[key].amount += debit - credit;
+            });
+            return Object.values(netByKey)
+                .filter((r) => r.amount > 0)
+                .map((r) => ({ account: r.account, amount: r.amount }));
+        },
         get_projects: (frm) => [...new Set((frm.doc.accounts || []).map((a) => a.project).filter((p) => p))],
     },
     "Expense Claim": {
@@ -86,11 +104,6 @@ function nexlify_check_budget_before_submit(frm, doctype) {
         }
 
         const accounts = [...new Set(items.map((i) => i.account))];
-        const amounts_by_account = {};
-        items.forEach((i) => {
-            amounts_by_account[i.account] = (amounts_by_account[i.account] || 0) + (i.amount || 0);
-        });
-
         const doc_date = frm.doc.posting_date || frm.doc.transaction_date || frm.doc.schedule_date;
 
         frappe.call({
@@ -99,7 +112,7 @@ function nexlify_check_budget_before_submit(frm, doctype) {
                 company: frm.doc.company,
                 project: projects[0],
                 accounts: accounts,
-                amounts_by_account: amounts_by_account,
+                items: items,
                 trigger_stage: config.trigger_stage,
                 current_doctype: frm.doc.doctype,
                 current_docname: frm.doc.name,
@@ -373,6 +386,26 @@ function nexlify_warning_callout(remaining, current_doc, pct, currency, c, palet
 }
 
 // ---------------------------------------------------------------------------
+// Reusable: carry-forward breakdown callout
+// ---------------------------------------------------------------------------
+
+function nexlify_breakdown_callout(totalAmount, alreadyCounted, newSpending, currency, c) {
+    return '<div style="background:' + c.card_bg + ';border:1px solid ' + c.border +
+        ';border-radius:8px;padding:10px 12px;margin-top:12px;margin-bottom:12px;">' +
+        '<p style="font-size:11px;font-weight:600;color:' + c.muted_text + ';margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em;">Amount breakdown</p>' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;color:' + c.page_text + ';margin-bottom:4px;">' +
+            '<span>This document\'s total amount</span><span style="font-variant-numeric:tabular-nums;">' + nexlify_format_currency(totalAmount, currency) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;color:' + c.muted_text + ';margin-bottom:4px;">' +
+            '<span>Already counted at an earlier stage</span><span style="font-variant-numeric:tabular-nums;">&minus;' + nexlify_format_currency(alreadyCounted, currency) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:' + c.heading_text + ';border-top:1px solid ' + c.border_subtle + ';padding-top:4px;">' +
+            '<span>New spending (this document)</span><span style="font-variant-numeric:tabular-nums;">' + nexlify_format_currency(newSpending, currency) + '</span>' +
+        '</div>' +
+    '</div>';
+}
+
+// ---------------------------------------------------------------------------
 // Reusable: bypass notice
 // ---------------------------------------------------------------------------
 
@@ -485,6 +518,10 @@ function nexlify_show_budget_dialog(data, is_blocking, resolve, reject) {
     const overage = cumulative - estimated;
     const pct = estimated ? Math.round((cumulative / estimated) * 100) : 0;
 
+    const docTotalAmount = data.current_doc_total_amount || 0;
+    const alreadyCounted = data.current_doc_already_counted || 0;
+    const hasBreakdown = alreadyCounted > 0;
+
     var palette = isWarning
         ? { strong: c.warning_strong, gradient: c.warning_gradient, bg: c.warning_bg, border: c.warning_border }
         : { strong: c.danger_strong, gradient: c.danger_gradient, bg: c.danger_bg, border: c.danger_border };
@@ -514,6 +551,7 @@ function nexlify_show_budget_dialog(data, is_blocking, resolve, reject) {
                 'Budget category <strong style="color:' + c.heading_text + ';">' + frappe.utils.escape_html(data.budget_category) + '</strong> ' +
                 (is_blocking ? "has exceeded its total estimated budget" : "is approaching its estimated budget") + '</p>' +
             nexlify_4card_grid(c, estimated, cumulativeStored, remaining, currentDoc, data.currency, remainingColor, remainingBorder, thisDocColor, thisDocBorder) +
+            (hasBreakdown ? nexlify_breakdown_callout(docTotalAmount, alreadyCounted, currentDoc, data.currency, c) : "") +
             nexlify_progress_bar(pct, c, palette) +
             (is_blocking && overage > 0 ? nexlify_overage_callout(overage, pct, data.currency, c, palette) : "") +
             (isWarning && !is_blocking ? nexlify_warning_callout(remaining, currentDoc, pct, data.currency, c, palette) : "") +

@@ -105,16 +105,37 @@ def on_journal_entry_submit(doc, method=None):
             company, project, list(accounts), doc.doctype, doc.name
         )
 
-    enforceable_rows = set()
-    current_doc_amounts = {}
+    budget_names = {p: _get_active_budget_name(p) for p in projects_touched}
 
+    # Net debit minus credit per (project, account) WITHIN this document.
+    # A Journal Entry naturally has multiple rows on the same account (a
+    # transfer or correction often debits and credits the same account
+    # for the same amount) - what matters for budget enforcement is the
+    # document's net effect on that account, not any single row's debit
+    # value in isolation. A net of zero (or negative) means this document
+    # has no real new spending on that account and should not trigger
+    # enforcement at all.
+    net_by_project_account = {}
     for account_row in doc.get("accounts") or []:
         project = account_row.get("project")
         account = account_row.get("account")
         if not project or not account:
             continue
         debit_amt = flt(account_row.get("debit_in_account_currency"))
-        if debit_amt <= 0:
+        credit_amt = flt(account_row.get("credit_in_account_currency"))
+        key = (project, account)
+        net_by_project_account[key] = net_by_project_account.get(key, 0.0) + (debit_amt - credit_amt)
+
+    all_in_range_rows = set()
+    all_out_of_range_rows = set()
+    net_amounts_by_row = {}
+
+    for (project, account), net_amt in net_by_project_account.items():
+        if net_amt <= 0:
+            continue
+
+        budget_name = budget_names.get(project)
+        if not budget_name:
             continue
 
         categories = get_categories_for_account(company, account)
@@ -122,18 +143,20 @@ def on_journal_entry_submit(doc, method=None):
             continue
 
         in_range_rows, out_of_range_rows = _get_affected_detail_rows(
-            company, project, categories, doc_date
+            budget_name, categories, doc_date
         )
-        _enforce_date_range_violations(
-            in_range_rows, out_of_range_rows, "actual", doc.doctype, doc.name
-        )
+        all_in_range_rows.update(in_range_rows)
+        all_out_of_range_rows.update(out_of_range_rows)
 
         for r in in_range_rows:
-            enforceable_rows.add(r)
-            current_doc_amounts[r] = current_doc_amounts.get(r, 0.0) + debit_amt
+            net_amounts_by_row[r] = net_amounts_by_row.get(r, 0.0) + net_amt
 
-    for row_name, parent_name in enforceable_rows:
-        current_amt = current_doc_amounts.get((row_name, parent_name), 0.0)
+    _enforce_date_range_violations(
+        all_in_range_rows, all_out_of_range_rows, "actual", doc.doctype, doc.name
+    )
+
+    for row_name, parent_name in all_in_range_rows:
+        current_amt = net_amounts_by_row.get((row_name, parent_name), 0.0)
         _process_budget_row(
             row_name,
             parent_name,
@@ -165,8 +188,10 @@ def on_expense_claim_submit(doc, method=None):
             company, project, list(accounts), doc.doctype, doc.name
         )
 
-    enforceable_rows = set()
-    current_doc_amounts = {}
+    budget_names = {p: _get_active_budget_name(p) for p in projects_touched}
+
+    all_in_range_rows = set()
+    all_out_of_range_rows = set()
 
     for expense_row in doc.get("expenses") or []:
         project = expense_row.get("project") or doc.get("project")
@@ -177,32 +202,36 @@ def on_expense_claim_submit(doc, method=None):
         if sanctioned <= 0:
             continue
 
+        budget_name = budget_names.get(project)
+        if not budget_name:
+            continue
+
         categories = get_categories_for_account(company, account)
         if not categories:
             continue
 
         in_range_rows, out_of_range_rows = _get_affected_detail_rows(
-            company, project, categories, doc_date
+            budget_name, categories, doc_date
         )
-        _enforce_date_range_violations(
-            in_range_rows, out_of_range_rows, "actual", doc.doctype, doc.name
-        )
+        all_in_range_rows.update(in_range_rows)
+        all_out_of_range_rows.update(out_of_range_rows)
 
-        for r in in_range_rows:
-            enforceable_rows.add(r)
-            current_doc_amounts[r] = current_doc_amounts.get(r, 0.0) + sanctioned
+    _enforce_date_range_violations(
+        all_in_range_rows, all_out_of_range_rows, "actual", doc.doctype, doc.name
+    )
 
-    for row_name, parent_name in enforceable_rows:
-        current_amt = current_doc_amounts.get((row_name, parent_name), 0.0)
+    for row_name, parent_name in all_in_range_rows:
+        amount_details = _get_current_doc_amount_details(row_name, doc, "actual")
         _process_budget_row(
             row_name,
             parent_name,
             "actual",
             doc_date,
             enforce=True,
-            current_doc_amount=current_amt,
+            current_doc_amount=amount_details["new_spending"],
             current_doctype=doc.doctype,
             current_docname=doc.name,
+            amount_details=amount_details,
         )
 
 
@@ -273,9 +302,8 @@ def check_cost_budget(doc, trigger_stage):
             company, project, list(accounts), doc.doctype, doc.name
         )
 
-    enforceable_rows = set()
-    recalc_only_rows = set()
-    current_doc_amounts = {}
+    budget_names = {p: _get_active_budget_name(p) for p in projects_touched}
+
     all_in_range_rows = set()
     all_out_of_range_rows = set()
 
@@ -285,75 +313,174 @@ def check_cost_budget(doc, trigger_stage):
         if not project or not account:
             continue
 
+        budget_name = budget_names.get(project)
+        if not budget_name:
+            continue
+
         categories = get_categories_for_account(company, account)
         if not categories:
             continue
 
         in_range_rows, out_of_range_rows = _get_affected_detail_rows(
-            company, project, categories, doc_date
+            budget_name, categories, doc_date
         )
         all_in_range_rows.update(in_range_rows)
         all_out_of_range_rows.update(out_of_range_rows)
-
-        if not in_range_rows:
-            continue
-
-        is_carry_forward = _is_carry_forward(item, trigger_stage)
-        item_amount = flt(item.get("amount"))
-
-        if is_carry_forward:
-            recalc_only_rows.update(in_range_rows)
-        else:
-            for r in in_range_rows:
-                enforceable_rows.add(r)
-                current_doc_amounts[r] = current_doc_amounts.get(r, 0.0) + item_amount
 
     _enforce_date_range_violations(
         all_in_range_rows, all_out_of_range_rows, trigger_stage, doc.doctype, doc.name
     )
 
-    recalc_only_rows -= enforceable_rows
-
-    for row_name, parent_name in enforceable_rows:
-        current_amt = current_doc_amounts.get((row_name, parent_name), 0.0)
+    # Every affected row is recalculated AND enforced against its accurate,
+    # up-to-date cumulative figure - there is no separate "carry-forward,
+    # recalc-only" path. The previous design skipped enforcement entirely
+    # for PO items linked to a Material Request (and PI items linked to a
+    # Purchase Order), assuming the full amount had already been checked
+    # at the earlier stage. That assumption breaks whenever the earlier
+    # stage's amount differs from the current one (e.g. a Material Request
+    # submitted for 0 followed by a Purchase Order for 40,000) - the
+    # difference would silently escape budget enforcement. Using the
+    # precise pending-amount calculation in budget_utils (which already
+    # nets out ordered_qty / billed_amt per stage) makes a separate
+    # carry-forward concept unnecessary: the recalculated cumulative is
+    # always correct on its own.
+    for row_name, parent_name in all_in_range_rows:
+        amount_details = _get_current_doc_amount_details(row_name, doc, trigger_stage)
         _process_budget_row(
             row_name,
             parent_name,
             trigger_stage,
             doc_date,
             enforce=True,
-            current_doc_amount=current_amt,
+            current_doc_amount=amount_details["new_spending"],
             current_doctype=doc.doctype,
             current_docname=doc.name,
-        )
-
-    for row_name, parent_name in recalc_only_rows:
-        _process_budget_row(
-            row_name, parent_name, trigger_stage, doc_date, enforce=False
+            amount_details=amount_details,
         )
 
 
-def _is_carry_forward(item, trigger_stage):
-    if trigger_stage == "purchase_order":
-        return bool(item.get("material_request"))
-    if trigger_stage == "actual":
-        return bool(item.get("purchase_order"))
-    return False
+def _get_current_doc_amount_for_row(row_name, parent_name, doc, trigger_stage, company):
+    """
+    Returns this document's own contribution to a given budget row, for
+    DISPLAY purposes only (used in the violation message's "This
+    document's amount" line) - it does not affect whether enforcement
+    triggers, since that now always uses the accurate recalculated
+    cumulative_expense_amount instead of a manually-summed amount.
+
+    For carry-forward items (PO linked to an MR, PI linked to a PO), the
+    "new spending" portion is the document's amount minus whatever the
+    prior-stage document for the same item already contributed, floored
+    at zero. Returns a dict with all three figures so callers can show
+    both the document's face value and the incremental new spend.
+    """
+    details = _get_current_doc_amount_details(row_name, doc, trigger_stage)
+    return details["new_spending"]
 
 
-def _get_affected_detail_rows(company, project, categories, doc_date):
+def _get_current_doc_amount_details(row_name, doc, trigger_stage):
+    """
+    Same calculation as _get_current_doc_amount_for_row, but returns the
+    full breakdown: total document amount on this row's accounts,
+    how much was already counted at a prior stage (MR for a PO, PO for a
+    PI), and the resulting new spending (total - already_counted, floored
+    at zero).
+    """
+    row = frappe.get_doc("Project Cost Budget Detail", row_name)
+    accounts = set(get_accounts_for_category(row.budget_category))
+
+    total_amount = 0.0
+    already_counted = 0.0
+
+    for item in doc.get("items") or []:
+        # Real submitted documents (Material Request Item, Purchase Order
+        # Item, Purchase Invoice Item) use the fieldname "expense_account".
+        # The client-side preview payload (budget_check.js) sends "account"
+        # instead - support both so this works identically for the real
+        # on_submit enforcement and the before_submit preview dialog.
+        account = item.get("expense_account") or item.get("account")
+        if account not in accounts:
+            continue
+
+        item_amount = flt(item.get("amount"))
+        total_amount += item_amount
+
+        if trigger_stage == "purchase_order" and item.get("material_request"):
+            prior_amount = flt(
+                frappe.db.get_value(
+                    "Material Request Item",
+                    {"parent": item.get("material_request"), "expense_account": account},
+                    "amount",
+                )
+            )
+            already_counted += min(prior_amount, item_amount)
+        elif trigger_stage == "actual" and item.get("purchase_order"):
+            prior_amount = flt(
+                frappe.db.get_value(
+                    "Purchase Order Item",
+                    {"parent": item.get("purchase_order"), "expense_account": account},
+                    "amount",
+                )
+            )
+            already_counted += min(prior_amount, item_amount)
+
+    new_spending = max(0.0, total_amount - already_counted)
+
+    return {
+        "total_amount": total_amount,
+        "already_counted": already_counted,
+        "new_spending": new_spending,
+    }
+
+
+def _get_active_budget_name(project):
+    """
+    Returns the name of the Project Cost Budget currently linked to this
+    project via Project.custom_budget_cost, but ONLY if that budget is
+    actually submitted (docstatus == 1). Returns None if the project has
+    no linked budget, or if the linked budget is not submitted (e.g. it
+    was cancelled and not yet amended) - in either case there is no
+    active budget to enforce against.
+
+    This is the single source of truth for "which budget applies to this
+    project" used across every enforcement entry point (Material Request,
+    Purchase Order, Purchase Invoice, Journal Entry, Expense Claim) so
+    they can never disagree with each other or with what is shown on the
+    Project's own Budget tab.
+    """
+    budget_name = frappe.db.get_value("Project", project, "custom_budget_cost")
+    if not budget_name:
+        return None
+
+    docstatus = frappe.db.get_value("Project Cost Budget", budget_name, "docstatus")
+    if docstatus != 1:
+        return None
+
+    return budget_name
+
+
+def _get_affected_detail_rows(budget_name, categories, doc_date):
+    """
+    Returns the (in_range, out_of_range) Budget Category Detail rows for
+    a SPECIFIC budget document (the one currently active on the project,
+    per _get_active_budget_name) - not "any submitted budget for this
+    project". This guarantees every enforcement call site reads from the
+    exact same budget as Project.custom_budget_cost, even if older
+    submitted/amended budget documents still exist in the database.
+    """
+    if not budget_name:
+        return set(), set()
+
     rows = frappe.db.sql(
         """
 		SELECT d.name AS row_name, d.parent AS parent_name,
 			d.from_date, d.to_date, p.from_date AS p_from_date, p.to_date AS p_to_date
 		FROM `tabProject Cost Budget Detail` d
 		INNER JOIN `tabProject Cost Budget` p ON d.parent = p.name
-		WHERE p.project = %(project)s
-			AND p.company = %(company)s
+		WHERE p.name = %(budget_name)s
 			AND p.docstatus = 1
 			AND d.budget_category IN %(categories)s
 	""",
-        {"company": company, "project": project, "categories": categories},
+        {"budget_name": budget_name, "categories": categories},
         as_dict=True,
     )
 
@@ -424,6 +551,7 @@ def _process_budget_row(
     current_doc_amount=0.0,
     current_doctype=None,
     current_docname=None,
+    amount_details=None,
 ):
     row = frappe.get_doc("Project Cost Budget Detail", row_name)
     parent = frappe.get_doc("Project Cost Budget", parent_name)
@@ -447,7 +575,7 @@ def _process_budget_row(
     if annual_action != "None" and flt(row.cumulative_expense_amount) > flt(
         row.estimated_amount
     ):
-        msg = _build_message(row, "total", parent, current_doc_amount)
+        msg = _build_message(row, "total", parent, current_doc_amount, amount_details)
         _enforce(annual_action, msg)
         notify_project_stakeholders(
             parent.project, msg, "Project Cost Budget", parent.name
@@ -469,7 +597,7 @@ def _process_budget_row(
                 parent.conversion_rate,
             )
             if flt(row.actual_amount_till_month) > monthly_budget_doc:
-                msg = _build_message(row, "monthly", parent, current_doc_amount)
+                msg = _build_message(row, "monthly", parent, current_doc_amount, amount_details)
                 _enforce(monthly_action, msg)
                 notify_project_stakeholders(
                     parent.project, msg, "Project Cost Budget", parent.name
@@ -832,7 +960,7 @@ def _get_related_documents(
     return docs
 
 
-def _build_message(row, check_type, parent, current_doc_amount=0.0):
+def _build_message(row, check_type, parent, current_doc_amount=0.0, amount_details=None):
     estimated = flt(row.estimated_amount)
     cumulative_after = flt(row.cumulative_expense_amount)
     cumulative_before = cumulative_after - flt(current_doc_amount)
@@ -848,6 +976,16 @@ def _build_message(row, check_type, parent, current_doc_amount=0.0):
 
     currency_opts = {"fieldtype": "Currency"}
 
+    breakdown_rows = ""
+    if amount_details and flt(amount_details.get("already_counted")) > 0:
+        breakdown_rows = f"""
+				<tr><td>This document's total amount</td><td><b>{frappe.format_value(amount_details["total_amount"], currency_opts)}</b></td></tr>
+				<tr><td>Already counted at an earlier stage</td><td><b>{frappe.format_value(amount_details["already_counted"], currency_opts)}</b></td></tr>
+				<tr><td>New spending (this document)</td><td><b>{frappe.format_value(amount_details["new_spending"], currency_opts)}</b></td></tr>"""
+    else:
+        breakdown_rows = f"""
+				<tr><td>This document's amount</td><td><b>{frappe.format_value(current_doc_amount, currency_opts)}</b></td></tr>"""
+
     return f"""
 		<p><b>Budget exceeded</b> &nbsp; Project <b>{parent.project}</b></p>
 		<p>Budget category <b>{row.budget_category}</b> {header_text}.</p>
@@ -855,8 +993,7 @@ def _build_message(row, check_type, parent, current_doc_amount=0.0):
 			<tbody>
 				<tr><td>Estimated budget</td><td><b>{frappe.format_value(estimated, currency_opts)}</b></td></tr>
 				<tr><td>Actual before this document</td><td><b>{frappe.format_value(cumulative_before, currency_opts)}</b></td></tr>
-				<tr><td>Remaining before this document</td><td><b>{frappe.format_value(variance_before, currency_opts)}</b></td></tr>
-				<tr><td>This document's amount</td><td><b>{frappe.format_value(current_doc_amount, currency_opts)}</b></td></tr>
+				<tr><td>Remaining before this document</td><td><b>{frappe.format_value(variance_before, currency_opts)}</b></td></tr>{breakdown_rows}
 				<tr><td>Deviation over budget</td><td><b>{frappe.format_value(deviation, currency_opts)}</b></td></tr>
 			</tbody>
 		</table>
@@ -904,13 +1041,17 @@ def _enforce_category_restriction(
     if not item_accounts:
         return
 
+    active_budget_name = _get_active_budget_name(project)
+    if not active_budget_name:
+        return
+
     restricted_budgets = frappe.db.sql(
         """
 		SELECT name FROM `tabProject Cost Budget`
-		WHERE project = %(project)s AND company = %(company)s
+		WHERE name = %(budget_name)s
 			AND docstatus = 1 AND restrict_to_budget_categories = 1
 	""",
-        {"project": project, "company": company},
+        {"budget_name": active_budget_name},
         as_dict=True,
     )
 
@@ -968,7 +1109,7 @@ def get_budget_check_preview(
     project,
     accounts,
     trigger_stage,
-    amounts_by_account=None,
+    items=None,
     current_doctype=None,
     current_docname=None,
     doc_date=None,
@@ -979,12 +1120,15 @@ def get_budget_check_preview(
     script to render a rich confirmation Dialog before the actual
     submit happens.
 
-    amounts_by_account: dict mapping account name -> this document's own
-    pending amount on that account (in document currency). Required
-    because the document hasn't been submitted yet (docstatus=0 in DB at
-    this point), so the stored cumulative_expense_amount on each budget
-    row does NOT include this document's contribution - we add it
-    explicitly before comparing against the estimate.
+    items: list of dicts with the document's own pending items (account,
+    amount, and optionally material_request / purchase_order for the
+    prior-stage link). Required because the document hasn't been
+    submitted yet (docstatus=0 in DB at this point), so the stored
+    cumulative_expense_amount on each budget row does NOT include this
+    document's contribution. The per-row incremental amount is computed
+    with the same logic as the real on_submit enforcement
+    (_get_current_doc_amount_for_row), so the preview and the actual
+    enforcement can never disagree.
 
     Error handling: If any error occurs during preview, we return the
     result with no violations rather than raising an exception. This
@@ -994,9 +1138,9 @@ def get_budget_check_preview(
 
     if isinstance(accounts, str):
         accounts = json.loads(accounts)
-    if isinstance(amounts_by_account, str):
-        amounts_by_account = json.loads(amounts_by_account)
-    amounts_by_account = amounts_by_account or {}
+    if isinstance(items, str):
+        items = json.loads(items)
+    items = items or []
 
     # Validate inputs
     if not isinstance(accounts, list):
@@ -1004,6 +1148,19 @@ def get_budget_check_preview(
 
     # Ensure all accounts are strings
     accounts = [str(a) for a in accounts]
+
+    # Wrap items in a lightweight object exposing .get(), matching the
+    # shape _get_current_doc_amount_for_row expects from a real document
+    class _PreviewDoc:
+        def __init__(self, items):
+            self._items = items
+
+        def get(self, key):
+            if key == "items":
+                return self._items
+            return None
+
+    preview_doc = _PreviewDoc(items)
 
     result = {
         "category_violation": None,
@@ -1014,14 +1171,19 @@ def get_budget_check_preview(
     }
 
     # 1) Strict category restriction preview
-    restricted_budgets = frappe.db.sql(
-        """
+    active_budget_name = _get_active_budget_name(project)
+    restricted_budgets = (
+        frappe.db.sql(
+            """
 		SELECT name FROM `tabProject Cost Budget`
-		WHERE project = %(project)s AND company = %(company)s
+		WHERE name = %(budget_name)s
 			AND docstatus = 1 AND restrict_to_budget_categories = 1
 	""",
-        {"project": project, "company": company},
-        as_dict=True,
+            {"budget_name": active_budget_name},
+            as_dict=True,
+        )
+        if active_budget_name
+        else []
     )
 
     for budget in restricted_budgets:
@@ -1059,7 +1221,7 @@ def get_budget_check_preview(
 
     doc_date = getdate(doc_date) if doc_date else getdate(frappe.utils.today())
     in_range_rows, out_of_range_rows = _get_affected_detail_rows(
-        company, project, all_categories, doc_date
+        active_budget_name, all_categories, doc_date
     )
 
     covered_categories = set()
@@ -1101,8 +1263,8 @@ def get_budget_check_preview(
         # Refreshes cached values with live query
         _recalculate_row(row, parent, doc_date)
 
-        row_accounts = get_accounts_for_category(row.budget_category)
-        current_amt = sum(flt(amounts_by_account.get(a, 0)) for a in row_accounts)
+        amount_details = _get_current_doc_amount_details(row_name, preview_doc, trigger_stage)
+        current_amt = amount_details["new_spending"]
 
         estimated = flt(row.estimated_amount)
         cumulative_stored = flt(row.cumulative_expense_amount)
@@ -1120,6 +1282,8 @@ def get_budget_check_preview(
             "cumulative": cumulative_with_current,
             "cumulative_stored": cumulative_stored,
             "current_doc_amount": current_amt,
+            "current_doc_total_amount": amount_details["total_amount"],
+            "current_doc_already_counted": amount_details["already_counted"],
             "currency": parent.currency,
             "action": action,
             "can_bypass": _can_bypass_budget(),

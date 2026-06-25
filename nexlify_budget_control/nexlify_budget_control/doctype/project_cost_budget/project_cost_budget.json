@@ -9,10 +9,11 @@
  "field_order": [
   "restriction_section",
   "restrict_to_budget_categories",
+  "section_break_ggra",
   "company",
   "from_date",
   "currency",
-  "column_break_hckp",
+  "column_break_xcgk",
   "project",
   "to_date",
   "conversion_rate",
@@ -103,14 +104,18 @@
    "search_index": 1
   },
   {
-   "fieldname": "column_break_hckp",
+   "fieldname": "section_break_ggra",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_xcgk",
    "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-24 16:24:52.367341",
+ "modified": "2026-06-25 02:30:16.072964",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Cost Budget",
