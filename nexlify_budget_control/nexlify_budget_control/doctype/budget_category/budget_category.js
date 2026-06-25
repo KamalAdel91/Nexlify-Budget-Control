@@ -22,7 +22,8 @@ frappe.ui.form.on("Budget Category", {
 			if (row.company) {
 				return {
 					filters: {
-						"company": row.company
+						"company": row.company,
+						"is_group": 0
 					}
 				};
 			}
