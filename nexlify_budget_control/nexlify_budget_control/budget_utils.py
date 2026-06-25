@@ -29,7 +29,7 @@ def get_categories_for_account(company, account):
 		SELECT DISTINCT bc.name
 		FROM `tabBudget Category` bc
 		INNER JOIN `tabBudget Category Account` bca ON bca.parent = bc.name
-		WHERE bc.company = %(company)s
+		WHERE bca.company = %(company)s
 			AND bc.budget_type = 'Cost'
 			AND bca.account = %(account)s
 	""", {"company": company, "account": account}, as_dict=True)

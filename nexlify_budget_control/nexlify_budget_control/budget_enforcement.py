@@ -506,18 +506,67 @@ def _enforce_date_range_violations(
     if not out_of_range_rows:
         return
 
+    # Batch-load all detail rows (avoids O(N) frappe.get_doc calls)
+    all_row_names = list(
+        {row_name for row_name, _ in in_range_rows}
+        | {row_name for row_name, _ in out_of_range_rows}
+    )
+    if not all_row_names:
+        return
+
+    detail_rows = frappe.db.sql(
+        """
+        SELECT name, parent, budget_category,
+               applicable_on_material_request,
+               applicable_on_purchase_order,
+               applicable_on_booking_actual_expenses,
+               action_if_annual_exceeded,
+               action_if_annual_exceeded_on_mr,
+               action_if_annual_exceeded_on_po,
+               action_if_monthly_exceeded,
+               action_if_monthly_exceeded_on_mr,
+               action_if_monthly_exceeded_on_po,
+               from_date, to_date
+        FROM `tabProject Cost Budget Detail`
+        WHERE name IN %(names)s
+    """,
+        {"names": all_row_names},
+        as_dict=True,
+    )
+    row_map = {r.name: r for r in detail_rows}
+
+    # Batch-load parent docs (avoids another set of O(N) frappe.get_doc calls)
+    all_parent_names = list(
+        {p for _, p in in_range_rows} | {p for _, p in out_of_range_rows}
+    )
+    parent_rows = frappe.db.sql(
+        """
+        SELECT name, project, from_date, to_date
+        FROM `tabProject Cost Budget`
+        WHERE name IN %(names)s
+    """,
+        {"names": all_parent_names},
+        as_dict=True,
+    )
+    parent_map = {p.name: p for p in parent_rows}
+
     covered_categories = set()
     for row_name, parent_name in in_range_rows:
-        row = frappe.get_doc("Project Cost Budget Detail", row_name)
-        covered_categories.add((parent_name, row.budget_category))
+        row = row_map.get(row_name)
+        if row:
+            covered_categories.add((parent_name, row.budget_category))
 
     for row_name, parent_name in out_of_range_rows:
-        row = frappe.get_doc("Project Cost Budget Detail", row_name)
+        row = row_map.get(row_name)
+        if not row:
+            continue
 
         if (parent_name, row.budget_category) in covered_categories:
             continue
 
-        parent = frappe.get_doc("Project Cost Budget", parent_name)
+        parent = parent_map.get(parent_name)
+        if not parent:
+            continue
 
         applicable_field = {
             "material_request": "applicable_on_material_request",
@@ -653,16 +702,23 @@ def _recalculate_row(row, parent, doc_date):
     row.variance = estimated - flt(row.cumulative_expense_amount)
     row.variance_percentage = (row.variance / estimated * 100) if estimated else 0.0
 
-    # Use db_set for each field to properly trigger hooks and validations
-    # db_update() bypasses hooks and can leave data in an inconsistent state
-    row.db_set("actual_expense_amount", row.actual_expense_amount, update_modified=False)
-    row.db_set("material_request_amount", row.material_request_amount, update_modified=False)
-    row.db_set("purchase_order_amount", row.purchase_order_amount, update_modified=False)
-    row.db_set("cumulative_expense_amount", row.cumulative_expense_amount, update_modified=False)
-    row.db_set("actual_amount_till_month", row.actual_amount_till_month, update_modified=False)
-    row.db_set("cumulative_amount_till_month", row.cumulative_amount_till_month, update_modified=False)
-    row.db_set("variance", row.variance, update_modified=False)
-    row.db_set("variance_percentage", row.variance_percentage, update_modified=False)
+    # Use db_set with a field/value dict for a single UPDATE statement
+    # instead of 8 separate ones - db_set still goes through the proper
+    # Frappe update path (unlike db_update(), which bypasses hooks and
+    # can leave data inconsistent), it's just batched into one call.
+    row.db_set(
+        {
+            "actual_expense_amount": row.actual_expense_amount,
+            "material_request_amount": row.material_request_amount,
+            "purchase_order_amount": row.purchase_order_amount,
+            "cumulative_expense_amount": row.cumulative_expense_amount,
+            "actual_amount_till_month": row.actual_amount_till_month,
+            "cumulative_amount_till_month": row.cumulative_amount_till_month,
+            "variance": row.variance,
+            "variance_percentage": row.variance_percentage,
+        },
+        update_modified=False,
+    )
 
 
 def _get_monthly_budget_till_date(row, parent, eff_from, eff_to, month_end):
@@ -792,170 +848,119 @@ def _get_related_documents(
         "ec_total": 0,
     }
 
-    mr_exclude = (
-        "AND mr.name != %(exclude_name)s"
-        if exclude_doctype == "Material Request"
-        else ""
-    )
-    po_exclude = (
-        "AND po.name != %(exclude_name)s" if exclude_doctype == "Purchase Order" else ""
-    )
-    pi_exclude = (
-        "AND pi.name != %(exclude_name)s"
-        if exclude_doctype == "Purchase Invoice"
-        else ""
-    )
-    je_exclude = (
-        "AND je.name != %(exclude_name)s" if exclude_doctype == "Journal Entry" else ""
-    )
-    ec_exclude = (
-        "AND ec.name != %(exclude_name)s" if exclude_doctype == "Expense Claim" else ""
-    )
+    # Shared exclude conditions (safe SQL fragments, controlled by fixed check)
+    mr_exclude = "AND mr.name != %(exclude_name)s" if exclude_doctype == "Material Request" else ""
+    po_exclude = "AND po.name != %(exclude_name)s" if exclude_doctype == "Purchase Order" else ""
+    pi_exclude = "AND pi.name != %(exclude_name)s" if exclude_doctype == "Purchase Invoice" else ""
+    je_exclude = "AND je.name != %(exclude_name)s" if exclude_doctype == "Journal Entry" else ""
+    ec_exclude = "AND ec.name != %(exclude_name)s" if exclude_doctype == "Expense Claim" else ""
 
-    params = {"company": company, "project": project, "exclude_name": exclude_name}
+    # Each query uses COUNT(*) OVER() to get the total in the same round-trip,
+    # avoiding a separate COUNT query per doctype. LIMIT/OFFSET are passed as
+    # safe parameters instead of f-strings to avoid SQL injection.
+    base_params = {"company": company, "project": project, "exclude_name": exclude_name}
 
     mr_offset = pages.get("mr", 0) * PAGE_SIZE
-    docs["mr_total"] = frappe.db.sql(
+    mr_rows = frappe.db.sql(
         f"""
-		SELECT COUNT(DISTINCT mr.name) AS cnt
-		FROM `tabMaterial Request` mr
-		INNER JOIN `tabMaterial Request Item` mri ON mri.parent = mr.name
-		WHERE mr.docstatus = 1 AND mr.company = %(company)s AND mri.project = %(project)s
-			{mr_exclude}
-	""",
-        params,
-        as_dict=True,
-    )[0].cnt
-    docs["mr"] = frappe.db.sql(
-        f"""
-		SELECT DISTINCT mr.name, mr.transaction_date, mr.status,
-			SUM(mri.amount) AS amount
-		FROM `tabMaterial Request` mr
-		INNER JOIN `tabMaterial Request Item` mri ON mri.parent = mr.name
-		WHERE mr.docstatus = 1 AND mr.company = %(company)s AND mri.project = %(project)s
-			{mr_exclude}
-		GROUP BY mr.name
-		ORDER BY mr.transaction_date DESC
-		LIMIT {PAGE_SIZE} OFFSET {mr_offset}
-	""",
-        params,
+        SELECT DISTINCT mr.name, mr.transaction_date, mr.status,
+            SUM(mri.amount) AS amount,
+            COUNT(*) OVER() AS total_count
+        FROM `tabMaterial Request` mr
+        INNER JOIN `tabMaterial Request Item` mri ON mri.parent = mr.name
+        WHERE mr.docstatus = 1 AND mr.company = %(company)s AND mri.project = %(project)s
+            {mr_exclude}
+        GROUP BY mr.name
+        ORDER BY mr.transaction_date DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+    """,
+        {**base_params, "limit": PAGE_SIZE, "offset": mr_offset},
         as_dict=True,
     )
+    docs["mr"] = mr_rows
+    docs["mr_total"] = mr_rows[0]["total_count"] if mr_rows else 0
 
     po_offset = pages.get("po", 0) * PAGE_SIZE
-    docs["po_total"] = frappe.db.sql(
+    po_rows = frappe.db.sql(
         f"""
-		SELECT COUNT(DISTINCT po.name) AS cnt
-		FROM `tabPurchase Order` po
-		INNER JOIN `tabPurchase Order Item` poi ON poi.parent = po.name
-		WHERE po.docstatus = 1 AND po.company = %(company)s AND poi.project = %(project)s
-			{po_exclude}
-	""",
-        params,
-        as_dict=True,
-    )[0].cnt
-    docs["po"] = frappe.db.sql(
-        f"""
-		SELECT DISTINCT po.name, po.transaction_date, po.status,
-			SUM(poi.amount) AS amount, SUM(poi.billed_amt) AS billed_amt
-		FROM `tabPurchase Order` po
-		INNER JOIN `tabPurchase Order Item` poi ON poi.parent = po.name
-		WHERE po.docstatus = 1 AND po.company = %(company)s AND poi.project = %(project)s
-			{po_exclude}
-		GROUP BY po.name
-		ORDER BY po.transaction_date DESC
-		LIMIT {PAGE_SIZE} OFFSET {po_offset}
-	""",
-        params,
+        SELECT DISTINCT po.name, po.transaction_date, po.status,
+            SUM(poi.amount) AS amount, SUM(poi.billed_amt) AS billed_amt,
+            COUNT(*) OVER() AS total_count
+        FROM `tabPurchase Order` po
+        INNER JOIN `tabPurchase Order Item` poi ON poi.parent = po.name
+        WHERE po.docstatus = 1 AND po.company = %(company)s AND poi.project = %(project)s
+            {po_exclude}
+        GROUP BY po.name
+        ORDER BY po.transaction_date DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+    """,
+        {**base_params, "limit": PAGE_SIZE, "offset": po_offset},
         as_dict=True,
     )
+    docs["po"] = po_rows
+    docs["po_total"] = po_rows[0]["total_count"] if po_rows else 0
 
     pi_offset = pages.get("pi", 0) * PAGE_SIZE
-    docs["pi_total"] = frappe.db.sql(
+    pi_rows = frappe.db.sql(
         f"""
-		SELECT COUNT(DISTINCT pi.name) AS cnt
-		FROM `tabPurchase Invoice` pi
-		INNER JOIN `tabPurchase Invoice Item` pii ON pii.parent = pi.name
-		WHERE pi.docstatus = 1 AND pi.company = %(company)s AND pii.project = %(project)s
-			{pi_exclude}
-	""",
-        params,
-        as_dict=True,
-    )[0].cnt
-    docs["pi"] = frappe.db.sql(
-        f"""
-		SELECT DISTINCT pi.name, pi.posting_date, pi.status,
-			SUM(pii.amount) AS amount
-		FROM `tabPurchase Invoice` pi
-		INNER JOIN `tabPurchase Invoice Item` pii ON pii.parent = pi.name
-		WHERE pi.docstatus = 1 AND pi.company = %(company)s AND pii.project = %(project)s
-			{pi_exclude}
-		GROUP BY pi.name
-		ORDER BY pi.posting_date DESC
-		LIMIT {PAGE_SIZE} OFFSET {pi_offset}
-	""",
-        params,
+        SELECT DISTINCT pi.name, pi.posting_date, pi.status,
+            SUM(pii.amount) AS amount,
+            COUNT(*) OVER() AS total_count
+        FROM `tabPurchase Invoice` pi
+        INNER JOIN `tabPurchase Invoice Item` pii ON pii.parent = pi.name
+        WHERE pi.docstatus = 1 AND pi.company = %(company)s AND pii.project = %(project)s
+            {pi_exclude}
+        GROUP BY pi.name
+        ORDER BY pi.posting_date DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+    """,
+        {**base_params, "limit": PAGE_SIZE, "offset": pi_offset},
         as_dict=True,
     )
+    docs["pi"] = pi_rows
+    docs["pi_total"] = pi_rows[0]["total_count"] if pi_rows else 0
 
     je_offset = pages.get("je", 0) * PAGE_SIZE
-    docs["je_total"] = frappe.db.sql(
+    je_rows = frappe.db.sql(
         f"""
-		SELECT COUNT(DISTINCT je.name) AS cnt
-		FROM `tabJournal Entry` je
-		INNER JOIN `tabJournal Entry Account` jea ON jea.parent = je.name
-		WHERE je.docstatus = 1 AND je.company = %(company)s AND jea.project = %(project)s
-			{je_exclude}
-	""",
-        params,
-        as_dict=True,
-    )[0].cnt
-    docs["je"] = frappe.db.sql(
-        f"""
-		SELECT DISTINCT je.name, je.posting_date,
-			SUM(jea.debit_in_account_currency) AS amount
-		FROM `tabJournal Entry` je
-		INNER JOIN `tabJournal Entry Account` jea ON jea.parent = je.name
-		WHERE je.docstatus = 1 AND je.company = %(company)s AND jea.project = %(project)s
-			{je_exclude}
-		GROUP BY je.name
-		ORDER BY je.posting_date DESC
-		LIMIT {PAGE_SIZE} OFFSET {je_offset}
-	""",
-        params,
+        SELECT DISTINCT je.name, je.posting_date,
+            SUM(jea.debit_in_account_currency) - SUM(jea.credit_in_account_currency) AS amount,
+            COUNT(*) OVER() AS total_count
+        FROM `tabJournal Entry` je
+        INNER JOIN `tabJournal Entry Account` jea ON jea.parent = je.name
+        WHERE je.docstatus = 1 AND je.company = %(company)s AND jea.project = %(project)s
+            {je_exclude}
+        GROUP BY je.name
+        ORDER BY je.posting_date DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+    """,
+        {**base_params, "limit": PAGE_SIZE, "offset": je_offset},
         as_dict=True,
     )
+    docs["je"] = je_rows
+    docs["je_total"] = je_rows[0]["total_count"] if je_rows else 0
 
     if "hrms" in frappe.get_installed_apps():
         ec_offset = pages.get("ec", 0) * PAGE_SIZE
-        docs["ec_total"] = frappe.db.sql(
+        ec_rows = frappe.db.sql(
             f"""
-			SELECT COUNT(DISTINCT ec.name) AS cnt
-			FROM `tabExpense Claim` ec
-			INNER JOIN `tabExpense Claim Detail` ecd ON ecd.parent = ec.name
-			WHERE ec.docstatus = 1 AND ec.company = %(company)s
-				AND (ecd.project = %(project)s OR ec.project = %(project)s)
-				{ec_exclude}
-		""",
-            params,
-            as_dict=True,
-        )[0].cnt
-        docs["ec"] = frappe.db.sql(
-            f"""
-			SELECT DISTINCT ec.name, ec.posting_date, ec.status,
-				SUM(ecd.sanctioned_amount) AS amount
-			FROM `tabExpense Claim` ec
-			INNER JOIN `tabExpense Claim Detail` ecd ON ecd.parent = ec.name
-			WHERE ec.docstatus = 1 AND ec.company = %(company)s
-				AND (ecd.project = %(project)s OR ec.project = %(project)s)
-				{ec_exclude}
-			GROUP BY ec.name
-			ORDER BY ec.posting_date DESC
-			LIMIT {PAGE_SIZE} OFFSET {ec_offset}
-		""",
-            params,
+            SELECT DISTINCT ec.name, ec.posting_date, ec.status,
+                SUM(ecd.sanctioned_amount) AS amount,
+                COUNT(*) OVER() AS total_count
+            FROM `tabExpense Claim` ec
+            INNER JOIN `tabExpense Claim Detail` ecd ON ecd.parent = ec.name
+            WHERE ec.docstatus = 1 AND ec.company = %(company)s
+                AND (ecd.project = %(project)s OR ec.project = %(project)s)
+                {ec_exclude}
+            GROUP BY ec.name
+            ORDER BY ec.posting_date DESC
+            LIMIT %(limit)s OFFSET %(offset)s
+        """,
+            {**base_params, "limit": PAGE_SIZE, "offset": ec_offset},
             as_dict=True,
         )
+        docs["ec"] = ec_rows
+        docs["ec_total"] = ec_rows[0]["total_count"] if ec_rows else 0
 
     return docs
 

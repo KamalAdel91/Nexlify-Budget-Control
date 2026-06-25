@@ -1,11 +1,13 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "allow_rename": 1,
  "autoname": "hash",
- "creation": "2026-06-20 07:08:00.000000",
+ "creation": "2026-06-20 07:08:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "company",
   "account"
  ],
  "fields": [
@@ -16,17 +18,25 @@
    "label": "Account",
    "options": "Account",
    "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-06-20 07:08:00.000000",
+ "modified": "2026-06-25 20:26:36.903910",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Budget Category Account",
  "owner": "Administrator",
  "permissions": [],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
