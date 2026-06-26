@@ -2,11 +2,12 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "format:PCB-{YYYY}-{#####}",
+ "autoname": "naming_series:",
  "creation": "2026-06-20 07:30:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
   "restriction_section",
   "restrict_to_budget_categories",
   "section_break_ggra",
@@ -22,8 +23,18 @@
   "amended_from"
  ],
  "fields": [
-  {
-   "fieldname": "restriction_section",
+   {
+    "fieldname": "naming_series",
+    "fieldtype": "Select",
+    "label": "Naming Series",
+    "no_copy": 1,
+    "options": ".ABBR.-CB-.YYYY.-.####",
+    "print_hide": 1,
+    "reqd": 1,
+    "set_only_once": 1
+   },
+   {
+    "fieldname": "restriction_section",
    "fieldtype": "Section Break",
    "label": "Restriction"
   },

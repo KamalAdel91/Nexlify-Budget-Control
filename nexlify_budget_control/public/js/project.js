@@ -31,7 +31,8 @@ function handle_mark_as_active(frm) {
             'No budget has been set for this project. You need to create a Project Cost Budget first before activating this project.',
             function() {
                 frappe.new_doc('Project Cost Budget', {
-                    project: frm.doc.name
+                    project: frm.doc.name,
+                    company: frm.doc.company
                 });
             },
             'Open New Budget'
