@@ -1424,3 +1424,5 @@ def get_project_budget_dashboard(project):
         "total_percentage_used": (total_cumulative / total_estimated * 100) if total_estimated else 0.0,
         "rows": rows,
     }
+
+

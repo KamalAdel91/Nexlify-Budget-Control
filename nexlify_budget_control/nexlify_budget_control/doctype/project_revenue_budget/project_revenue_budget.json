@@ -146,12 +146,21 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "default": ".ABBR.-RB-.YYYY.-.####.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": ".ABBR.-RB-.YYYY.-.####.",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-24 16:17:44.814159",
+ "modified": "2026-06-26 23:05:00.804519",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Revenue Budget",
