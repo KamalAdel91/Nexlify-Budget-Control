@@ -16,10 +16,13 @@ function render_mark_as_active_button(frm) {
             handle_mark_as_active(frm);
         });
 
+        let is_dark = document.documentElement.getAttribute('data-theme') === 'dark'
+            || document.body.classList.contains('dark');
+
         btn.css({
-            'background-color': 'black',
-            'color': 'white',
-            'border-color': 'black'
+            'background-color': is_dark ? '#F5F5F4' : 'black',
+            'color': is_dark ? '#171716' : 'white',
+            'border-color': is_dark ? '#F5F5F4' : 'black'
         });
     }
 }
