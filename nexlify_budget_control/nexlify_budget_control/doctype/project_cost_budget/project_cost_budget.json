@@ -39,11 +39,12 @@
    "label": "Restriction"
   },
   {
-   "default": "0",
+   "default": "1",
    "description": "When enabled, any document (MR/PO/PI/JE/Expense Claim) touching this project must use ONLY accounts that belong to one of this budget's Budget Categories.",
    "fieldname": "restrict_to_budget_categories",
    "fieldtype": "Check",
-   "label": "Restrict to Budget Categories Only"
+   "label": "Restrict to Budget Categories Only",
+   "read_only": 1
   },
   {
    "fieldname": "company",
