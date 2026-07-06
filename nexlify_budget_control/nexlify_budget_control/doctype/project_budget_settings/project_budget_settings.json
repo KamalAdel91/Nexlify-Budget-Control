@@ -1,0 +1,71 @@
+{
+ "actions": [],
+ "creation": "2026-07-05 12:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "budget_bypass_role",
+  "import_mode",
+  "section_break_rules",
+  "document_rules",
+  "section_break_dashboard_filters",
+  "dashboard_filters"
+ ],
+ "fields": [
+  {
+   "fieldname": "budget_bypass_role",
+   "fieldtype": "Link",
+   "label": "Role Allowed to Bypass Budget",
+   "options": "Role"
+  },
+  {
+   "fieldname": "import_mode",
+   "fieldtype": "Check",
+   "label": "Import Mode (log all violations, never block)",
+   "description": "Enable temporarily before a large bulk import (e.g. Data Import). Every budget violation is still recorded in the Violation Log, but nothing will stop or warn during submission. Remember to turn this OFF again after the import finishes."
+  },
+  {
+   "fieldname": "section_break_rules",
+   "fieldtype": "Section Break",
+   "label": "Document Type Rules"
+  },
+  {
+   "fieldname": "document_rules",
+   "fieldtype": "Table",
+   "label": "Document Type Rules",
+   "options": "Document Type Rule"
+  },
+  {
+   "fieldname": "section_break_dashboard_filters",
+   "fieldtype": "Section Break",
+   "label": "Dashboard Filters"
+  },
+  {
+   "fieldname": "dashboard_filters",
+   "fieldtype": "Table",
+   "label": "Dashboard Filters",
+   "options": "Dashboard Filter Field"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-05 12:00:00",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Project Budget Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

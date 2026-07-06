@@ -12,28 +12,19 @@
   "to_date",
   "estimated_amount",
   "warning_threshold_percentage",
-  "monthly_distribution",
   "applicability_section",
   "applicable_on_material_request",
   "applicable_on_purchase_order",
   "applicable_on_booking_actual_expenses",
   "action_annual_section",
-  "action_if_annual_exceeded",
-  "action_if_annual_exceeded_on_mr",
-  "action_if_annual_exceeded_on_po",
   "action_monthly_section",
-  "action_if_monthly_exceeded",
-  "action_if_monthly_exceeded_on_mr",
-  "action_if_monthly_exceeded_on_po",
   "computed_section",
   "actual_expense_amount",
   "material_request_amount",
   "purchase_order_amount",
   "cumulative_expense_amount",
   "variance",
-  "variance_percentage",
-  "actual_amount_till_month",
-  "cumulative_amount_till_month"
+  "variance_percentage"
  ],
  "fields": [
   {
@@ -69,12 +60,6 @@
    "label": "Warning Threshold %"
   },
   {
-   "fieldname": "monthly_distribution",
-   "fieldtype": "Link",
-   "label": "Monthly Distribution",
-   "options": "Monthly Distribution"
-  },
-  {
    "fieldname": "applicability_section",
    "fieldtype": "Section Break",
    "label": "Applicability"
@@ -103,51 +88,9 @@
    "label": "Action if Total Exceeded"
   },
   {
-   "default": "Warn",
-   "fieldname": "action_if_annual_exceeded",
-   "fieldtype": "Select",
-   "label": "Action if Total Exceeded",
-   "options": "None\nWarn\nStop"
-  },
-  {
-   "default": "None",
-   "fieldname": "action_if_annual_exceeded_on_mr",
-   "fieldtype": "Select",
-   "label": "...on Material Request",
-   "options": "None\nWarn\nStop"
-  },
-  {
-   "default": "None",
-   "fieldname": "action_if_annual_exceeded_on_po",
-   "fieldtype": "Select",
-   "label": "...on Purchase Order",
-   "options": "None\nWarn\nStop"
-  },
-  {
    "fieldname": "action_monthly_section",
    "fieldtype": "Section Break",
    "label": "Action if Monthly Cumulative Exceeded"
-  },
-  {
-   "default": "None",
-   "fieldname": "action_if_monthly_exceeded",
-   "fieldtype": "Select",
-   "label": "Action if Monthly Cumulative Exceeded",
-   "options": "None\nWarn\nStop"
-  },
-  {
-   "default": "None",
-   "fieldname": "action_if_monthly_exceeded_on_mr",
-   "fieldtype": "Select",
-   "label": "...on Material Request",
-   "options": "None\nWarn\nStop"
-  },
-  {
-   "default": "None",
-   "fieldname": "action_if_monthly_exceeded_on_po",
-   "fieldtype": "Select",
-   "label": "...on Purchase Order",
-   "options": "None\nWarn\nStop"
   },
   {
    "fieldname": "computed_section",
@@ -193,20 +136,6 @@
    "fieldname": "variance_percentage",
    "fieldtype": "Percent",
    "label": "Variance %",
-   "read_only": 1
-  },
-  {
-   "fieldname": "actual_amount_till_month",
-   "fieldtype": "Currency",
-   "label": "Actual (Till Current Month)",
-   "options": "parent.currency",
-   "read_only": 1
-  },
-  {
-   "fieldname": "cumulative_amount_till_month",
-   "fieldtype": "Currency",
-   "label": "Cumulative (Till Current Month)",
-   "options": "parent.currency",
    "read_only": 1
   }
  ],

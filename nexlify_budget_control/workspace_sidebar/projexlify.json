@@ -1,0 +1,101 @@
+{
+ "app": "nexlify_budget_control",
+ "creation": "2026-07-05 23:31:47.613847",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "project",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "home",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Home",
+   "link_to": "Home",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "home",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Dashboard",
+   "link_to": "projexlify-dashboard",
+   "link_type": "Page",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "folder",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Projects",
+   "link_to": "Project",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "credit-card",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Project Cost Budget",
+   "link_to": "Project Cost Budget",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "group",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Cost Category",
+   "link_to": "Budget Category",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "repeat-2",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Violation Log",
+   "link_to": "Budget Violation Log",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "settings",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Settings",
+   "link_to": "Project Budget Settings",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-07-06 10:41:02.149353",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Projexlify",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Projexlify"
+}

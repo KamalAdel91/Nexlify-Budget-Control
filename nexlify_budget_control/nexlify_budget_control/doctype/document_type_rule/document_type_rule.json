@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "creation": "2026-07-05 12:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["document_type", "enabled", "action"],
+ "fields": [
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Document Type",
+   "options": "Material Request\nPurchase Order\nPurchase Invoice\nJournal Entry\nExpense Claim\nPayment Entry\nLanded Cost Voucher\nStock Entry\nAsset Depreciation",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "default": "Stop",
+   "fieldname": "action",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Action",
+   "options": "Stop\nWarn\nIgnore",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-05 12:00:00",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Document Type Rule",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

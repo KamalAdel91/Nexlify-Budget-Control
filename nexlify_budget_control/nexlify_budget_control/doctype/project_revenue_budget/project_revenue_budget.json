@@ -25,17 +25,17 @@
   "amended_from"
  ],
  "fields": [
-   {
-    "fieldname": "naming_series",
-    "fieldtype": "Select",
-    "label": "Naming Series",
-    "no_copy": 1,
-    "options": ".ABBR.-RB-.YYYY.-.####",
-    "print_hide": 1,
-    "reqd": 1,
-    "set_only_once": 1
-   },
-   {
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": ".ABBR.-RB-.YYYY.-.####",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
    "fieldname": "company",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -146,15 +146,6 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
-  },
-  {
-   "default": ".ABBR.-RB-.YYYY.-.####.",
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "hidden": 1,
-   "label": "Naming Series",
-   "options": ".ABBR.-RB-.YYYY.-.####.",
-   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
