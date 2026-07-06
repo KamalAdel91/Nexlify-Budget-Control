@@ -13,9 +13,6 @@
   "estimated_amount",
   "warning_threshold_percentage",
   "applicability_section",
-  "applicable_on_material_request",
-  "applicable_on_purchase_order",
-  "applicable_on_booking_actual_expenses",
   "action_annual_section",
   "action_monthly_section",
   "computed_section",
@@ -63,24 +60,6 @@
    "fieldname": "applicability_section",
    "fieldtype": "Section Break",
    "label": "Applicability"
-  },
-  {
-   "default": "0",
-   "fieldname": "applicable_on_material_request",
-   "fieldtype": "Check",
-   "label": "Applicable on Material Request"
-  },
-  {
-   "default": "0",
-   "fieldname": "applicable_on_purchase_order",
-   "fieldtype": "Check",
-   "label": "Applicable on Purchase Order"
-  },
-  {
-   "default": "1",
-   "fieldname": "applicable_on_booking_actual_expenses",
-   "fieldtype": "Check",
-   "label": "Applicable on Actual Expenses"
   },
   {
    "fieldname": "action_annual_section",

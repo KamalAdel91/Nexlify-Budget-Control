@@ -575,9 +575,6 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
     detail_rows = frappe.db.sql(
         """
         SELECT name, parent, budget_category,
-               applicable_on_material_request,
-               applicable_on_purchase_order,
-               applicable_on_booking_actual_expenses,
                from_date, to_date
         FROM `tabProject Cost Budget Detail`
         WHERE name IN %(names)s
@@ -621,14 +618,6 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
         if not parent:
             continue
 
-        applicable_field = {
-            "material_request": "applicable_on_material_request",
-            "purchase_order": "applicable_on_purchase_order",
-            "actual": "applicable_on_booking_actual_expenses",
-        }[trigger_stage]
-        if not row.get(applicable_field):
-            continue
-
         eff_from = row.from_date or parent.from_date
         eff_to = row.to_date or parent.to_date
         msg = (
@@ -659,14 +648,6 @@ def _evaluate_budget_row(row, parent, trigger_stage, doc_date,
     violations = []
     source_rows = source_rows or []
     currency = parent.get("currency")
-
-    applicable_field = {
-        "material_request": "applicable_on_material_request",
-        "purchase_order": "applicable_on_purchase_order",
-        "actual": "applicable_on_booking_actual_expenses",
-    }[trigger_stage]
-    if not row.get(applicable_field):
-        return violations
 
     threshold = flt(row.get("warning_threshold_percentage")) or DEFAULT_WARNING_THRESHOLD_PERCENT
     estimated = flt(row.get("estimated_amount"))
@@ -1641,14 +1622,6 @@ def get_budget_check_preview(
                 continue
             row = entry["row"]
             parent = entry["parent"]
-
-            applicable_field = {
-                "material_request": "applicable_on_material_request",
-                "purchase_order": "applicable_on_purchase_order",
-                "actual": "applicable_on_booking_actual_expenses",
-            }[trigger_stage]
-            if not row.get(applicable_field):
-                continue
 
             _recalculate_row_from_dict(row, parent, doc_date)
 
