@@ -51,8 +51,6 @@ fixtures = [
                 "doctype": "Custom Field",
                 "filters": [
                         ["name", "in", [
-                                "Projects Settings-enable_nexlify_budget_control",
-                                "Projects Settings-budget_bypass_role",
                                 "Project-custom_budget",
                                 "Project-custom_budget_revenue",
                                 "Project-custom_column_break_vy9se",

@@ -52,6 +52,7 @@
    "in_standard_filter": 1,
    "label": "Company",
    "options": "Company",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -61,6 +62,7 @@
    "in_standard_filter": 1,
    "label": "Project",
    "options": "Project",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -126,7 +128,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-05 17:47:15.114762",
+ "modified": "2026-07-06 18:14:39.749107",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Cost Budget",
