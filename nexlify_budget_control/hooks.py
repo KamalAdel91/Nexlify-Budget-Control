@@ -61,5 +61,17 @@ fixtures = [
                                 "Project-custom_dashboard",
                         ]]
                 ]
+        },
+        {
+                "doctype": "Number Card",
+                "filters": [
+                        ["module", "=", "Nexlify Budget Control"]
+                ]
+        },
+        {
+                "doctype": "Dashboard Chart",
+                "filters": [
+                        ["module", "=", "Nexlify Budget Control"]
+                ]
         }
 ]
