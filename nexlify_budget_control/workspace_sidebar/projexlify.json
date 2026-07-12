@@ -13,7 +13,7 @@
    "indent": 0,
    "keep_closed": 0,
    "label": "Home",
-   "link_to": "Home",
+   "link_to": "Projexlify",
    "link_type": "Workspace",
    "show_arrow": 0,
    "type": "Link"
@@ -91,7 +91,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-07-06 10:41:02.149353",
+ "modified": "2026-07-09 20:40:24.317724",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Projexlify",

@@ -135,11 +135,23 @@ class NexlifyProjexlifyDashboard {
     }
 
     async run_query($wrap) {
+        // Guard against overlapping runs: if the user clicks "Apply Filter"
+        // multiple times before the previous run finishes, later clicks are
+        // ignored until the in-flight one completes - prevents duplicated
+        // cards/rows from multiple concurrent async fetches racing each other.
+        if (this._isLoading) return;
+        this._isLoading = true;
+
+        const $apply = $wrap.find("#pd-apply");
+        $apply.prop("disabled", true);
+
         const c = this.colors();
         const company = $wrap.find("#pd-company").val();
         const project = $wrap.find("#pd-project").val();
         const $loading = $wrap.find("#pd-loading");
         $loading.show();
+
+        try {
 
         // ---- Fetch category-level project rows first (drives everything) ----
         let rows = [];
@@ -226,8 +238,11 @@ class NexlifyProjexlifyDashboard {
 
         // ---- Detailed table: projects grouped, with category sub-rows ----
         this.render_projects_table($wrap, rows);
-
-        $loading.hide();
+        } finally {
+            $loading.hide();
+            $apply.prop("disabled", false);
+            this._isLoading = false;
+        }
     }
 
     async render_chart($wrap, company, project) {

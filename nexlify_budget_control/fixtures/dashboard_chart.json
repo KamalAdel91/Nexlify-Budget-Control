@@ -10,7 +10,7 @@
   "docstatus": 0,
   "doctype": "Dashboard Chart",
   "document_type": "Budget Violation Log",
-  "dynamic_filters_json": null,
+  "dynamic_filters_json": "[[\"Budget Violation Log\", \"company\", \"=\", \"window.nexlify_dash_filters && window.nexlify_dash_filters['company']\"]]",
   "filters_json": "[]",
   "from_date": null,
   "group_by_based_on": "violation_type",
