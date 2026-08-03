@@ -1570,12 +1570,20 @@ def get_budget_check_preview(
                 return self._items
             return None
 
+    # Permission check: the user must have create rights on the document
+    # type they are actually trying to submit (e.g. "Purchase Order") -
+    # not a separate, unrelated read permission on the Project record
+    # itself. A purchasing clerk who can legitimately create a PO sees the
+    # budget warning without needing Project-level read access; someone
+    # with no create rights on the doctype at all still cannot call this
+    # endpoint to snoop on any project's budget figures. Fail-safe: if
+    # current_doctype was not supplied at all, block rather than allow.
+    if not current_doctype or not frappe.has_permission(current_doctype, ptype="create"):
+        return {"violations": []}
+
     violations = []
 
     for project, proj_items in items_by_project.items():
-        if not frappe.has_permission("Project", ptype="read", doc=project):
-            continue
-
         proj_accounts = list({i.get("account") for i in proj_items if i.get("account")})
 
         active_budget_name = _get_active_budget_name(project)

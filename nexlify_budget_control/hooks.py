@@ -50,14 +50,7 @@ fixtures = [
         {
                 "doctype": "Custom Field",
                 "filters": [
-                        ["name", "in", [
-                                "Project-custom_budget",
-                                "Project-custom_budget_revenue",
-                                "Project-custom_column_break_vy9se",
-                                "Project-custom_budget_cost",
-                                "Project-custom_section_break_rfux2",
-                                "Project-custom_dashboard",
-                        ]]
+                        ["module", "=", "Nexlify Budget Control"]
                 ]
         },
         {
@@ -70,6 +63,12 @@ fixtures = [
                 "doctype": "Dashboard Chart",
                 "filters": [
                         ["module", "=", "Nexlify Budget Control"]
+                ]
+        },
+        {
+                "doctype": "Workspace",
+                "filters": [
+                        ["name", "=", "Projexlify"]
                 ]
         }
 ]
