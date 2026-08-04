@@ -36,6 +36,8 @@ doc_events = {
         },
 }
 
+app_include_js = ["/assets/nexlify_budget_control/js/disable_project_cost_center_autofetch.js"]
+
 doctype_js = {
         "Material Request": "public/js/budget_check.js",
         "Purchase Order": "public/js/budget_check.js",
