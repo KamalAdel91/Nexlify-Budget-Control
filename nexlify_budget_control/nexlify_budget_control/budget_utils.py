@@ -110,7 +110,7 @@ def get_purchase_order_amount(company, project, accounts):
 
 	rows = frappe.db.sql("""
 		SELECT
-			poi.amount,
+			poi.base_amount AS amount,
 			poi.billed_amt
 		FROM `tabPurchase Order Item` poi
 		INNER JOIN `tabPurchase Order` po ON poi.parent = po.name
