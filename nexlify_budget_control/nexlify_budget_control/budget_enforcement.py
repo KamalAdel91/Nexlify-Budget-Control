@@ -1,3 +1,22 @@
+
+def _validate_project_invoicing_total(project_planning):
+	from frappe.utils import flt
+	invoices = frappe.get_all(
+		"Project Invoicing",
+		filters={"project_planning": project_planning},
+		fields=["invoice_percentage"],
+	)
+	total = sum(flt(i.invoice_percentage) for i in invoices)
+	if total == 0:
+		return
+	if abs(total - 100) > 0.01:
+		frappe.throw(
+			frappe._(
+				"Total Invoice Percentage for this Plan must equal exactly 100%. "
+				"Currently: {0}%"
+			).format(total)
+		)
+
 """
 budget_enforcement.py
 ---------------------
@@ -330,7 +349,20 @@ def on_project_cost_budget_submit(doc, method=None):
     """
     When a Project Cost Budget is submitted, it becomes the active
     budget for its project: Project.custom_budget_cost is pointed at
-    this document, and the project is marked active.
+    this document. Activating the project itself only happens via the
+    "Mark as Active" button on Project, never automatically here.
+    """
+    if not doc.project:
+        return
+    frappe.db.set_value("Project", doc.project, "custom_budget_cost", doc.name)
+    _sync_project_overview(doc.project)
+
+
+def on_project_planning_submit(doc, method=None):
+    """
+    When a Project Planning is submitted, it becomes the active
+    planning entry for its project: Project.custom_project_planning is
+    pointed at this document. Mirrors on_project_cost_budget_submit.
     """
     if not doc.project:
         return
@@ -338,10 +370,27 @@ def on_project_cost_budget_submit(doc, method=None):
         "Project",
         doc.project,
         {
-            "custom_budget_cost": doc.name,
-            "is_active": "Yes",
+            "custom_project_planning": doc.name,
+            "expected_start_date": doc.from_date,
+            "expected_end_date": doc.to_date,
         },
     )
+    _sync_project_overview(doc.project)
+
+
+def on_project_planning_cancel(doc, method=None):
+    """
+    When a Project Planning is cancelled, the project is marked
+    inactive - but ONLY if this cancelled document is still the one
+    currently linked on the project. custom_project_planning itself is
+    left untouched until a new Project Planning is submitted for
+    the same project. Mirrors on_project_cost_budget_cancel.
+    """
+    if not doc.project:
+        return
+    current_linked = frappe.db.get_value("Project", doc.project, "custom_project_planning")
+    if current_linked == doc.name:
+        frappe.db.set_value("Project", doc.project, "is_active", "No")
 
 
 def on_project_cost_budget_cancel(doc, method=None):
@@ -358,6 +407,590 @@ def on_project_cost_budget_cancel(doc, method=None):
     current_linked = frappe.db.get_value("Project", doc.project, "custom_budget_cost")
     if current_linked == doc.name:
         frappe.db.set_value("Project", doc.project, "is_active", "No")
+
+
+def _sync_project_overview(project_name):
+	"""
+	Called when a Cost Budget or Project Plan is submitted. Updates the
+	linked cost_budget/revenue_budget fields on the project's existing
+	Project Overview record (created externally when the Project itself
+	is opened). If no Project Overview exists yet for this project
+	(e.g. it predates the external script), one is created as a fallback.
+	"""
+	if not project_name:
+		return
+
+	cost_budget, revenue_budget = frappe.db.get_value(
+		"Project", project_name, ["custom_budget_cost", "custom_project_planning"]
+	)
+
+	existing = frappe.db.get_value(
+		"Project Overview", {"project": project_name, "docstatus": ["!=", 2]}, "name"
+	)
+
+	if existing:
+		frappe.db.set_value(
+			"Project Overview",
+			existing,
+			{"cost_budget": cost_budget, "revenue_budget": revenue_budget},
+		)
+		return
+
+	if cost_budget and revenue_budget:
+		frappe.get_doc({
+			"doctype": "Project Overview",
+			"project": project_name,
+			"cost_budget": cost_budget,
+			"revenue_budget": revenue_budget,
+		}).insert(ignore_permissions=True)
+
+
+
+@frappe.whitelist()
+def get_project_visits(project_planning):
+	visits = frappe.get_all(
+		"Project Visits",
+		filters={"project_planning": project_planning},
+		fields=["*"],
+		order_by="creation asc",
+	)
+
+	for v in visits:
+		crew_rows = frappe.get_all("Project Visit Crew", filters={"parent": v.name}, fields=["trade", "count"])
+		v["crew_summary"] = ", ".join(f"{r.trade} x{r.count}" for r in crew_rows)
+
+		equipment_rows = frappe.get_all("Project Visit Equipment", filters={"parent": v.name}, fields=["equipment", "quantity"])
+		v["equipment_summary"] = ", ".join(f"{r.equipment} x{r.quantity}" for r in equipment_rows)
+
+	return visits
+
+
+EXCLUDED_VISIT_EDIT_FIELDS = {"project_planning", "project", "visit_label"}
+NON_VALUE_FIELDTYPES = {"Section Break", "Column Break", "Tab Break", "HTML", "Button"}
+
+
+@frappe.whitelist()
+def get_project_visits_editable_fields():
+	meta = frappe.get_meta("Project Visits")
+	result = []
+	for f in meta.fields:
+		if f.fieldname in EXCLUDED_VISIT_EDIT_FIELDS:
+			continue
+		if f.fieldtype in NON_VALUE_FIELDTYPES:
+			continue
+		if f.hidden:
+			continue
+
+		entry = {
+			"fieldname": f.fieldname,
+			"fieldtype": f.fieldtype,
+			"label": f.label,
+			"options": f.options,
+			"reqd": f.reqd,
+			"read_only": f.read_only,
+		}
+
+		if f.fieldtype == "Table" and f.options:
+			child_meta = frappe.get_meta(f.options)
+			entry["child_fields"] = [
+				{
+					"fieldname": cf.fieldname,
+					"fieldtype": cf.fieldtype,
+					"label": cf.label,
+					"options": cf.options,
+					"reqd": cf.reqd,
+					"in_list_view": 1,
+				}
+				for cf in child_meta.fields
+				if cf.fieldtype not in NON_VALUE_FIELDTYPES
+			]
+
+		result.append(entry)
+	return result
+
+
+@frappe.whitelist()
+def get_project_visit_full(visit_name):
+	return frappe.get_doc("Project Visits", visit_name).as_dict()
+
+
+@frappe.whitelist()
+def get_visit_count(project_planning):
+	return frappe.db.count("Project Visits", {"project_planning": project_planning})
+
+
+@frappe.whitelist()
+def bulk_update_project_visits(rows, deleted=None):
+	import json as _json
+	if isinstance(rows, str):
+		rows = _json.loads(rows)
+	if isinstance(deleted, str):
+		deleted = _json.loads(deleted)
+
+	for row in rows:
+		if not row.get("visit_name"):
+			continue
+		doc = frappe.get_doc("Project Visits", row["visit_name"])
+		for fieldname, value in row.items():
+			if fieldname == "visit_name":
+				continue
+			doc.set(fieldname, value)
+		doc.save()
+
+	for name in (deleted or []):
+		frappe.delete_doc("Project Visits", name, ignore_permissions=False)
+
+	return {"updated": len(rows), "deleted": len(deleted or [])}
+
+
+@frappe.whitelist()
+def bulk_create_project_visits(project_planning, rows):
+	import json as _json
+	if isinstance(rows, str):
+		rows = _json.loads(rows)
+
+	project = frappe.db.get_value("Project Planning", project_planning, "project")
+	skip_keys = {"label", "visit_name"}
+
+	created = []
+	for row in rows:
+		doc_dict = {
+			"doctype": "Project Visits",
+			"project_planning": project_planning,
+			"project": project,
+		}
+		for fieldname, value in row.items():
+			if fieldname in skip_keys:
+				continue
+			doc_dict[fieldname] = value
+		doc = frappe.get_doc(doc_dict)
+		doc.insert()
+		created.append(doc.name)
+
+	return created
+
+
+EXCLUDED_INVOICING_EDIT_FIELDS = {"project_planning", "project"}
+
+
+@frappe.whitelist()
+def get_project_invoicing_editable_fields():
+	meta = frappe.get_meta("Project Invoicing")
+	result = []
+	for f in meta.fields:
+		if f.fieldname in EXCLUDED_INVOICING_EDIT_FIELDS:
+			continue
+		if f.fieldtype in NON_VALUE_FIELDTYPES:
+			continue
+		if f.hidden:
+			continue
+
+		entry = {
+			"fieldname": f.fieldname,
+			"fieldtype": f.fieldtype,
+			"label": f.label,
+			"options": f.options,
+			"reqd": f.reqd,
+			"read_only": f.read_only,
+		}
+
+		if f.fieldtype in ("Table", "Table MultiSelect") and f.options:
+			child_meta = frappe.get_meta(f.options)
+			entry["child_fields"] = [
+				{
+					"fieldname": cf.fieldname,
+					"fieldtype": cf.fieldtype,
+					"label": cf.label,
+					"options": cf.options,
+					"reqd": cf.reqd,
+					"in_list_view": 1,
+				}
+				for cf in child_meta.fields
+				if cf.fieldtype not in NON_VALUE_FIELDTYPES
+			]
+
+		result.append(entry)
+	return result
+
+
+@frappe.whitelist()
+def get_project_invoicing_full(invoice_name):
+	return frappe.get_doc("Project Invoicing", invoice_name).as_dict()
+
+
+@frappe.whitelist()
+def bulk_update_project_invoicing(rows, deleted=None):
+	import json as _json
+	if isinstance(rows, str):
+		rows = _json.loads(rows)
+	if isinstance(deleted, str):
+		deleted = _json.loads(deleted)
+
+	project_planning = None
+
+	frappe.flags.bulk_invoicing_operation = True
+	try:
+		for row in rows:
+			if not row.get("invoice_name"):
+				continue
+			doc = frappe.get_doc("Project Invoicing", row["invoice_name"])
+			project_planning = project_planning or doc.project_planning
+			for fieldname, value in row.items():
+				if fieldname == "invoice_name":
+					continue
+				doc.set(fieldname, value)
+			doc.save()
+
+		for name in (deleted or []):
+			if not project_planning:
+				project_planning = frappe.db.get_value("Project Invoicing", name, "project_planning")
+			frappe.delete_doc("Project Invoicing", name, ignore_permissions=False)
+
+		if project_planning:
+			_validate_project_invoicing_total(project_planning)
+	finally:
+		frappe.flags.bulk_invoicing_operation = False
+
+	return {"updated": len(rows), "deleted": len(deleted or [])}
+
+
+
+@frappe.whitelist()
+def bulk_create_project_invoicing(project_planning, rows):
+	import json as _json
+	if isinstance(rows, str):
+		rows = _json.loads(rows)
+
+	project = frappe.db.get_value("Project Planning", project_planning, "project")
+
+	frappe.flags.bulk_invoicing_operation = True
+	created = []
+	try:
+		for row in rows:
+			doc_dict = {
+				"doctype": "Project Invoicing",
+				"project_planning": project_planning,
+				"project": project,
+			}
+			for fieldname, value in row.items():
+				doc_dict[fieldname] = value
+			doc = frappe.get_doc(doc_dict)
+			doc.insert()
+			created.append(doc.name)
+
+		_validate_project_invoicing_total(project_planning)
+	finally:
+		frappe.flags.bulk_invoicing_operation = False
+
+	return created
+
+
+
+@frappe.whitelist()
+def get_project_invoicings(project_planning):
+	return frappe.get_all(
+		"Project Invoicing",
+		filters={"project_planning": project_planning},
+		fields=[
+			"name", "invoice_label", "expected_invoice_date", "invoice_percentage",
+			"invoice_description", "status", "sales_order"
+		],
+		order_by="creation asc",
+	)
+
+
+@frappe.whitelist()
+def get_project_overview_summary(project):
+	from frappe.utils import flt
+
+	has_opportunity_field = frappe.get_meta("Project").has_field("custom_opportunity")
+
+	project_fields = ["custom_project_planning", "custom_budget_cost"]
+	if has_opportunity_field:
+		project_fields.append("custom_opportunity")
+
+	proj = frappe.db.get_value("Project", project, project_fields, as_dict=True) or {}
+
+	planned_revenue = 0
+	if has_opportunity_field and proj.get("custom_opportunity"):
+		planned_revenue = frappe.db.get_value("Opportunity", proj["custom_opportunity"], "opportunity_amount") or 0
+
+	plan_name = proj.get("custom_project_planning")
+	plan_status = frappe.db.get_value("Project Planning", plan_name, "docstatus") if plan_name else None
+
+	cost_name = proj.get("custom_budget_cost")
+	cost_status = frappe.db.get_value("Project Cost Budget", cost_name, "docstatus") if cost_name else None
+
+	cost_dashboard = None
+	planned_cost = 0
+	currency = None
+	if cost_name:
+		try:
+			cost_dashboard = get_project_budget_dashboard(project)
+			if cost_dashboard and cost_dashboard.get("has_budget") and cost_dashboard.get("is_submitted"):
+				planned_cost = cost_dashboard.get("total_estimated") or 0
+				currency = cost_dashboard.get("currency")
+		except Exception:
+			cost_dashboard = None
+
+	expected_profit = flt(planned_revenue) - flt(planned_cost)
+
+	visits = get_project_visits(plan_name) if plan_name else []
+	invoices = get_project_invoicings(plan_name) if plan_name else []
+
+	return {
+		"planned_revenue": planned_revenue,
+		"planned_cost": planned_cost,
+		"expected_profit": expected_profit,
+		"currency": currency,
+		"plan_name": plan_name,
+		"plan_status": plan_status,
+		"cost_name": cost_name,
+		"cost_status": cost_status,
+		"cost_dashboard": cost_dashboard,
+		"visits": visits,
+		"invoices": invoices,
+	}
+
+
+EXCLUDED_PROJECT_GATE_DOCTYPES = {
+	"Project",
+	"Project Planning",
+	"Project Cost Budget",
+	"Project Visits",
+	"Project Invoicing",
+	"Project Overview",
+}
+
+
+def block_inactive_project_reference(doc, method=None):
+	"""
+	Global guard (registered on doc_events["*"]["before_save"]): blocks
+	saving any document that links to a Project whose is_active = "No",
+	except our own app's doctypes, which must be able to operate on a
+	Not Active project (that's how it becomes Active in the first place).
+	"""
+	if doc.doctype in EXCLUDED_PROJECT_GATE_DOCTYPES:
+		return
+
+	meta = frappe.get_meta(doc.doctype)
+	for field in meta.fields:
+		if field.fieldtype != "Link" or field.options != "Project":
+			continue
+
+		project_name = doc.get(field.fieldname)
+		if not project_name:
+			continue
+
+		is_active = frappe.db.get_value("Project", project_name, "is_active")
+		if is_active == "No":
+			frappe.throw(
+				_(
+					"Cannot save this {0}: the linked Project ({1}) is Not Active."
+				).format(_(doc.doctype), project_name)
+			)
+
+
+@frappe.whitelist()
+def get_execution_distribution_summary(project_planning):
+	project = frappe.db.get_value("Project Planning", project_planning, "project")
+	cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
+
+	if not cost_budget:
+		return None
+
+	total_work_days = frappe.db.get_value("Project Cost Budget", cost_budget, "total_work_days") or 0
+	distributed_days = frappe.db.sql(
+		"select coalesce(sum(working_days), 0) from `tabProject Visits` where project_planning = %s",
+		(project_planning,),
+	)[0][0]
+
+	crew_totals = frappe.get_all(
+		"Project Crew Requirement",
+		filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
+		fields=["trade", "total_count"],
+	)
+	crew_rows = []
+	for row in crew_totals:
+		distributed = frappe.db.sql(
+			"""
+			select coalesce(sum(vc.count * v.working_days), 0)
+			from `tabProject Visit Crew` vc
+			inner join `tabProject Visits` v on v.name = vc.parent
+			where v.project_planning = %s and vc.trade = %s
+			""",
+			(project_planning, row.trade),
+		)[0][0]
+		crew_rows.append({
+			"label": row.trade,
+			"total": row.total_count * total_work_days,
+			"distributed": distributed,
+		})
+
+	equipment_totals = frappe.get_all(
+		"Project Equipment Requirement",
+		filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
+		fields=["equipment", "quantity"],
+	)
+	equipment_rows = []
+	for row in equipment_totals:
+		distributed = frappe.db.sql(
+			"""
+			select coalesce(sum(ve.quantity), 0)
+			from `tabProject Visit Equipment` ve
+			inner join `tabProject Visits` v on v.name = ve.parent
+			where v.project_planning = %s and ve.equipment = %s
+			""",
+			(project_planning, row.equipment),
+		)[0][0]
+		equipment_rows.append({"label": row.equipment, "total": row.quantity, "distributed": distributed})
+
+	return {
+		"total_work_days": total_work_days,
+		"distributed_work_days": distributed_days,
+		"crew": crew_rows,
+		"equipment": equipment_rows,
+	}
+
+
+@frappe.whitelist()
+def get_execution_matrix(project_planning):
+	project = frappe.db.get_value("Project Planning", project_planning, "project")
+	cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
+
+	if not cost_budget:
+		return None
+
+	total_work_days = frappe.db.get_value("Project Cost Budget", cost_budget, "total_work_days") or 0
+
+	visits = frappe.get_all(
+		"Project Visits",
+		filters={"project_planning": project_planning},
+		fields=["name", "visit_label", "working_days"],
+		order_by="creation asc",
+	)
+
+	crew_totals = frappe.get_all(
+		"Project Crew Requirement",
+		filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
+		fields=["trade", "total_count"],
+	)
+	equipment_totals = frappe.get_all(
+		"Project Equipment Requirement",
+		filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
+		fields=["equipment", "quantity"],
+	)
+
+	crew_rows = frappe.get_all(
+		"Project Visit Crew",
+		filters={"parent": ["in", [v.name for v in visits]]} if visits else {"parent": ""},
+		fields=["parent", "trade", "count"],
+	)
+	equipment_rows = frappe.get_all(
+		"Project Visit Equipment",
+		filters={"parent": ["in", [v.name for v in visits]]} if visits else {"parent": ""},
+		fields=["parent", "equipment", "quantity"],
+	)
+
+	visit_days_by_name = {v.name: (v.working_days or 0) for v in visits}
+
+	crew_matrix = {}
+	for v in visits:
+		crew_matrix[v.name] = {c.trade: {"count": 0, "days": 0} for c in crew_totals}
+	for row in crew_rows:
+		if row.parent in crew_matrix and row.trade in crew_matrix[row.parent]:
+			crew_matrix[row.parent][row.trade] = {
+				"count": row.count,
+				"days": row.count * visit_days_by_name.get(row.parent, 0),
+			}
+
+	equipment_matrix = {}
+	for v in visits:
+		equipment_matrix[v.name] = {e.equipment: 0 for e in equipment_totals}
+	for row in equipment_rows:
+		if row.parent in equipment_matrix and row.equipment in equipment_matrix[row.parent]:
+			equipment_matrix[row.parent][row.equipment] = row.quantity
+
+	return {
+		"visits": visits,
+		"crew_columns": [c.trade for c in crew_totals],
+		"crew_totals": {c.trade: c.total_count * total_work_days for c in crew_totals},
+		"crew_matrix": crew_matrix,
+		"equipment_columns": [e.equipment for e in equipment_totals],
+		"equipment_totals": {e.equipment: e.quantity for e in equipment_totals},
+		"equipment_matrix": equipment_matrix,
+	}
+
+
+@frappe.whitelist()
+def get_execution_remaining_for_visit(project_planning, visit_name=None):
+	project = frappe.db.get_value("Project Planning", project_planning, "project")
+	cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
+
+	if not cost_budget:
+		return None
+
+	total_work_days = frappe.db.get_value("Project Cost Budget", cost_budget, "total_work_days") or 0
+	other_days = frappe.db.sql(
+		"""
+		select coalesce(sum(working_days), 0)
+		from `tabProject Visits`
+		where project_planning = %s and name != %s
+		""",
+		(project_planning, visit_name or ""),
+	)[0][0]
+
+	crew_totals = frappe.get_all(
+		"Project Crew Requirement",
+		filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
+		fields=["trade", "total_count"],
+	)
+	crew_rows = []
+	for row in crew_totals:
+		other = frappe.db.sql(
+			"""
+			select coalesce(sum(vc.count * v.working_days), 0)
+			from `tabProject Visit Crew` vc
+			inner join `tabProject Visits` v on v.name = vc.parent
+			where v.project_planning = %s and v.name != %s and vc.trade = %s
+			""",
+			(project_planning, visit_name or "", row.trade),
+		)[0][0]
+		crew_rows.append({
+			"trade": row.trade,
+			"total": row.total_count * total_work_days,
+			"other_distributed": other,
+		})
+
+	equipment_totals = frappe.get_all(
+		"Project Equipment Requirement",
+		filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
+		fields=["equipment", "quantity"],
+	)
+	equipment_rows = []
+	for row in equipment_totals:
+		other = frappe.db.sql(
+			"""
+			select coalesce(sum(ve.quantity), 0)
+			from `tabProject Visit Equipment` ve
+			inner join `tabProject Visits` v on v.name = ve.parent
+			where v.project_planning = %s and v.name != %s and ve.equipment = %s
+			""",
+			(project_planning, visit_name or "", row.equipment),
+		)[0][0]
+		equipment_rows.append({"equipment": row.equipment, "total": row.quantity, "other_distributed": other})
+
+	return {
+		"total_work_days": total_work_days,
+		"other_work_days": other_days,
+		"crew": crew_rows,
+		"equipment": equipment_rows,
+	}
+
+
+@frappe.whitelist()
+def get_budget_bypass_role():
+	return frappe.db.get_single_value("Project Budget Settings", "budget_bypass_role")
 
 
 # ---------------------------------------------------------------------------

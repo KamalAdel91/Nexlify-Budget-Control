@@ -2,83 +2,49 @@ frappe.ui.form.on('Project', {
     refresh: function(frm) {
         inject_dashboard_styles();
         render_budget_dashboard(frm);
-        render_mark_as_active_button(frm);
+        render_budget_creation_buttons(frm);
     }
 });
 
+
 // ---------------------------------------------------------------------------
-// Mark as Active button
+// Budget creation buttons (Planning / Cost)
 // ---------------------------------------------------------------------------
 
-function render_mark_as_active_button(frm) {
-    if (frm.doc.is_active === 'No') {
-        let btn = frm.add_custom_button('Mark as Active', function() {
-            handle_mark_as_active(frm);
-        });
+function render_budget_creation_buttons(frm) {
+    if (frm.is_new()) return;
 
-        let is_dark = document.documentElement.getAttribute('data-theme') === 'dark'
-            || document.body.classList.contains('dark');
-
-        btn.css({
-            'background-color': is_dark ? '#F5F5F4' : 'black',
-            'color': is_dark ? '#171716' : 'white',
-            'border-color': is_dark ? '#F5F5F4' : 'black'
+    if (frm.doc.custom_project_overview) {
+        frm.add_custom_button('Open Overview', function() {
+            frappe.set_route('Form', 'Project Overview', frm.doc.custom_project_overview);
         });
     }
+
+    render_budget_button(frm, {
+        create_label: 'Create Plan',
+        open_label: 'Open Plan',
+        linked_field: 'custom_project_planning',
+        doctype: 'Project Planning'
+    });
+
+    render_budget_button(frm, {
+        create_label: 'Create Estimation',
+        open_label: 'Open Estimation',
+        linked_field: 'custom_budget_cost',
+        doctype: 'Project Cost Budget'
+    });
 }
 
-function handle_mark_as_active(frm) {
-    if (!frm.doc.custom_budget_cost) {
-        frappe.warn(
-            'Budget Required',
-            'No budget has been set for this project. You need to create a Project Cost Budget first before activating this project.',
-            function() {
-                frappe.new_doc('Project Cost Budget', {
-                    project: frm.doc.name,
-                    company: frm.doc.company
-                });
-            },
-            'Open New Budget'
-        );
-        return;
-    }
+function render_budget_button(frm, opts) {
+    let existing = frm.doc[opts.linked_field];
 
-    frappe.db.get_value('Project Cost Budget', frm.doc.custom_budget_cost, 'docstatus')
-        .then(r => {
-            let docstatus = r.message ? r.message.docstatus : null;
-
-            if (docstatus === 1) {
-                frappe.confirm(
-                    'Are you sure you want to mark this project as Active?',
-                    function() {
-                        frm.set_value('is_active', 'Yes');
-                        frm.save();
-                    }
-                );
-
-            } else if (docstatus === 2) {
-                frappe.warn(
-                    'Linked Budget Was Cancelled',
-                    `The budget previously linked to this project (<b>${frm.doc.custom_budget_cost}</b>) has been cancelled. ` +
-                    'You need to either amend that budget or create a new one before activating this project.',
-                    function() {
-                        frappe.set_route('Form', 'Project Cost Budget', frm.doc.custom_budget_cost);
-                    },
-                    'Open Cancelled Budget'
-                );
-
-            } else {
-                frappe.warn(
-                    'Budget Not Submitted',
-                    `The linked budget (<b>${frm.doc.custom_budget_cost}</b>) has not been submitted yet. ` +
-                    'Please submit it before activating this project.',
-                    function() {
-                        frappe.set_route('Form', 'Project Cost Budget', frm.doc.custom_budget_cost);
-                    },
-                    'Open Budget'
-                );
-            }
-        });
+    frm.add_custom_button(existing ? opts.open_label : opts.create_label, function() {
+        if (existing) {
+            frappe.set_route('Form', opts.doctype, existing);
+        } else {
+            frappe.new_doc(opts.doctype, { project: frm.doc.name });
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------

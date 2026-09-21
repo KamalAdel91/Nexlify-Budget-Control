@@ -12,15 +12,31 @@
   "restrict_to_budget_categories",
   "section_break_ggra",
   "company",
-  "from_date",
-  "currency",
+  "customer",
   "column_break_xcgk",
   "project",
+  "section_break_rtyw",
+  "from_date",
+  "column_break_ikkr",
   "to_date",
+  "section_break_kwgb",
+  "currency",
+  "column_break_obvk",
   "conversion_rate",
   "details_section",
   "details",
-  "amended_from"
+  "amended_from",
+  "execution_tab",
+  "total_work_days",
+  "equipment_scope_section",
+  "equipment_scope",
+  "crew_section",
+  "crew",
+  "resources_section",
+  "estimated_vehicles",
+  "petty_cash",
+  "equipment_section",
+  "equipment"
  ],
  "fields": [
   {
@@ -74,6 +90,14 @@
    "reqd": 1
   },
   {
+   "fetch_from": "project.customer",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
    "fieldname": "to_date",
    "fieldtype": "Date",
    "in_list_view": 1,
@@ -124,12 +148,86 @@
   {
    "fieldname": "column_break_xcgk",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "execution_tab",
+   "fieldtype": "Tab Break",
+   "label": "Execution Estimation"
+  },
+  {
+   "fieldname": "total_work_days",
+   "fieldtype": "Int",
+   "label": "Total Work Days"
+  },
+  {
+   "fieldname": "equipment_scope_section",
+   "fieldtype": "Section Break",
+   "label": "Equipment Scope (Per Type)"
+  },
+  {
+   "fieldname": "equipment_scope",
+   "fieldtype": "Table",
+   "label": "Equipment Scope",
+   "options": "Project Equipment Scope"
+  },
+  {
+   "fieldname": "crew_section",
+   "fieldtype": "Section Break",
+   "label": "Crew (Total Required)"
+  },
+  {
+   "fieldname": "crew",
+   "fieldtype": "Table",
+   "label": "Crew",
+   "options": "Project Crew Requirement"
+  },
+  {
+   "fieldname": "resources_section",
+   "fieldtype": "Section Break",
+   "label": "Resources"
+  },
+  {
+   "fieldname": "estimated_vehicles",
+   "fieldtype": "Int",
+   "label": "Estimated Vehicles"
+  },
+  {
+   "fieldname": "petty_cash",
+   "fieldtype": "Currency",
+   "label": "Petty Cash"
+  },
+  {
+   "fieldname": "equipment_section",
+   "fieldtype": "Section Break",
+   "label": "SOW Equipment (Quantity)"
+  },
+  {
+   "fieldname": "equipment",
+   "fieldtype": "Table",
+   "label": "Equipment",
+   "options": "Project Equipment Requirement"
+  },
+  {
+   "fieldname": "section_break_rtyw",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_ikkr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_kwgb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_obvk",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-06 18:14:39.749107",
+ "modified": "2026-09-21 10:23:57.727461",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Cost Budget",

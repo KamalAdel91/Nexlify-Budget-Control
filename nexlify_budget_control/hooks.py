@@ -10,6 +10,14 @@ app_license = "mit"
 # ---------------------------------------------------------------------------
 
 doc_events = {
+        "*": {
+                "before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference"
+        },
+        "Designation": {
+                "after_insert": "nexlify_budget_control.nexlify_budget_control.designation_sync.sync_new_designation",
+                "on_trash": "nexlify_budget_control.nexlify_budget_control.designation_sync.sync_deleted_designation",
+                "after_rename": "nexlify_budget_control.nexlify_budget_control.designation_sync.sync_renamed_designation"
+        },
         "Material Request": {
                 "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_submit",
                 "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_cancel"
@@ -34,9 +42,15 @@ doc_events = {
                 "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_submit",
                 "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_cancel"
         },
+        "Project Planning": {
+                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_submit",
+                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
+        },
 }
 
-app_include_js = ["/assets/nexlify_budget_control/js/disable_project_cost_center_autofetch.js"]
+app_include_js = [
+	"/assets/nexlify_budget_control/js/global_project_filter.js",
+	"/assets/nexlify_budget_control/js/disable_project_cost_center_autofetch.js"]
 
 doctype_js = {
         "Material Request": "public/js/budget_check.js",
@@ -49,6 +63,7 @@ doctype_js = {
 }
 
 fixtures = [
+	{"dt": "Property Setter", "filters": [["module", "=", "Nexlify Budget Control"]]},
         {
                 "doctype": "Custom Field",
                 "filters": [

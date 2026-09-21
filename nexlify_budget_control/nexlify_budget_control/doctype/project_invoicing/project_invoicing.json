@@ -1,0 +1,187 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "project_planning",
+  "invoice_label",
+  "project",
+  "company",
+  "customer",
+  "visits",
+  "expected_invoice_date",
+  "invoice_percentage",
+  "invoice_description",
+  "computed_section",
+  "status",
+  "sales_order",
+  "actual_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "project_planning",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project Planning",
+   "options": "Project Planning",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Invoice",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "project_planning.project",
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "project.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "project.customer",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "visits",
+   "fieldtype": "Table MultiSelect",
+   "label": "Visits",
+   "options": "Project Invoicing Visit"
+  },
+  {
+   "fieldname": "expected_invoice_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Expected Invoice Date"
+  },
+  {
+   "fieldname": "invoice_percentage",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Invoice Percentage",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice_description",
+   "fieldtype": "Small Text",
+   "label": "Invoice Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "computed_section",
+   "fieldtype": "Section Break",
+   "label": "Actuals"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nInvoiced",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Sales Order",
+   "options": "Sales Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "actual_date",
+   "fieldtype": "Date",
+   "label": "Actual Date",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-09-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Project Invoicing",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Budget Approver",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

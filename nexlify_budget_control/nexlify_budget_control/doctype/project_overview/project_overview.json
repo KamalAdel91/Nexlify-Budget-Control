@@ -1,0 +1,136 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-09-14 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "project",
+  "customer",
+  "amended_from",
+  "column_break_twmw",
+  "company",
+  "section_break_ldgx",
+  "revenue_budget",
+  "column_break_gjxd",
+  "cost_budget",
+  "overview_section",
+  "overview_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": ".ABBR.-OV-.YYYY.-.####",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "project.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "project.customer",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cost_budget",
+   "fieldtype": "Link",
+   "label": "Project Costing",
+   "options": "Project Cost Budget",
+   "read_only": 1
+  },
+  {
+   "fieldname": "revenue_budget",
+   "fieldtype": "Link",
+   "label": "Project Plan",
+   "options": "Project Planning",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Project Overview",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_twmw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_ldgx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_gjxd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "overview_section",
+   "fieldtype": "Section Break",
+   "label": "Overview"
+  },
+  {
+   "fieldname": "overview_html",
+   "fieldtype": "HTML",
+   "label": "Overview"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-09-16 21:59:04.755287",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Project Overview",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

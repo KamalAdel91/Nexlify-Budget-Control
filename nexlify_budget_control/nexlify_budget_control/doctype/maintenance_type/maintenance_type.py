@@ -5,5 +5,5 @@ import frappe
 from frappe.model.document import Document
 
 
-class ProjectRevenueBudget(Document):
+class MaintenanceType(Document):
 	pass
