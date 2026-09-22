@@ -13,9 +13,7 @@
   "customer",
   "start_date",
   "end_date",
-  "working_days",
-  "sub_periods_section",
-  "sub_periods"
+  "working_days"
  ],
  "fields": [
   {
@@ -75,22 +73,11 @@
    "reqd": 1
   },
   {
-   "description": "Auto-calculated from Sub Periods below.",
+   "description": "Auto-calculated: number of distinct Visit Days.",
    "fieldname": "working_days",
    "fieldtype": "Int",
    "label": "Working Days for This Visit",
    "read_only": 1
-  },
-  {
-   "fieldname": "sub_periods_section",
-   "fieldtype": "Section Break",
-   "label": "Sub Periods (Equipment & Crew)"
-  },
-  {
-   "fieldname": "sub_periods",
-   "fieldtype": "Table",
-   "label": "Sub Periods",
-   "options": "Project Visit Sub Period"
   }
  ],
  "index_web_pages_for_search": 1,

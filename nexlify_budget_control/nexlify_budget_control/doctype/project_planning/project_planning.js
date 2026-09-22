@@ -450,7 +450,7 @@ window.open_visit_quick_edit = function(visit_name) {
 										default: full_doc[f.fieldname]
 									});
 									if (f.fieldname === 'working_days') {
-										dialog_fields.push({ fieldname: 'working_days_remaining_html', fieldtype: 'HTML' });
+										dialog_fields.push({ fieldname: 'visit_days_html', fieldtype: 'HTML' });
 									}
 								}
 							});
@@ -461,14 +461,6 @@ window.open_visit_quick_edit = function(visit_name) {
 								fields: dialog_fields,
 								primary_action_label: __('Save'),
 								primary_action: function(values) {
-									if (window._visit_edit_has_overflow && window._visit_edit_has_overflow(d) && !_has_budget_bypass_role) {
-										frappe.msgprint({
-											title: __('Distribution Exceeded'),
-											message: __('One or more values exceed the remaining Estimation amount. Reduce them before saving.'),
-											indicator: 'red'
-										});
-										return;
-									}
 									let row = Object.assign({ visit_name: visit.name }, values);
 									if (d.fields_dict.crew) row.crew = d.get_value('crew') || [];
 									if (d.fields_dict.equipment) row.equipment = d.get_value('equipment') || [];
@@ -508,23 +500,15 @@ window.open_visit_quick_edit = function(visit_name) {
 								set_working_days_promise = d.set_value('working_days', full_doc.working_days);
 							}
 
-							if (remaining_data) {
-								set_working_days_promise.then(function() {
-									wire_visit_remaining_indicators(d, remaining_data);
-								});
-							}
+							set_working_days_promise.then(function() {
+								render_visit_days_in_dialog(d, visit.name, plan_name);
+							});
 						}
 					});
 				}
 			});
 		}
 	});
-}
-
-function remaining_html_line(label, total, other, current) {
-	let remaining = total - other - flt(current);
-	let color = remaining < 0 ? 'var(--red-500, #e03131)' : (remaining === 0 ? 'var(--green-500, #2b8a3e)' : 'var(--orange-500, #e8590c)');
-	return `<div style="font-size:11px; padding:2px 0;">${__(label)}: <b style="color:${color};">${remaining}</b> ${__('remaining')}</div>`;
 }
 
 let _has_budget_bypass_role = false;
@@ -535,76 +519,6 @@ frappe.call({
 		_has_budget_bypass_role = bypass_role ? (frappe.user_roles || []).includes(bypass_role) : false;
 	}
 });
-
-window._visit_edit_has_overflow = function(d) {
-	return !!d._has_overflow;
-};
-
-function wire_visit_remaining_indicators(d, remaining_data) {
-	d._has_overflow = false;
-
-	function mark_overflow(remaining_value) {
-		if (remaining_value < 0) d._has_overflow = true;
-	}
-
-	function update_work_days() {
-		if (!d.fields_dict.working_days_remaining_html) return;
-		let current = d.get_value('working_days') || 0;
-		let remaining_value = remaining_data.total_work_days - remaining_data.other_work_days - flt(current);
-		mark_overflow(remaining_value);
-		let html = remaining_html_line('Total Work Days', remaining_data.total_work_days, remaining_data.other_work_days, current);
-		d.fields_dict.working_days_remaining_html.$wrapper.html(html);
-	}
-
-	function update_crew() {
-		if (!d.fields_dict.crew_remaining_html) return;
-		let rows = d.get_value('crew') || [];
-		let visit_days = flt(d.get_value('working_days')) || 0;
-		let html = (remaining_data.crew || []).map(item => {
-			let current_count = 0;
-			rows.forEach(r => { if (r.trade === item.trade) current_count += flt(r.count); });
-			let current_days = current_count * visit_days;
-			let remaining_value = item.total - item.other_distributed - current_days;
-			mark_overflow(remaining_value);
-			return remaining_html_line(`${item.trade} (${current_count} x ${visit_days}${__('d')})`, item.total, item.other_distributed, current_days);
-		}).join('');
-		d.fields_dict.crew_remaining_html.$wrapper.html(html || '');
-	}
-
-	function update_equipment() {
-		if (!d.fields_dict.equipment_remaining_html) return;
-		let rows = d.get_value('equipment') || [];
-		let html = (remaining_data.equipment || []).map(item => {
-			let current = 0;
-			rows.forEach(r => { if (r.equipment === item.equipment) current += flt(r.quantity); });
-			let remaining_value = item.total - item.other_distributed - current;
-			mark_overflow(remaining_value);
-			return remaining_html_line(item.equipment, item.total, item.other_distributed, current);
-		}).join('');
-		d.fields_dict.equipment_remaining_html.$wrapper.html(html || '');
-	}
-
-	function recompute_overflow() {
-		d._has_overflow = false;
-		update_work_days();
-		update_crew();
-		update_equipment();
-	}
-
-	if (d.fields_dict.working_days) {
-		d.fields_dict.working_days.$input.on('input', recompute_overflow);
-	}
-	if (d.fields_dict.crew) {
-		d.fields_dict.crew.grid.wrapper.on('change input', 'input, select', recompute_overflow);
-		d.fields_dict.crew.grid.wrapper.on('click', '.grid-delete-row, .grid-append-row, .grid-insert-row', function() { setTimeout(recompute_overflow, 150); });
-	}
-	if (d.fields_dict.equipment) {
-		d.fields_dict.equipment.grid.wrapper.on('change input', 'input, select', recompute_overflow);
-		d.fields_dict.equipment.grid.wrapper.on('click', '.grid-delete-row, .grid-append-row, .grid-insert-row', function() { setTimeout(recompute_overflow, 150); });
-	}
-
-	recompute_overflow();
-}
 
 function build_visits_table_html(visits) {
 	if (!visits.length) {
@@ -1349,3 +1263,315 @@ window.open_add_visits_dialog_trigger = function() {
 window.open_add_invoice_dialog_trigger = function() {
 	open_add_invoice_dialog(_revenue_budget_frm);
 };
+
+
+// ---------------------------------------------------------------------------
+// Visit Days - day-level plan inside each visit (one equipment per day)
+// ---------------------------------------------------------------------------
+
+let _visit_day_ctx = null;
+
+function render_visit_days_in_dialog(d, visit_name, plan_name) {
+	_visit_day_ctx = { d: d, visit_name: visit_name, plan_name: plan_name };
+	if (!d.fields_dict.visit_days_html) return;
+
+	frappe.call({
+		method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_visit_days',
+		args: { visit: visit_name },
+		callback: function(r) {
+			let data = r.message || {};
+			let days = data.days || [];
+			if (d.fields_dict.working_days) {
+				d.set_value('working_days', data.working_days || 0);
+			}
+
+			let rows_html = days.map(day => {
+				let emp_html = (day.employees || []).length
+					? day.employees.map(e => `${frappe.utils.escape_html(e.employee_name || e.employee)} <span class="nrb-muted">(${frappe.utils.escape_html(e.designation || '-')})</span>`).join('<br>')
+					: '<span class="nrb-muted">-</span>';
+				let status = day.docstatus === 1
+					? `<span style="color: var(--green-600, #2b8a3e); font-weight:600;">${__('Submitted')}</span>`
+					: `<span class="nrb-muted">${__('Draft')}</span>`;
+				let edit_link = day.docstatus === 0
+					? `<a href="#" class="nrb-link" onclick="open_visit_day_from_list('${day.name}'); return false;">${__('Edit')}</a> | `
+					: '';
+				return `
+					<tr>
+						<td>${frappe.datetime.str_to_user(day.work_date)}</td>
+						<td>${frappe.utils.escape_html(day.equipment || '')}</td>
+						<td>${flt(day.quantity)}</td>
+						<td>${flt(day.days_consumed)}</td>
+						<td>${emp_html}</td>
+						<td>${status}</td>
+						<td>${edit_link}<a href="/app/project-visit-day/${day.name}" class="nrb-link" target="_blank">${__('Details')}</a></td>
+					</tr>
+				`;
+			}).join('');
+
+			let table_html = days.length
+				? `
+					<div class="nrb-table-wrapper">
+						<table class="nrb-table">
+							<thead><tr>
+								<th>${__('Date')}</th><th>${__('Equipment')}</th><th>${__('Qty')}</th>
+								<th>${__('Days')}</th><th>${__('Employees')}</th><th>${__('Status')}</th><th>${__('Actions')}</th>
+							</tr></thead>
+							<tbody>${rows_html}</tbody>
+						</table>
+					</div>
+				`
+				: `<div class="nrb-empty">${__('No days planned for this visit yet.')}</div>`;
+
+			d.fields_dict.visit_days_html.$wrapper.html(`
+				<div style="display:flex; justify-content:space-between; align-items:center; margin:12px 0 6px;">
+					<b>${__('Visit Days')}</b>
+					<button class="btn btn-xs btn-default" onclick="open_visit_day_from_list(null); return false;">${__('Add Day')}</button>
+				</div>
+				${table_html}
+			`);
+		}
+	});
+}
+
+window.open_visit_day_from_list = function(day_name) {
+	if (!_visit_day_ctx) return;
+	let ctx = _visit_day_ctx;
+	open_visit_day_dialog(ctx.visit_name, ctx.plan_name, day_name, function() {
+		render_visit_days_in_dialog(ctx.d, ctx.visit_name, ctx.plan_name);
+		if (_revenue_budget_frm) render_visits_table(_revenue_budget_frm);
+	});
+};
+
+function open_visit_day_dialog(visit_name, plan_name, day_name, on_saved) {
+	frappe.db.get_value('Project Visits', visit_name, ['start_date', 'end_date']).then(visit_r => {
+		let visit_vals = (visit_r && visit_r.message) || {};
+		if (!day_name) {
+			build_visit_day_dialog(visit_name, plan_name, null, visit_vals, on_saved);
+			return;
+		}
+		frappe.call({
+			method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_visit_days',
+			args: { visit: visit_name },
+			callback: function(r) {
+				let day = (((r.message || {}).days) || []).find(x => x.name === day_name);
+				build_visit_day_dialog(visit_name, plan_name, day || null, visit_vals, on_saved);
+			}
+		});
+	});
+}
+
+function build_visit_day_dialog(visit_name, plan_name, day, visit_vals, on_saved) {
+	var d;
+	let ready = false;
+	let state = { ctx: null, designations: {} };
+	let method_base = 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.';
+
+	let initial_emps = ((day && day.employees) || []).map(e => ({ employee: e.employee }));
+	((day && day.employees) || []).forEach(e => {
+		state.designations[e.employee] = { employee_name: e.employee_name, designation: e.designation };
+	});
+
+	let opts = {
+		title: day ? __('Edit Visit Day') : __('Add Visit Day'),
+		size: 'large',
+		fields: [
+			{
+				fieldname: 'work_date', fieldtype: 'Date', label: __('Work Date'), reqd: 1,
+				default: day ? day.work_date : visit_vals.start_date,
+				description: __('Visit period: {0} to {1}', [frappe.datetime.str_to_user(visit_vals.start_date), frappe.datetime.str_to_user(visit_vals.end_date)]),
+				onchange: function() { refresh_context(); }
+			},
+			{ fieldname: 'cb_1', fieldtype: 'Column Break' },
+			{
+				fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1,
+				default: day ? day.equipment : null,
+				get_query: function() {
+					return { filters: { name: ['in', Object.keys((state.ctx && state.ctx.scope) || {})] } };
+				},
+				onchange: function() { render_live(); }
+			},
+			{
+				fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1,
+				default: day ? day.quantity : null,
+				onchange: function() { render_live(); }
+			},
+			{ fieldname: 'sb_employees', fieldtype: 'Section Break', label: __('Employees') },
+			{
+				fieldname: 'employees', fieldtype: 'Table', label: __('Employees'),
+				cannot_add_rows: false, in_place_edit: false,
+				data: initial_emps, get_data: function() { return initial_emps; },
+				fields: [
+					{
+						fieldname: 'employee', fieldtype: 'Link', options: 'Employee', label: __('Employee'), reqd: 1, in_list_view: 1,
+						get_query: function() {
+							let filters = { status: 'Active' };
+							let eq = d ? d.get_value('equipment') : null;
+							let scope = eq && state.ctx && state.ctx.scope ? state.ctx.scope[eq] : null;
+							if (scope) filters.designation = ['in', Object.keys(scope.roles)];
+							let busy = (state.ctx && state.ctx.busy_employees) || [];
+							if (busy.length) filters.name = ['not in', busy];
+							return { filters: filters };
+						}
+					}
+				]
+			},
+			{ fieldname: 'sb_check', fieldtype: 'Section Break', label: __('Estimation Check') },
+			{ fieldname: 'live_html', fieldtype: 'HTML' }
+		],
+		primary_action_label: __('Save'),
+		primary_action: function(values) {
+			let emps = (d.get_value('employees') || []).map(r => r.employee).filter(Boolean);
+			frappe.call({
+				method: method_base + 'save_visit_day',
+				args: {
+					values: {
+						name: day ? day.name : null,
+						visit: visit_name,
+						work_date: values.work_date,
+						equipment: values.equipment,
+						quantity: values.quantity,
+						employees: emps
+					}
+				},
+				freeze: true,
+				callback: function() {
+					d.hide();
+					frappe.show_alert({ message: __('Visit Day saved.'), indicator: 'green' });
+					if (on_saved) on_saved();
+				}
+			});
+		}
+	};
+
+	if (day) {
+		opts.secondary_action_label = __('Delete');
+		opts.secondary_action = function() {
+			frappe.confirm(__('Delete this Visit Day?'), function() {
+				frappe.call({
+					method: method_base + 'delete_visit_day',
+					args: { name: day.name },
+					freeze: true,
+					callback: function() {
+						d.hide();
+						frappe.show_alert({ message: __('Visit Day deleted.'), indicator: 'green' });
+						if (on_saved) on_saved();
+					}
+				});
+			});
+		};
+	}
+
+	function refresh_context() {
+		if (!ready) return;
+		frappe.call({
+			method: method_base + 'get_visit_day_context',
+			args: { project_planning: plan_name, work_date: d.get_value('work_date'), exclude_day: day ? day.name : null },
+			callback: function(r) {
+				state.ctx = r.message || {};
+				refresh_designations();
+			}
+		});
+	}
+
+	function refresh_designations() {
+		if (!ready) return;
+		let emps = (d.get_value('employees') || []).map(r => r.employee).filter(Boolean);
+		let missing = emps.filter(e => !state.designations[e]);
+		if (!missing.length) { render_live(); return; }
+		frappe.call({
+			method: method_base + 'get_employee_designations',
+			args: { employees: missing },
+			callback: function(r) {
+				Object.assign(state.designations, r.message || {});
+				render_live();
+			}
+		});
+	}
+
+	function r2(n) { return Math.round(flt(n) * 100) / 100; }
+
+	function live_row(label, estimated, other, current) {
+		let remaining = r2(estimated - other - current);
+		let color = remaining < 0 ? 'var(--red-500, #e03131)' : (remaining === 0 ? 'var(--green-500, #2b8a3e)' : 'var(--orange-500, #e8590c)');
+		let over = remaining < 0 ? ` (${__('over by {0}', [Math.abs(remaining)])})` : '';
+		return `<tr>
+			<td>${frappe.utils.escape_html(label)}</td>
+			<td>${r2(estimated)}</td>
+			<td>${r2(other)}</td>
+			<td>${r2(current)}</td>
+			<td style="color:${color}; font-weight:600;">${remaining}${over}</td>
+		</tr>`;
+	}
+
+	function render_live() {
+		if (!ready) return;
+		let $w = d.fields_dict.live_html.$wrapper;
+		let ctx = state.ctx;
+		if (!ctx) { $w.html(`<div class="nrb-muted">${__('Loading...')}</div>`); return; }
+
+		let eq = d.get_value('equipment');
+		if (!eq) { $w.html(`<div class="nrb-muted">${__('Select an equipment to see the Estimation check.')}</div>`); return; }
+
+		let scope = (ctx.scope || {})[eq];
+		if (!scope) {
+			$w.html(`<div style="color: var(--red-500, #e03131); font-weight:600;">${__("{0} is not part of this project's Estimation.", [frappe.utils.escape_html(eq)])}</div>`);
+			return;
+		}
+
+		let used = (ctx.used || {})[eq] || { quantity: 0, person_days: {} };
+		let qty_now = flt(d.get_value('quantity'));
+		let emps = (d.get_value('employees') || []).map(r => r.employee).filter(Boolean);
+		let busy = ctx.busy_employees || [];
+
+		let rows = [];
+		rows.push(live_row(__('Quantity'), scope.quantity, used.quantity, qty_now));
+		rows.push(live_row(__('Work Days'), scope.total_days, used.quantity * scope.days_per_equipment, qty_now * scope.days_per_equipment));
+		Object.keys(scope.roles).forEach(trade => {
+			let allowed = scope.roles[trade] * scope.total_days;
+			let today = emps.filter(e => (state.designations[e] || {}).designation === trade).length;
+			rows.push(live_row(__('{0} (person-days)', [trade]), allowed, (used.person_days || {})[trade] || 0, today));
+		});
+
+		let warnings = [];
+		emps.forEach(e => {
+			let info = state.designations[e] || {};
+			let label = frappe.utils.escape_html(info.employee_name || e);
+			if (busy.includes(e)) {
+				warnings.push(__('{0} is already booked on this date. Saving will be rejected.', [label]));
+			}
+			if (!info.designation) {
+				warnings.push(__('{0} has no Designation set.', [label]));
+			} else if (!(info.designation in scope.roles)) {
+				warnings.push(__('{0} ({1}) is not a required role for {2}.', [label, frappe.utils.escape_html(info.designation), frappe.utils.escape_html(eq)]));
+			}
+		});
+
+		let warnings_html = warnings.length
+			? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background: var(--red-50, #fff5f5); color: var(--red-600, #c92a2a);">${warnings.map(w => '&bull; ' + w).join('<br>')}</div>`
+			: '';
+
+		$w.html(`
+			<div class="nrb-table-wrapper">
+				<table class="nrb-table">
+					<thead><tr>
+						<th>${__('Item')}</th><th>${__('Estimated')}</th><th>${__('Other Days')}</th>
+						<th>${__('This Day')}</th><th>${__('Remaining')}</th>
+					</tr></thead>
+					<tbody>${rows.join('')}</tbody>
+				</table>
+			</div>
+			${warnings_html}
+			<div class="nrb-muted" style="margin-top:6px; font-size:11px;">${__('Over-distribution does not block saving. It is enforced when the Project Planning is submitted.')}</div>
+		`);
+	}
+
+	d = new frappe.ui.Dialog(opts);
+	d.show();
+	ready = true;
+
+	let grid_wrap = d.fields_dict.employees.grid.wrapper;
+	grid_wrap.on('change awesomplete-selectcomplete', 'input', function() { setTimeout(refresh_designations, 200); });
+	grid_wrap.on('click', '.grid-add-row, .grid-append-row, .grid-insert-row, .grid-delete-row, .grid-remove-rows', function() { setTimeout(refresh_designations, 200); });
+
+	refresh_context();
+}
