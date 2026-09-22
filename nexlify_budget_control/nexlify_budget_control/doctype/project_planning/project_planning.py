@@ -32,69 +32,54 @@ class ProjectPlanning(Document):
 		if not cost_budget:
 			return
 
-		visits = frappe.get_all("Project Visits", filters={"project_planning": self.name}, pluck="name")
+		scope_rows = frappe.get_all(
+			"Project Equipment Scope",
+			filters={"cost_budget": cost_budget, "docstatus": 1},
+			fields=["name", "equipment", "quantity", "total_days"],
+		)
 
-		# --- Total Work Days ---
-		total_work_days = frappe.db.get_value("Project Cost Budget", cost_budget, "total_work_days") or 0
-		distributed_days = 0
-		for v in visits:
-			distributed_days += frappe.db.get_value("Project Visits", v, "working_days") or 0
-		if total_work_days and distributed_days != total_work_days:
-			frappe.throw(
-				_(
-					"Total Work Days distributed across visits ({0}) does not match the "
-					"Estimation total ({1})."
-				).format(distributed_days, total_work_days)
+		for scope in scope_rows:
+			used_quantity = frappe.db.sql(
+				"""
+				select coalesce(sum(sp.quantity), 0)
+				from `tabProject Visit Sub Period` sp
+				inner join `tabProject Visits` v on v.name = sp.parent
+				where v.project_planning = %s and sp.equipment = %s
+				""",
+				(self.name, scope.equipment),
+			)[0][0]
+			if flt(used_quantity) > flt(scope.quantity):
+				frappe.throw(
+					_(
+						"Equipment '{0}' is over-distributed across visits: {1} used, "
+						"but only {2} available in the Estimation."
+					).format(scope.equipment, used_quantity, scope.quantity)
+				)
+
+			role_totals = frappe.get_all(
+				"Project Equipment Scope Role",
+				filters={"parent": scope.name, "parenttype": "Project Equipment Scope"},
+				fields=["trade", "count"],
 			)
-
-		# --- Crew (per trade) ---
-		crew_totals = frappe.get_all(
-			"Project Crew Requirement",
-			filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
-			fields=["trade", "total_count"],
-		)
-		for row in crew_totals:
-			distributed = frappe.db.sql(
-				"""
-				select coalesce(sum(vc.count * v.working_days), 0)
-				from `tabProject Visit Crew` vc
-				inner join `tabProject Visits` v on v.name = vc.parent
-				where v.project_planning = %s and vc.trade = %s
-				""",
-				(self.name, row.trade),
-			)[0][0]
-			required_days = flt(row.total_count) * flt(total_work_days)
-			if flt(distributed) != required_days:
-				frappe.throw(
-					_(
-						"Crew distribution mismatch for trade '{0}': distributed {1} person-days, "
-						"but Estimation requires exactly {2} person-days ({3} x {4} days)."
-					).format(row.trade, distributed, required_days, row.total_count, total_work_days)
-				)
-
-		# --- Equipment (per type) ---
-		equipment_totals = frappe.get_all(
-			"Project Equipment Requirement",
-			filters={"parent": cost_budget, "parenttype": "Project Cost Budget"},
-			fields=["equipment", "quantity"],
-		)
-		for row in equipment_totals:
-			distributed = frappe.db.sql(
-				"""
-				select coalesce(sum(ve.quantity), 0)
-				from `tabProject Visit Equipment` ve
-				inner join `tabProject Visits` v on v.name = ve.parent
-				where v.project_planning = %s and ve.equipment = %s
-				""",
-				(self.name, row.equipment),
-			)[0][0]
-			if flt(distributed) != flt(row.quantity):
-				frappe.throw(
-					_(
-						"Equipment distribution mismatch for '{0}': distributed {1}, "
-						"but Estimation requires exactly {2}."
-					).format(row.equipment, distributed, row.quantity)
-				)
+			for role in role_totals:
+				required_days = flt(role.count) * flt(scope.total_days)
+				used_days = frappe.db.sql(
+					"""
+					select coalesce(sum(spr.count * sp.working_days), 0)
+					from `tabProject Equipment Scope Role` spr
+					inner join `tabProject Visit Sub Period` sp on sp.name = spr.parent
+					inner join `tabProject Visits` v on v.name = sp.parent
+					where v.project_planning = %s and sp.equipment = %s and spr.trade = %s
+					""",
+					(self.name, scope.equipment, role.trade),
+				)[0][0]
+				if flt(used_days) > required_days:
+					frappe.throw(
+						_(
+							"Trade '{0}' for equipment '{1}' is over-distributed: {2} "
+							"person-days used, but only {3} available in the Estimation."
+						).format(role.trade, scope.equipment, used_days, required_days)
+					)
 
 	def _has_bypass_role(self):
 		bypass_role = frappe.db.get_single_value("Project Budget Settings", "budget_bypass_role")

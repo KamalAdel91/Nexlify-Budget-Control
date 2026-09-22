@@ -14,6 +14,15 @@ class ProjectCostBudget(Document):
 		self._validate_conversion_rate()
 		self._validate_duplicate_categories()
 		self._set_default_currency()
+		self._calculate_equipment_scope_totals()
+
+	def _calculate_equipment_scope_totals(self):
+		"""Compute total_days for each Equipment Scope row, and roll up into total_work_days."""
+		grand_total = 0
+		for row in self.get("equipment_scope") or []:
+			row.total_days = flt(row.quantity) * flt(row.days_per_equipment)
+			grand_total += row.total_days
+		self.total_work_days = grand_total
 
 	def _validate_date_range(self):
 		"""Ensure from_date is before to_date."""

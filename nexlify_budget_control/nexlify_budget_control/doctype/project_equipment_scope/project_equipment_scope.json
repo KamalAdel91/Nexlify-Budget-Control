@@ -1,16 +1,45 @@
 {
  "actions": [],
- "creation": "2026-09-21 00:00:00",
+ "autoname": "naming_series:",
+ "creation": "2026-09-22 00:00:00",
  "doctype": "DocType",
- "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
+  "cost_budget",
+  "amended_from",
   "equipment",
   "quantity",
   "days_per_equipment",
-  "total_days"
+  "total_days",
+  "roles_section",
+  "roles"
  ],
  "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "no_copy": 1,
+   "options": ".ABBR.-PES-.YYYY.-.####"
+  },
+  {
+   "fieldname": "cost_budget",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Cost Budget",
+   "options": "Project Cost Budget",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Project Equipment Scope",
+   "print_hide": 1,
+   "read_only": 1
+  },
   {
    "fieldname": "equipment",
    "fieldtype": "Link",
@@ -21,7 +50,7 @@
   },
   {
    "fieldname": "quantity",
-   "fieldtype": "Int",
+   "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Quantity",
    "reqd": 1
@@ -39,15 +68,42 @@
    "in_list_view": 1,
    "label": "Total Days",
    "read_only": 1
+  },
+  {
+   "fieldname": "roles_section",
+   "fieldtype": "Section Break",
+   "label": "Roles"
+  },
+  {
+   "fieldname": "roles",
+   "fieldtype": "Table",
+   "label": "Roles",
+   "options": "Project Equipment Scope Role"
   }
  ],
  "index_web_pages_for_search": 1,
- "istable": 1,
+ "is_submittable": 1,
  "links": [],
  "module": "Nexlify Budget Control",
  "name": "Project Equipment Scope",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
- "permissions": [],
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

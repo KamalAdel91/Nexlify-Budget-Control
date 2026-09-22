@@ -351,11 +351,41 @@ def on_project_cost_budget_submit(doc, method=None):
     budget for its project: Project.custom_budget_cost is pointed at
     this document. Activating the project itself only happens via the
     "Mark as Active" button on Project, never automatically here.
+
+    All Draft Project Equipment Scope rows linked to this Cost Budget
+    are auto-submitted at the same time, locking them together with
+    the parent (per the app-wide "child locks with parent" principle).
     """
+    _submit_equipment_scope_rows(doc.name)
+
     if not doc.project:
         return
     frappe.db.set_value("Project", doc.project, "custom_budget_cost", doc.name)
     _sync_project_overview(doc.project)
+
+
+def _submit_equipment_scope_rows(cost_budget):
+    draft_rows = frappe.get_all(
+        "Project Equipment Scope",
+        filters={"cost_budget": cost_budget, "docstatus": 0},
+        pluck="name",
+    )
+    for row_name in draft_rows:
+        row_doc = frappe.get_doc("Project Equipment Scope", row_name)
+        row_doc.flags.ignore_cost_budget_lock_check = True
+        row_doc.submit()
+
+
+def _cancel_equipment_scope_rows(cost_budget):
+    submitted_rows = frappe.get_all(
+        "Project Equipment Scope",
+        filters={"cost_budget": cost_budget, "docstatus": 1},
+        pluck="name",
+    )
+    for row_name in submitted_rows:
+        row_doc = frappe.get_doc("Project Equipment Scope", row_name)
+        row_doc.flags.ignore_cost_budget_lock_check = True
+        row_doc.cancel()
 
 
 def on_project_planning_submit(doc, method=None):
@@ -401,7 +431,13 @@ def on_project_cost_budget_cancel(doc, method=None):
     untouched (it still points at this now-cancelled document) until a
     new Project Cost Budget is submitted for the same project, which
     will overwrite it via on_project_cost_budget_submit above.
+
+    All submitted Project Equipment Scope rows linked to this Cost
+    Budget are auto-cancelled at the same time, unlocking them together
+    with the parent.
     """
+    _cancel_equipment_scope_rows(doc.name)
+
     if not doc.project:
         return
     current_linked = frappe.db.get_value("Project", doc.project, "custom_budget_cost")
@@ -463,6 +499,163 @@ def get_project_visits(project_planning):
 		v["equipment_summary"] = ", ".join(f"{r.equipment} x{r.quantity}" for r in equipment_rows)
 
 	return visits
+
+
+# ---------------------------------------------------------------------------
+# Project Equipment Scope
+# ---------------------------------------------------------------------------
+
+def _recalculate_cost_budget_total_work_days(cost_budget):
+    total = frappe.db.sql(
+        """
+        select coalesce(sum(total_days), 0)
+        from `tabProject Equipment Scope`
+        where cost_budget = %s and docstatus in (0, 1)
+        """,
+        (cost_budget,),
+    )[0][0]
+    frappe.db.set_value("Project Cost Budget", cost_budget, "total_work_days", total)
+    return total
+
+
+@frappe.whitelist()
+@frappe.whitelist()
+def get_project_equipment_scope_rows_for_planning(project_planning):
+    project = frappe.db.get_value("Project Planning", project_planning, "project")
+    cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
+    if not cost_budget:
+        return {"rows": [], "trade_columns": []}
+    return get_project_equipment_scope_rows(cost_budget)
+
+
+@frappe.whitelist()
+def get_project_equipment_scope_rows(cost_budget):
+    rows = frappe.get_all(
+        "Project Equipment Scope",
+        filters={"cost_budget": cost_budget},
+        fields=["name", "equipment", "quantity", "days_per_equipment", "total_days", "docstatus"],
+        order_by="creation asc",
+    )
+    all_trades = []
+    for r in rows:
+        role_rows = frappe.get_all(
+            "Project Equipment Scope Role", filters={"parent": r.name}, fields=["trade", "count"]
+        )
+        r["roles_summary"] = ", ".join(f"{x.trade} x{x.count}" for x in role_rows)
+        r["role_counts"] = {x.trade: x.count for x in role_rows}
+        for x in role_rows:
+            if x.trade not in all_trades:
+                all_trades.append(x.trade)
+
+    return {"rows": rows, "trade_columns": all_trades}
+
+
+@frappe.whitelist()
+def get_project_equipment_scope_full(name):
+    doc = frappe.get_doc("Project Equipment Scope", name)
+    return {
+        "name": doc.name,
+        "equipment": doc.equipment,
+        "quantity": doc.quantity,
+        "days_per_equipment": doc.days_per_equipment,
+        "total_days": doc.total_days,
+        "docstatus": doc.docstatus,
+        "roles": [{"trade": r.trade, "count": r.count} for r in doc.roles],
+    }
+
+
+@frappe.whitelist()
+def bulk_create_project_equipment_scope(cost_budget, rows):
+    if isinstance(rows, str):
+        rows = frappe.parse_json(rows)
+
+    cost_budget_status = frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus")
+    if cost_budget_status == 1:
+        frappe.throw(_("Cannot add Equipment Scope: the Cost Budget is already submitted."))
+
+    created = []
+    for row in rows:
+        doc = frappe.get_doc({
+            "doctype": "Project Equipment Scope",
+            "cost_budget": cost_budget,
+            "equipment": row.get("equipment"),
+            "quantity": row.get("quantity"),
+            "days_per_equipment": row.get("days_per_equipment"),
+        })
+        for role in row.get("roles") or []:
+            doc.append("roles", {"trade": role.get("trade"), "count": role.get("count")})
+        doc.insert(ignore_permissions=True)
+        created.append(doc.name)
+
+    _recalculate_cost_budget_total_work_days(cost_budget)
+    return created
+
+
+@frappe.whitelist()
+def update_project_equipment_scope(name, values):
+    if isinstance(values, str):
+        values = frappe.parse_json(values)
+
+    doc = frappe.get_doc("Project Equipment Scope", name)
+    if doc.docstatus == 1:
+        frappe.throw(_("Cannot edit: this Equipment Scope is already submitted."))
+
+    doc.equipment = values.get("equipment")
+    doc.quantity = values.get("quantity")
+    doc.days_per_equipment = values.get("days_per_equipment")
+
+    doc.set("roles", [])
+    for role in values.get("roles") or []:
+        doc.append("roles", {"trade": role.get("trade"), "count": role.get("count")})
+
+    doc.save(ignore_permissions=True)
+    _recalculate_cost_budget_total_work_days(doc.cost_budget)
+    return doc.name
+
+
+@frappe.whitelist()
+def bulk_update_project_equipment_scope(rows, deleted=None):
+    if isinstance(rows, str):
+        rows = frappe.parse_json(rows)
+    if isinstance(deleted, str):
+        deleted = frappe.parse_json(deleted)
+
+    for row in rows:
+        name = row.get("name")
+        if not name:
+            continue
+        doc = frappe.get_doc("Project Equipment Scope", name)
+        if doc.docstatus == 1:
+            frappe.throw(_("Cannot edit '{0}': already submitted.").format(name))
+        doc.equipment = row.get("equipment")
+        doc.quantity = row.get("quantity")
+        doc.days_per_equipment = row.get("days_per_equipment")
+        doc.save(ignore_permissions=True)
+
+    for name in (deleted or []):
+        doc = frappe.get_doc("Project Equipment Scope", name)
+        if doc.docstatus == 1:
+            frappe.throw(_("Cannot delete '{0}': already submitted.").format(name))
+        frappe.delete_doc("Project Equipment Scope", name, ignore_permissions=True)
+
+    cost_budget = None
+    if rows:
+        cost_budget = frappe.db.get_value("Project Equipment Scope", rows[0].get("name"), "cost_budget")
+    if not cost_budget and deleted:
+        cost_budget = frappe.db.get_value("Project Equipment Scope", deleted[0], "cost_budget") if len(deleted) else None
+
+    if cost_budget:
+        _recalculate_cost_budget_total_work_days(cost_budget)
+
+
+@frappe.whitelist()
+def delete_project_equipment_scope(name):
+    doc = frappe.get_doc("Project Equipment Scope", name)
+    if doc.docstatus == 1:
+        frappe.throw(_("Cannot delete: this Equipment Scope is already submitted."))
+    cost_budget = doc.cost_budget
+    frappe.delete_doc("Project Equipment Scope", name, ignore_permissions=True)
+    _recalculate_cost_budget_total_work_days(cost_budget)
 
 
 EXCLUDED_VISIT_EDIT_FIELDS = {"project_planning", "project", "visit_label"}
@@ -991,6 +1184,23 @@ def get_execution_remaining_for_visit(project_planning, visit_name=None):
 @frappe.whitelist()
 def get_budget_bypass_role():
 	return frappe.db.get_single_value("Project Budget Settings", "budget_bypass_role")
+
+
+@frappe.whitelist()
+def get_button_visibility_settings():
+	def _roles_for(fieldname):
+		rows = frappe.get_all(
+			"Has Role",
+			filters={"parent": "Project Budget Settings", "parentfield": fieldname},
+			pluck="role",
+		)
+		return rows
+
+	return {
+		"plan_button_roles": _roles_for("plan_button_roles"),
+		"estimation_button_roles": _roles_for("estimation_button_roles"),
+		"overview_button_roles": _roles_for("overview_button_roles"),
+	}
 
 
 # ---------------------------------------------------------------------------

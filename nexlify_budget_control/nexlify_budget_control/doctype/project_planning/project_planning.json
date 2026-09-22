@@ -19,12 +19,8 @@
   "column_break_vtxv",
   "to_date",
   "visits_tab",
-  "work_days_section",
-  "work_days_progress_html",
-  "crew_progress_section",
-  "crew_progress_html",
-  "equipment_progress_section",
-  "equipment_progress_html",
+  "estimation_overview_section",
+  "estimation_overview_html",
   "visits_section",
   "visits_html",
   "invoices_tab",
@@ -130,33 +126,12 @@
    "label": "Invoicing"
   },
   {
-   "collapsible": 1,
-   "fieldname": "work_days_section",
+   "fieldname": "estimation_overview_section",
    "fieldtype": "Section Break",
-   "label": "Work Days"
+   "label": "Estimation Overview"
   },
   {
-   "fieldname": "work_days_progress_html",
-   "fieldtype": "HTML"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "crew_progress_section",
-   "fieldtype": "Section Break",
-   "label": "Crew"
-  },
-  {
-   "fieldname": "crew_progress_html",
-   "fieldtype": "HTML"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "equipment_progress_section",
-   "fieldtype": "Section Break",
-   "label": "Equipment"
-  },
-  {
-   "fieldname": "equipment_progress_html",
+   "fieldname": "estimation_overview_html",
    "fieldtype": "HTML"
   },
   {
@@ -186,7 +161,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-16 21:35:26.414403",
+ "modified": "2026-09-22 14:22:34.528927",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Planning",

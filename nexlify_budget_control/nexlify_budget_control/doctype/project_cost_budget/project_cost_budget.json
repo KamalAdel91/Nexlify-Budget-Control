@@ -28,15 +28,10 @@
   "amended_from",
   "execution_tab",
   "total_work_days",
-  "equipment_scope_section",
-  "equipment_scope",
-  "crew_section",
-  "crew",
+  "equipment_scope_summary_html",
   "resources_section",
   "estimated_vehicles",
-  "petty_cash",
-  "equipment_section",
-  "equipment"
+  "petty_cash"
  ],
  "fields": [
   {
@@ -155,31 +150,16 @@
    "label": "Execution Estimation"
   },
   {
+   "description": "Auto-calculated from Equipment Scope rows below.",
    "fieldname": "total_work_days",
-   "fieldtype": "Int",
-   "label": "Total Work Days"
+   "fieldtype": "Float",
+   "label": "Total Work Days",
+   "read_only": 1
   },
   {
-   "fieldname": "equipment_scope_section",
-   "fieldtype": "Section Break",
-   "label": "Equipment Scope (Per Type)"
-  },
-  {
-   "fieldname": "equipment_scope",
-   "fieldtype": "Table",
-   "label": "Equipment Scope",
-   "options": "Project Equipment Scope"
-  },
-  {
-   "fieldname": "crew_section",
-   "fieldtype": "Section Break",
-   "label": "Crew (Total Required)"
-  },
-  {
-   "fieldname": "crew",
-   "fieldtype": "Table",
-   "label": "Crew",
-   "options": "Project Crew Requirement"
+   "fieldname": "equipment_scope_summary_html",
+   "fieldtype": "HTML",
+   "label": "Equipment Scope"
   },
   {
    "fieldname": "resources_section",
@@ -195,17 +175,6 @@
    "fieldname": "petty_cash",
    "fieldtype": "Currency",
    "label": "Petty Cash"
-  },
-  {
-   "fieldname": "equipment_section",
-   "fieldtype": "Section Break",
-   "label": "SOW Equipment (Quantity)"
-  },
-  {
-   "fieldname": "equipment",
-   "fieldtype": "Table",
-   "label": "Equipment",
-   "options": "Project Equipment Requirement"
   },
   {
    "fieldname": "section_break_rtyw",

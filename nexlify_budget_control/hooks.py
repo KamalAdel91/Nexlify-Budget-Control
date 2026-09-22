@@ -13,11 +13,6 @@ doc_events = {
         "*": {
                 "before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference"
         },
-        "Designation": {
-                "after_insert": "nexlify_budget_control.nexlify_budget_control.designation_sync.sync_new_designation",
-                "on_trash": "nexlify_budget_control.nexlify_budget_control.designation_sync.sync_deleted_designation",
-                "after_rename": "nexlify_budget_control.nexlify_budget_control.designation_sync.sync_renamed_designation"
-        },
         "Material Request": {
                 "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_submit",
                 "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_cancel"

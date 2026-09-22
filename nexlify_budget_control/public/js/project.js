@@ -14,25 +14,51 @@ frappe.ui.form.on('Project', {
 function render_budget_creation_buttons(frm) {
     if (frm.is_new()) return;
 
-    if (frm.doc.custom_project_overview) {
-        frm.add_custom_button('Open Overview', function() {
-            frappe.set_route('Form', 'Project Overview', frm.doc.custom_project_overview);
-        });
-    }
+    frappe.call({
+        method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_button_visibility_settings',
+        callback: function(r) {
+            let settings = r.message || {};
 
-    render_budget_button(frm, {
-        create_label: 'Create Plan',
-        open_label: 'Open Plan',
-        linked_field: 'custom_project_planning',
-        doctype: 'Project Planning'
-    });
+            if (frm.doc.custom_project_overview && role_allows(settings.overview_button_roles)) {
+                frm.add_custom_button('Open Overview', function() {
+                    frappe.set_route('Form', 'Project Overview', frm.doc.custom_project_overview);
+                });
+            }
 
-    render_budget_button(frm, {
-        create_label: 'Create Estimation',
-        open_label: 'Open Estimation',
-        linked_field: 'custom_budget_cost',
-        doctype: 'Project Cost Budget'
+            if (role_allows(settings.estimation_button_roles)) {
+                render_budget_button(frm, {
+                    create_label: 'Create Estimation',
+                    open_label: 'Open Estimation',
+                    linked_field: 'custom_budget_cost',
+                    doctype: 'Project Cost Budget'
+                });
+            }
+
+            if (role_allows(settings.plan_button_roles)) {
+                let estimation_submitted = false;
+                if (frm.doc.custom_budget_cost) {
+                    // نتأكد من حالة الـ Cost Budget قبل ما نعرض زرار Plan
+                    frappe.db.get_value('Project Cost Budget', frm.doc.custom_budget_cost, 'docstatus').then(r2 => {
+                        estimation_submitted = (r2.message && r2.message.docstatus === 1);
+                        if (estimation_submitted) {
+                            render_budget_button(frm, {
+                                create_label: 'Create Plan',
+                                open_label: 'Open Plan',
+                                linked_field: 'custom_project_planning',
+                                doctype: 'Project Planning'
+                            });
+                        }
+                    });
+                }
+            }
+        }
     });
+}
+
+function role_allows(allowed_roles) {
+    if (!allowed_roles || !allowed_roles.length) return true;
+    let user_roles = frappe.user_roles || [];
+    return allowed_roles.some(role => user_roles.includes(role));
 }
 
 function render_budget_button(frm, opts) {

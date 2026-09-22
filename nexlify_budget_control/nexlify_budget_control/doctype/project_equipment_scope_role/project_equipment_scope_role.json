@@ -1,0 +1,29 @@
+{
+ "doctype": "DocType",
+ "name": "Project Equipment Scope Role",
+ "module": "Nexlify Budget Control",
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "trade",
+   "label": "Trade",
+   "fieldtype": "Link",
+   "options": "Designation",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "count",
+   "label": "Count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "reqd": 1,
+   "default": "1"
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

@@ -14,9 +14,9 @@ frappe.ui.form.on("Project Planning", {
 		inject_visits_invoices_styles();
 		render_add_visits_button(frm);
 		render_add_invoice_button(frm);
-		render_execution_progress(frm);
 		render_visits_table(frm);
 		render_invoices_table(frm);
+		render_estimation_overview(frm);
 	},
 
 	on_submit: function(frm) {
@@ -375,75 +375,12 @@ function render_visits_table(frm) {
 			_cached_visits = r.message || [];
 			frm.set_df_property('visits_html', 'options', build_visits_table_html(_cached_visits));
 			frm.refresh_field('visits_html');
-			render_execution_matrix(frm);
-		}
-	});
-}
-
-function render_execution_matrix(frm) {
-	frappe.call({
-		method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_execution_matrix',
-		args: { project_planning: frm.doc.name },
-		callback: function(r) {
-			let data = r.message;
-			let $target = frm.fields_dict.visits_html.$wrapper.find('#nrb-execution-matrix');
-			if (!data || !data.visits.length) { $target.html(''); return; }
-			$target.html(build_matrix_section(__('Crew per Visit'), data.visits, data.crew_columns, data.crew_totals, data.crew_matrix, true) +
-				build_matrix_section(__('Equipment per Visit'), data.visits, data.equipment_columns, data.equipment_totals, data.equipment_matrix, false));
 		}
 	});
 }
 
 function fmt_matrix_value(n) {
 	return n ? n : '<span class="nrb-muted">-</span>';
-}
-
-function build_matrix_section(title, visits, columns, totals, matrix, is_crew) {
-	if (!columns.length) {
-		return `<div class="nrb-section-title" style="margin-top:16px;">${title}</div><div class="nrb-empty">${__('No data.')}</div>`;
-	}
-
-	let header = columns.map(c => `<th>${frappe.utils.escape_html(c)}</th>`).join('');
-	let body_rows = visits.map(v => {
-		let cells = columns.map(c => {
-			let cell = (matrix[v.name] && matrix[v.name][c]) || 0;
-			if (is_crew) {
-				let count = (cell && cell.count) || 0;
-				let days = (cell && cell.days) || 0;
-				return `<td>${count ? `${count} (${days}${__('d')})` : '<span class="nrb-muted">-</span>'}</td>`;
-			}
-			return `<td>${fmt_matrix_value(cell)}</td>`;
-		}).join('');
-		return `<tr><td>${frappe.utils.escape_html(v.visit_label || v.name)}</td>${cells}</tr>`;
-	}).join('');
-
-	let column_totals = columns.map(c => visits.reduce((sum, v) => {
-		let cell = (matrix[v.name] && matrix[v.name][c]) || 0;
-		return sum + (is_crew ? ((cell && cell.days) || 0) : cell);
-	}, 0));
-	let total_row = column_totals.map(t => `<td><b>${fmt_matrix_value(t)}</b></td>`).join('');
-	let estimated_row = columns.map(c => `<td>${fmt_matrix_value(totals[c] || 0)}</td>`).join('');
-	let remaining_row = columns.map((c, i) => {
-		let remaining = (totals[c] || 0) - column_totals[i];
-		let color = remaining === 0 ? 'var(--green-500, #2b8a3e)' : (remaining < 0 ? 'var(--red-500, #e03131)' : 'var(--orange-500, #e8590c)');
-		let display = remaining === 0 ? '-' : remaining;
-		return `<td style="color:${color}; font-weight:600;">${display}</td>`;
-	}).join('');
-
-	return `
-		<div class="nrb-section-title" style="margin-top:16px;">${title}</div>
-		<div class="nrb-table-wrapper">
-			<table class="nrb-table nrb-matrix-table">
-				<thead><tr><th>${__('Visit')}</th>${header}</tr></thead>
-				<tbody>${body_rows}</tbody>
-				<tfoot>
-					<tr><td><b>${__('Total')}</b></td>${total_row}</tr>
-					<tr class="nrb-estimated-row"><td>${__('Estimated')}</td>${estimated_row}</tr>
-					<tr><td><b>${__('Remaining')}</b></td>${remaining_row}</tr>
-				</tfoot>
-			</table>
-		</div>
-	`;
 }
 
 window.open_visit_quick_edit = function(visit_name) {
@@ -459,20 +396,18 @@ window.open_visit_quick_edit = function(visit_name) {
 			let full_doc = full_r.message || {};
 
 			frappe.call({
-				method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_execution_remaining_for_visit',
-				args: { project_planning: plan_name, visit_name: visit_name },
-				callback: function(rem_r) {
-					let remaining_data = rem_r.message;
+				method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_project_equipment_scope_rows_for_planning',
+				args: { project_planning: plan_name },
+				callback: function(scope_r) {
+					let scope_data = scope_r.message || {};
+					let allowed_equipment = (scope_data.rows || []).map(row => row.equipment);
 
 					frappe.call({
 						method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_project_visits_editable_fields',
 						callback: function(r) {
 							let field_defs = r.message || [];
 
-							let allowed_trades = (remaining_data && remaining_data.crew || []).map(c => c.trade);
-let allowed_equipment = (remaining_data && remaining_data.equipment || []).map(e => e.equipment);
-
-let dialog_fields = [];
+							let dialog_fields = [];
 							field_defs.forEach(f => {
 								if (f.fieldtype === 'Table') {
 									dialog_fields.push({
@@ -492,12 +427,7 @@ let dialog_fields = [];
 												reqd: cf.reqd,
 												in_list_view: 1
 											};
-											if (f.fieldname === 'crew' && cf.fieldname === 'trade') {
-												field_def.get_query = function() {
-													return { filters: { name: ['in', allowed_trades] } };
-												};
-											}
-											if (f.fieldname === 'equipment' && cf.fieldname === 'equipment') {
+											if (f.fieldname === 'sub_periods' && cf.fieldname === 'equipment') {
 												field_def.get_query = function() {
 													return { filters: { name: ['in', allowed_equipment] } };
 												};
@@ -550,7 +480,7 @@ let dialog_fields = [];
 											d.hide();
 											frappe.show_alert({ message: __('Visit updated.'), indicator: 'green' });
 											render_visits_table(_revenue_budget_frm);
-											render_execution_progress(_revenue_budget_frm);
+											render_estimation_overview(_revenue_budget_frm);
 										}
 									});
 								},
@@ -565,7 +495,7 @@ let dialog_fields = [];
 												d.hide();
 												frappe.show_alert({ message: __('Visit deleted.'), indicator: 'green' });
 												render_visits_table(_revenue_budget_frm);
-												render_execution_progress(_revenue_budget_frm);
+												render_estimation_overview(_revenue_budget_frm);
 											}
 										});
 									});
@@ -1304,6 +1234,21 @@ function inject_visits_invoices_styles() {
 			color: var(--green-600, #2b8a3e);
 		}
 		.nrb-muted { color: var(--text-muted, #6c757d); }
+		.form-section:not(:last-child) {
+			padding-bottom: 20px;
+			margin-bottom: 20px;
+			border-bottom: 1px solid transparent;
+		}
+		.form-section:not(:last-child) {
+			padding-bottom: 20px;
+			margin-bottom: 20px;
+			border-bottom: 1px solid var(--border-color, #e9ecef);
+		}
+		.form-section:not(:last-child) {
+			padding-bottom: 20px;
+			margin-bottom: 20px;
+			border-bottom: 1px solid var(--border-color, #e9ecef);
+		}
 		.nrb-empty {
 			padding: 26px 14px;
 			text-align: center;
@@ -1316,71 +1261,83 @@ function inject_visits_invoices_styles() {
 	document.head.appendChild(style);
 }
 
-function render_execution_progress(frm) {
+function render_estimation_overview(frm) {
 	if (frm.is_new()) {
-		['work_days_progress_html', 'crew_progress_html', 'equipment_progress_html'].forEach(fn => {
-			frm.set_df_property(fn, 'options', '');
-			frm.refresh_field(fn);
-		});
+		frm.set_df_property('estimation_overview_html', 'options', '');
+		frm.refresh_field('estimation_overview_html');
 		return;
 	}
 
 	frappe.call({
-		method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_execution_distribution_summary',
+		method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_project_equipment_scope_rows_for_planning',
 		args: { project_planning: frm.doc.name },
 		callback: function(r) {
-			let blocks = build_execution_progress_html(r.message);
-			frm.set_df_property('work_days_progress_html', 'options', blocks.work_days);
-			frm.set_df_property('crew_progress_html', 'options', blocks.crew);
-			frm.set_df_property('equipment_progress_html', 'options', blocks.equipment);
-			frm.refresh_field('work_days_progress_html');
-			frm.refresh_field('crew_progress_html');
-			frm.refresh_field('equipment_progress_html');
+			let data = r.message || {};
+			let rows = data.rows || [];
+			let trade_columns = data.trade_columns || [];
+
+			if (!rows.length) {
+				frm.set_df_property('estimation_overview_html', 'options', `<div class="text-muted" style="padding:16px; text-align:center; border:1px dashed var(--border-color, #e9ecef); border-radius:10px;">${__('No Costing (Estimation) submitted yet for this project.')}</div>`);
+				frm.refresh_field('estimation_overview_html');
+				return;
+			}
+
+			let trade_headers = trade_columns.map(t => `<th>${frappe.utils.escape_html(t)}</th>`).join('');
+
+			let total_days_sum = 0;
+			let rows_html = rows.map(row => {
+				total_days_sum += flt(row.total_days);
+				let trade_cells = trade_columns.map(t => {
+					let val = (row.role_counts || {})[t];
+					return `<td>${val ? val : '<span class="text-muted">-</span>'}</td>`;
+				}).join('');
+				return `
+					<tr>
+						<td>${frappe.utils.escape_html(row.equipment || '')}</td>
+						<td>${flt(row.quantity)}</td>
+						<td>${flt(row.days_per_equipment)}</td>
+						${trade_cells}
+						<td>${flt(row.total_days)}</td>
+					</tr>
+				`;
+			}).join('');
+
+			total_days_sum = Math.round(total_days_sum * 100) / 100;
+
+			let html = `
+				<style>
+					.pes-summary-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+					.pes-summary-table th { background:var(--control-bg, #f8f9fb); text-align:left; padding:8px 10px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px; color:var(--text-muted, #6c757d); border-bottom:1px solid var(--border-color, #e9ecef); }
+					.pes-summary-table td { padding:8px 10px; border-bottom:1px solid var(--border-color, #e9ecef); vertical-align:middle; }
+					.pes-summary-table tbody tr:hover { background:var(--control-bg, #f8f9fb); }
+					.pes-summary-table tfoot td { background:var(--control-bg, #f8f9fb); font-weight:600; }
+				</style>
+				<div style="border:1px solid var(--border-color, #e9ecef); border-radius:10px; overflow-x:auto; margin-top:8px;">
+					<table class="pes-summary-table">
+						<thead>
+							<tr>
+								<th>${__('Equipment')}</th>
+								<th>${__('Qty')}</th>
+								<th>${__('Days/Unit')}</th>
+								${trade_headers}
+								<th>${__('Total Days')}</th>
+							</tr>
+						</thead>
+						<tbody>${rows_html}</tbody>
+						<tfoot>
+							<tr>
+								<td colspan="${3 + trade_columns.length}" style="text-align:right;">${__('Total Work Days')}</td>
+								<td>${total_days_sum}</td>
+							</tr>
+						</tfoot>
+					</table>
+				</div>
+			`;
+
+			frm.set_df_property('estimation_overview_html', 'options', html);
+			frm.refresh_field('estimation_overview_html');
 		}
 	});
-}
-
-function build_execution_progress_html(data) {
-	if (!data) {
-		let empty = `<div class="nrb-empty">${__('No Costing (Estimation) submitted yet for this project.')}</div>`;
-		return { work_days: empty, crew: '', equipment: '' };
-	}
-
-	function progress_row(label, total, distributed) {
-		let remaining = total - distributed;
-		let color = remaining === 0 ? 'var(--green-500, #2b8a3e)' : (remaining < 0 ? 'var(--red-500, #e03131)' : 'var(--orange-500, #e8590c)');
-		let remaining_display = remaining === 0 ? '-' : remaining;
-		return `
-			<tr>
-				<td>${frappe.utils.escape_html(label)}</td>
-				<td>${fmt_matrix_value(total)}</td>
-				<td>${fmt_matrix_value(distributed)}</td>
-				<td style="color: ${color}; font-weight: 600;">${remaining_display}</td>
-			</tr>
-		`;
-	}
-
-	function build_table(title, rows_array) {
-		if (!rows_array.length) {
-			return title ? `<div class="nrb-section-title">${__(title)}</div><div class="nrb-empty">${__('No data.')}</div>` : `<div class="nrb-empty">${__('No data.')}</div>`;
-		}
-		let rows_html = rows_array.map(r => progress_row(r.label, r.total, r.distributed)).join('');
-		return `
-			${title ? `<div class="nrb-section-title">${__(title)}</div>` : ''}
-			<div class="nrb-table-wrapper">
-				<table class="nrb-table">
-					<thead><tr><th>${__('Item')}</th><th>${__('Total (Estimation)')}</th><th>${__('Distributed')}</th><th>${__('Remaining')}</th></tr></thead>
-					<tbody>${rows_html}</tbody>
-				</table>
-			</div>
-		`;
-	}
-
-	let work_days_block = build_table('', [{ label: __('Total Work Days'), total: data.total_work_days, distributed: data.distributed_work_days }]);
-	let crew_block = build_table('', data.crew || []);
-	let equipment_block = build_table('', data.equipment || []);
-
-	return { work_days: work_days_block, crew: crew_block, equipment: equipment_block };
 }
 
 

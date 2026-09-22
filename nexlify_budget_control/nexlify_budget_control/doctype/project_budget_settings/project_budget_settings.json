@@ -8,6 +8,10 @@
   "import_mode",
   "section_break_rules",
   "document_rules",
+  "section_break_button_roles",
+  "plan_button_roles",
+  "estimation_button_roles",
+  "overview_button_roles",
   "section_break_dashboard_filters",
   "dashboard_filters"
  ],
@@ -19,10 +23,10 @@
    "options": "Role"
   },
   {
+   "description": "Enable temporarily before a large bulk import (e.g. Data Import). Every budget violation is still recorded in the Violation Log, but nothing will stop or warn during submission. Remember to turn this OFF again after the import finishes.",
    "fieldname": "import_mode",
    "fieldtype": "Check",
-   "label": "Import Mode (log all violations, never block)",
-   "description": "Enable temporarily before a large bulk import (e.g. Data Import). Every budget violation is still recorded in the Violation Log, but nothing will stop or warn during submission. Remember to turn this OFF again after the import finishes."
+   "label": "Import Mode (log all violations, never block)"
   },
   {
    "fieldname": "section_break_rules",
@@ -34,6 +38,29 @@
    "fieldtype": "Table",
    "label": "Document Type Rules",
    "options": "Document Type Rule"
+  },
+  {
+   "fieldname": "section_break_button_roles",
+   "fieldtype": "Section Break",
+   "label": "Button Visibility (leave empty = visible to everyone)"
+  },
+  {
+   "fieldname": "plan_button_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Plan Button - Allowed Roles",
+   "options": "Has Role"
+  },
+  {
+   "fieldname": "estimation_button_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Estimation Button - Allowed Roles",
+   "options": "Has Role"
+  },
+  {
+   "fieldname": "overview_button_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Overview Button - Allowed Roles",
+   "options": "Has Role"
   },
   {
    "fieldname": "section_break_dashboard_filters",

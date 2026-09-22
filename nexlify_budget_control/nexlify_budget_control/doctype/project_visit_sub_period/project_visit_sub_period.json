@@ -6,19 +6,17 @@
  "engine": "InnoDB",
  "field_order": [
   "equipment",
+  "quantity",
   "working_days",
-  "column_break_1",
-  "engineer_count",
-  "technician_count",
-  "driver_count"
+  "roles_section",
+  "roles"
  ],
  "fields": [
   {"fieldname": "equipment", "fieldtype": "Link", "in_list_view": 1, "label": "Equipment", "options": "Equipment Type", "reqd": 1},
+  {"fieldname": "quantity", "fieldtype": "Float", "in_list_view": 1, "label": "Quantity Used", "reqd": 1},
   {"fieldname": "working_days", "fieldtype": "Float", "in_list_view": 1, "label": "Working Days", "reqd": 1},
-  {"fieldname": "column_break_1", "fieldtype": "Column Break"},
-  {"fieldname": "engineer_count", "fieldtype": "Int", "in_list_view": 1, "label": "Engineer"},
-  {"fieldname": "technician_count", "fieldtype": "Int", "in_list_view": 1, "label": "Technician"},
-  {"fieldname": "driver_count", "fieldtype": "Int", "in_list_view": 1, "label": "Driver"}
+  {"fieldname": "roles_section", "fieldtype": "Section Break", "label": "Crew"},
+  {"fieldname": "roles", "fieldtype": "Table", "label": "Crew", "options": "Project Equipment Scope Role"}
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,

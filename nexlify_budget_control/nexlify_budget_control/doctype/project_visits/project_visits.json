@@ -14,10 +14,8 @@
   "start_date",
   "end_date",
   "working_days",
-  "crew_section",
-  "crew",
-  "equipment_section",
-  "equipment"
+  "sub_periods_section",
+  "sub_periods"
  ],
  "fields": [
   {
@@ -77,31 +75,22 @@
    "reqd": 1
   },
   {
+   "description": "Auto-calculated from Sub Periods below.",
    "fieldname": "working_days",
    "fieldtype": "Int",
-   "label": "Working Days for This Visit"
+   "label": "Working Days for This Visit",
+   "read_only": 1
   },
   {
-   "fieldname": "crew_section",
+   "fieldname": "sub_periods_section",
    "fieldtype": "Section Break",
-   "label": "Crew Assigned to This Visit"
+   "label": "Sub Periods (Equipment & Crew)"
   },
   {
-   "fieldname": "crew",
+   "fieldname": "sub_periods",
    "fieldtype": "Table",
-   "label": "Crew",
-   "options": "Project Visit Crew"
-  },
-  {
-   "fieldname": "equipment_section",
-   "fieldtype": "Section Break",
-   "label": "Equipment Assigned to This Visit"
-  },
-  {
-   "fieldname": "equipment",
-   "fieldtype": "Table",
-   "label": "Equipment",
-   "options": "Project Visit Equipment"
+   "label": "Sub Periods",
+   "options": "Project Visit Sub Period"
   }
  ],
  "index_web_pages_for_search": 1,

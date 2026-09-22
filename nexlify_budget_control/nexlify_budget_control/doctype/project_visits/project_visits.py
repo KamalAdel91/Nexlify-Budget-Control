@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import getdate
+from frappe.utils import getdate, flt
 
 
 class ProjectVisits(Document):
@@ -16,6 +16,10 @@ class ProjectVisits(Document):
 	def validate(self):
 		self.validate_cost_budget_submitted()
 		self.validate_no_overlap()
+		self.calculate_working_days()
+
+	def calculate_working_days(self):
+		self.working_days = sum(flt(sp.working_days) for sp in (self.sub_periods or []))
 
 	def validate_cost_budget_submitted(self):
 		project = frappe.db.get_value("Project Planning", self.project_planning, "project")
