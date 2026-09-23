@@ -40,13 +40,38 @@
    "write": 1
   },
   {
-   "email": 1,
+   "create": 1,
+   "delete": 1,
    "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "Project Manager",
-   "share": 1
+   "role": "Estimation Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Estimation User"
+  },
+  {
+   "read": 1,
+   "role": "Planning Manager"
+  },
+  {
+   "read": 1,
+   "role": "Planning User"
+  },
+  {
+   "read": 1,
+   "role": "O&M Manager"
+  },
+  {
+   "read": 1,
+   "role": "COO"
+  },
+  {
+   "read": 1,
+   "role": "CEO"
   }
  ],
  "sort_field": "modified",

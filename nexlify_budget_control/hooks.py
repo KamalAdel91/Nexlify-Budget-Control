@@ -78,6 +78,12 @@ fixtures = [
                 ]
         },
         {
+                "doctype": "Role",
+                "filters": [
+                        ["name", "in", ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager", "O&M Manager", "COO", "CEO"]]
+                ]
+        },
+        {
                 "doctype": "Workspace",
                 "filters": [
                         ["name", "=", "Projexlify"]

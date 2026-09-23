@@ -1,0 +1,51 @@
+[
+ {
+  "doctype": "Role",
+  "name": "Estimation User",
+  "role_name": "Estimation User",
+  "desk_access": 1,
+  "disabled": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "Estimation Manager",
+  "role_name": "Estimation Manager",
+  "desk_access": 1,
+  "disabled": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "Planning User",
+  "role_name": "Planning User",
+  "desk_access": 1,
+  "disabled": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "Planning Manager",
+  "role_name": "Planning Manager",
+  "desk_access": 1,
+  "disabled": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "O&M Manager",
+  "role_name": "O&M Manager",
+  "desk_access": 1,
+  "disabled": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "COO",
+  "role_name": "COO",
+  "desk_access": 1,
+  "disabled": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "CEO",
+  "role_name": "CEO",
+  "desk_access": 1,
+  "disabled": 0
+ }
+]
