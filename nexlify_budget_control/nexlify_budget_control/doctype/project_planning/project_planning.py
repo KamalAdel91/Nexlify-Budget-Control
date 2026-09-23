@@ -8,6 +8,11 @@ from frappe.utils import flt
 
 
 class ProjectPlanning(Document):
+	def after_insert(self):
+		if self.amended_from:
+			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import carry_over_amended_planning
+			carry_over_amended_planning(self.amended_from, self.name)
+
 	def before_submit(self):
 		self.validate_invoice_percentage_total()
 		self.validate_execution_distribution()

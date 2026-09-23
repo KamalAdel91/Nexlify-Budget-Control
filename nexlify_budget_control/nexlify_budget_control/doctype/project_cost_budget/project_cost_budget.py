@@ -8,6 +8,11 @@ from frappe.utils import getdate, flt
 
 
 class ProjectCostBudget(Document):
+	def after_insert(self):
+		if self.amended_from:
+			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import carry_over_amended_cost_budget
+			carry_over_amended_cost_budget(self.amended_from, self.name)
+
 	def validate(self):
 		"""Validate budget document before saving."""
 		self._validate_date_range()
@@ -17,12 +22,14 @@ class ProjectCostBudget(Document):
 		self._calculate_equipment_scope_totals()
 
 	def _calculate_equipment_scope_totals(self):
-		"""Compute total_days for each Equipment Scope row, and roll up into total_work_days."""
-		grand_total = 0
-		for row in self.get("equipment_scope") or []:
-			row.total_days = flt(row.quantity) * flt(row.days_per_equipment)
-			grand_total += row.total_days
-		self.total_work_days = grand_total
+		"""Roll up total_work_days from the standalone Project Equipment Scope documents."""
+		if self.is_new():
+			return
+		self.total_work_days = frappe.db.sql(
+			"""select coalesce(sum(total_days), 0) from `tabProject Equipment Scope`
+			where cost_budget = %s and docstatus in (0, 1)""",
+			(self.name,),
+		)[0][0]
 
 	def _validate_date_range(self):
 		"""Ensure from_date is before to_date."""

@@ -2912,3 +2912,87 @@ def get_dashboard_filter_fields():
         for row in settings.dashboard_filters
         if row.enabled
     ]
+
+
+# ---------------------------------------------------------------------------
+# Amend carry-over: move child records to the amended parent document
+# ---------------------------------------------------------------------------
+
+def _pop_last_message():
+    log = getattr(frappe.local, "message_log", None)
+    if log:
+        log.pop()
+
+
+def carry_over_amended_planning(old_planning, new_planning):
+    for dt in ("Project Visits", "Project Invoicing"):
+        frappe.db.sql(
+            f"update `tab{dt}` set project_planning = %s where project_planning = %s",
+            (new_planning, old_planning),
+        )
+
+    skipped = []
+    cancelled_days = frappe.get_all(
+        "Project Visit Day",
+        filters={"project_planning": old_planning, "docstatus": 2},
+        pluck="name",
+        order_by="work_date asc",
+    )
+    for old_name in cancelled_days:
+        if frappe.db.exists("Project Visit Day", {"amended_from": old_name}):
+            continue
+        old_day = frappe.get_doc("Project Visit Day", old_name)
+        new_day = frappe.copy_doc(old_day)
+        new_day.docstatus = 0
+        new_day.amended_from = old_name
+        new_day.project_planning = new_planning
+        frappe.db.savepoint("carry_visit_day")
+        try:
+            new_day.insert(ignore_permissions=True)
+        except Exception:
+            frappe.db.rollback(save_point="carry_visit_day")
+            _pop_last_message()
+            skipped.append(f"{old_name} ({frappe.format(old_day.work_date, 'Date')})")
+
+    if skipped:
+        frappe.msgprint(
+            _("These cancelled Visit Days could not be copied to the amended plan and must be re-entered: {0}").format(
+                ", ".join(skipped)
+            ),
+            indicator="orange",
+        )
+
+
+def carry_over_amended_cost_budget(old_cb, new_cb):
+    skipped = []
+    cancelled_rows = frappe.get_all(
+        "Project Equipment Scope",
+        filters={"cost_budget": old_cb, "docstatus": 2},
+        pluck="name",
+        order_by="creation asc",
+    )
+    for old_name in cancelled_rows:
+        if frappe.db.exists("Project Equipment Scope", {"amended_from": old_name}):
+            continue
+        old_row = frappe.get_doc("Project Equipment Scope", old_name)
+        new_row = frappe.copy_doc(old_row)
+        new_row.docstatus = 0
+        new_row.amended_from = old_name
+        new_row.cost_budget = new_cb
+        frappe.db.savepoint("carry_scope_row")
+        try:
+            new_row.insert(ignore_permissions=True)
+        except Exception:
+            frappe.db.rollback(save_point="carry_scope_row")
+            _pop_last_message()
+            skipped.append(f"{old_name} ({old_row.equipment})")
+
+    _recalculate_cost_budget_total_work_days(new_cb)
+
+    if skipped:
+        frappe.msgprint(
+            _("These cancelled Equipment Scope rows could not be copied and must be re-entered: {0}").format(
+                ", ".join(skipped)
+            ),
+            indicator="orange",
+        )
