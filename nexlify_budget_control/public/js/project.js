@@ -332,6 +332,11 @@ function render_budget_dashboard(frm) {
         },
         callback: function(r) {
             let data = r.message;
+            if (data && data.restricted) {
+                frm.set_df_property('custom_dashboard', 'options', '');
+                frm.refresh_field('custom_dashboard');
+                return;
+            }
             let html = build_dashboard_html(data, frm);
             frm.set_df_property('custom_dashboard', 'options', html);
             frm.refresh_field('custom_dashboard');

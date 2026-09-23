@@ -1084,6 +1084,7 @@ def get_project_invoicings(project_planning):
 
 @frappe.whitelist()
 def get_project_overview_summary(project):
+	frappe.has_permission("Project Overview", "read", throw=True)
 	from frappe.utils import flt
 
 	has_opportunity_field = frappe.get_meta("Project").has_field("custom_opportunity")
@@ -1118,6 +1119,12 @@ def get_project_overview_summary(project):
 
 	expected_profit = flt(planned_revenue) - flt(planned_cost)
 
+	price_roles = {"System Manager", "COO", "CEO", "Accounts Manager", "Accounts User", "Estimation Manager", "Estimation User"}
+	can_see_price = bool(set(frappe.get_roles()) & price_roles)
+	if not can_see_price:
+		planned_revenue = None
+		expected_profit = None
+
 	visits = get_project_visits(plan_name) if plan_name else []
 	invoices = get_project_invoicings(plan_name) if plan_name else []
 
@@ -1125,6 +1132,7 @@ def get_project_overview_summary(project):
 		"planned_revenue": planned_revenue,
 		"planned_cost": planned_cost,
 		"expected_profit": expected_profit,
+		"can_see_price": can_see_price,
 		"currency": currency,
 		"plan_name": plan_name,
 		"plan_status": plan_status,
@@ -2499,6 +2507,7 @@ def get_budget_check_preview(
 def get_related_documents_page(
     company, project, pages, exclude_doctype=None, exclude_name=None
 ):
+    frappe.has_permission("Project Cost Budget", "read", throw=True)
     import json
 
     if isinstance(pages, str):
@@ -2517,6 +2526,9 @@ def get_project_budget_dashboard(project):
     Numbers are recalculated live (not read from the stored cache) so the
     dashboard always reflects the current state.
     """
+    if not frappe.has_permission("Project Cost Budget", "read"):
+        return {"restricted": True}
+
     budget_name = frappe.db.get_value("Project", project, "custom_budget_cost")
     if not budget_name:
         return {"has_budget": False}

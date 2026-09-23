@@ -104,20 +104,27 @@ function build_overview_html(data) {
 	let currency = data.currency;
 	let profit_color = (data.expected_profit || 0) >= 0 ? 'var(--green-500, #2b8a3e)' : 'var(--red-500, #e03131)';
 
-	let kpi_html = `
-		<div class="npo-kpi-row">
+	let revenue_card = data.can_see_price ? `
 			<div class="npo-kpi-card">
 				<div class="npo-kpi-label">${__('Planned Revenue')}</div>
 				<div class="npo-kpi-value" style="color: var(--blue-500, #2b6cb0);">${fmt_currency(data.planned_revenue, currency)}</div>
 			</div>
-			<div class="npo-kpi-card">
-				<div class="npo-kpi-label">${__('Planned Cost')}</div>
-				<div class="npo-kpi-value" style="color: var(--orange-500, #e8590c);">${fmt_currency(data.planned_cost, currency)}</div>
-			</div>
+	` : '';
+	let profit_card = data.can_see_price ? `
 			<div class="npo-kpi-card">
 				<div class="npo-kpi-label">${__('Expected Profit')}</div>
 				<div class="npo-kpi-value" style="color: ${profit_color};">${fmt_currency(data.expected_profit, currency)}</div>
 			</div>
+	` : '';
+
+	let kpi_html = `
+		<div class="npo-kpi-row">
+			${revenue_card}
+			<div class="npo-kpi-card">
+				<div class="npo-kpi-label">${__('Planned Cost')}</div>
+				<div class="npo-kpi-value" style="color: var(--orange-500, #e8590c);">${fmt_currency(data.planned_cost, currency)}</div>
+			</div>
+			${profit_card}
 		</div>
 	`;
 
