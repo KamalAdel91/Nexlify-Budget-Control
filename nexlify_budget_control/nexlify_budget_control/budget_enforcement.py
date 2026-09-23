@@ -374,6 +374,7 @@ def _submit_equipment_scope_rows(cost_budget):
     for row_name in draft_rows:
         row_doc = frappe.get_doc("Project Equipment Scope", row_name)
         row_doc.flags.ignore_cost_budget_lock_check = True
+        row_doc.flags.ignore_permissions = True
         row_doc.submit()
 
 
@@ -386,6 +387,7 @@ def _cancel_equipment_scope_rows(cost_budget):
     for row_name in submitted_rows:
         row_doc = frappe.get_doc("Project Equipment Scope", row_name)
         row_doc.flags.ignore_cost_budget_lock_check = True
+        row_doc.flags.ignore_permissions = True
         row_doc.cancel()
 
 
@@ -395,6 +397,7 @@ def _submit_visit_days(project_planning):
     ):
         day = frappe.get_doc("Project Visit Day", name)
         day.flags.ignore_planning_lock_check = True
+        day.flags.ignore_permissions = True
         day.submit()
 
 
@@ -404,6 +407,7 @@ def _cancel_visit_days(project_planning):
     ):
         day = frappe.get_doc("Project Visit Day", name)
         day.flags.ignore_planning_lock_check = True
+        day.flags.ignore_permissions = True
         day.cancel()
 
 
@@ -602,6 +606,7 @@ def get_project_equipment_scope_full(name):
 
 @frappe.whitelist()
 def bulk_create_project_equipment_scope(cost_budget, rows):
+    frappe.has_permission("Project Equipment Scope", "create", throw=True)
     if isinstance(rows, str):
         rows = frappe.parse_json(rows)
 
@@ -629,6 +634,7 @@ def bulk_create_project_equipment_scope(cost_budget, rows):
 
 @frappe.whitelist()
 def update_project_equipment_scope(name, values):
+    frappe.has_permission("Project Equipment Scope", "write", doc=name, throw=True)
     if isinstance(values, str):
         values = frappe.parse_json(values)
 
@@ -651,6 +657,7 @@ def update_project_equipment_scope(name, values):
 
 @frappe.whitelist()
 def bulk_update_project_equipment_scope(rows, deleted=None):
+    frappe.has_permission("Project Equipment Scope", "write", throw=True)
     if isinstance(rows, str):
         rows = frappe.parse_json(rows)
     if isinstance(deleted, str):
@@ -669,6 +676,7 @@ def bulk_update_project_equipment_scope(rows, deleted=None):
         doc.save(ignore_permissions=True)
 
     for name in (deleted or []):
+        frappe.has_permission("Project Equipment Scope", "delete", doc=name, throw=True)
         doc = frappe.get_doc("Project Equipment Scope", name)
         if doc.docstatus == 1:
             frappe.throw(_("Cannot delete '{0}': already submitted.").format(name))
@@ -686,6 +694,7 @@ def bulk_update_project_equipment_scope(rows, deleted=None):
 
 @frappe.whitelist()
 def delete_project_equipment_scope(name):
+    frappe.has_permission("Project Equipment Scope", "delete", doc=name, throw=True)
     doc = frappe.get_doc("Project Equipment Scope", name)
     if doc.docstatus == 1:
         frappe.throw(_("Cannot delete: this Equipment Scope is already submitted."))
@@ -809,6 +818,7 @@ def save_visit_day(values):
     if isinstance(values, str):
         values = frappe.parse_json(values)
 
+    frappe.has_permission("Project Visit Day", "write" if values.get("name") else "create", throw=True)
     if values.get("name"):
         doc = frappe.get_doc("Project Visit Day", values["name"])
         if doc.docstatus != 0:
@@ -831,6 +841,7 @@ def save_visit_day(values):
 
 @frappe.whitelist()
 def delete_visit_day(name):
+    frappe.has_permission("Project Visit Day", "delete", doc=name, throw=True)
     doc = frappe.get_doc("Project Visit Day", name)
     if doc.docstatus != 0:
         frappe.throw(_("Only draft Visit Days can be deleted."))
