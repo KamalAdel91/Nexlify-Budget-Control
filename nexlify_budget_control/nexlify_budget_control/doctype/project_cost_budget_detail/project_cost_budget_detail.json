@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "budget_category",
+  "is_auto",
   "from_date",
   "to_date",
   "estimated_amount",
@@ -48,7 +49,7 @@
    "in_list_view": 1,
    "label": "Estimated Amount",
    "options": "parent.currency",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "default": "80",
@@ -115,6 +116,14 @@
    "fieldname": "variance_percentage",
    "fieldtype": "Percent",
    "label": "Variance %",
+   "read_only": 1
+  },
+  {
+   "description": "Calculated from the Execution Estimation. Do not edit.",
+   "fieldname": "is_auto",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Auto",
    "read_only": 1
   }
  ],

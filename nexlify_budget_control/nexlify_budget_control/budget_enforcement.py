@@ -528,15 +528,15 @@ def get_project_visits(project_planning):
 		v["equipment_summary"] = ", ".join(f"{r.equipment} x{frappe.utils.flt(r.qty):g}" for r in eq_rows)
 
 		crew_rows = frappe.db.sql(
-			"""select e.designation, count(*) as n
-			from `tabProject Visit Day Employee` e
-			inner join `tabProject Visit Day` d on d.name = e.parent
+			"""select r.trade, sum(r.count) as n
+			from `tabProject Equipment Scope Role` r
+			inner join `tabProject Visit Day` d on d.name = r.parent and r.parenttype = 'Project Visit Day'
 			where d.visit = %s and d.docstatus < 2
-			group by e.designation order by e.designation""",
+			group by r.trade order by r.trade""",
 			(v.name,),
 			as_dict=True,
 		)
-		v["crew_summary"] = ", ".join(f"{r.designation or '-'}: {r.n} days" for r in crew_rows)
+		v["crew_summary"] = ", ".join(f"{r.trade}: {frappe.utils.cint(r.n)} days" for r in crew_rows)
 
 	return visits
 
@@ -721,10 +721,10 @@ def get_visit_days(visit):
         order_by="work_date asc, creation asc",
     )
     for d in days:
-        d["employees"] = frappe.get_all(
-            "Project Visit Day Employee",
+        d["roles"] = frappe.get_all(
+            "Project Equipment Scope Role",
             filters={"parent": d.name, "parenttype": "Project Visit Day"},
-            fields=["employee", "employee_name", "designation"],
+            fields=["trade", "count"],
             order_by="idx asc",
         )
     working_days = frappe.db.get_value("Project Visits", visit, "working_days") or 0
@@ -772,53 +772,27 @@ def get_visit_day_context(project_planning, work_date=None, exclude_day=None):
 
     pd_rows = frappe.db.sql(
         """
-        select d.equipment, e.designation, count(*) as n
-        from `tabProject Visit Day Employee` e
-        inner join `tabProject Visit Day` d on d.name = e.parent
+        select d.equipment, r.trade, coalesce(sum(r.count), 0) as n
+        from `tabProject Equipment Scope Role` r
+        inner join `tabProject Visit Day` d on d.name = r.parent and r.parenttype = 'Project Visit Day'
         where d.project_planning = %s and d.docstatus < 2 and d.name != %s
-        group by d.equipment, e.designation
+        group by d.equipment, r.trade
         """,
         (project_planning, exclude_day or ""),
         as_dict=True,
     )
     for row in pd_rows:
-        used.setdefault(row.equipment, {"quantity": 0, "person_days": {}})["person_days"][row.designation] = row.n
+        used.setdefault(row.equipment, {"quantity": 0, "person_days": {}})["person_days"][row.trade] = flt(row.n)
 
-    busy = []
-    if work_date:
-        busy = frappe.db.sql_list(
-            """
-            select distinct e.employee
-            from `tabProject Visit Day Employee` e
-            inner join `tabProject Visit Day` d on d.name = e.parent
-            where d.work_date = %s and d.docstatus < 2 and d.name != %s
-            """,
-            (work_date, exclude_day or ""),
-        )
-
-    return {"scope": scope, "used": used, "busy_employees": busy}
-
-
-@frappe.whitelist()
-def get_employee_designations(employees):
-    if isinstance(employees, str):
-        employees = frappe.parse_json(employees)
-    result = {}
-    for emp in employees or []:
-        if not emp:
-            continue
-        vals = frappe.db.get_value("Employee", emp, ["employee_name", "designation"], as_dict=True)
-        if vals:
-            result[emp] = {"employee_name": vals.employee_name, "designation": vals.designation}
-    return result
+    return {"scope": scope, "used": used}
 
 
 @frappe.whitelist()
 def save_visit_day(values):
     if isinstance(values, str):
         values = frappe.parse_json(values)
-
     frappe.has_permission("Project Visit Day", "write" if values.get("name") else "create", throw=True)
+
     if values.get("name"):
         doc = frappe.get_doc("Project Visit Day", values["name"])
         if doc.docstatus != 0:
@@ -830,13 +804,42 @@ def save_visit_day(values):
     doc.work_date = values.get("work_date")
     doc.equipment = values.get("equipment")
     doc.quantity = values.get("quantity")
-    doc.set("employees", [])
-    for emp in values.get("employees") or []:
-        if emp:
-            doc.append("employees", {"employee": emp})
+    doc.set("roles", [])
+    for role in values.get("roles") or []:
+        if role.get("trade"):
+            doc.append("roles", {"trade": role.get("trade"), "count": role.get("count")})
 
     doc.save(ignore_permissions=True)
     return doc.name
+
+
+@frappe.whitelist()
+def bulk_create_visit_days(visit, work_date, rows):
+    if isinstance(rows, str):
+        rows = frappe.parse_json(rows)
+    frappe.has_permission("Project Visit Day", "create", throw=True)
+
+    seen = set()
+    created = []
+    for row in rows or []:
+        equipment = row.get("equipment")
+        if not equipment:
+            continue
+        if equipment in seen:
+            frappe.throw(_("'{0}' is listed more than once for this day.").format(equipment))
+        seen.add(equipment)
+
+        doc = frappe.new_doc("Project Visit Day")
+        doc.visit = visit
+        doc.work_date = work_date
+        doc.equipment = equipment
+        doc.quantity = row.get("quantity")
+        for role in row.get("roles") or []:
+            if role.get("trade"):
+                doc.append("roles", {"trade": role.get("trade"), "count": role.get("count")})
+        doc.insert(ignore_permissions=True)
+        created.append(doc.name)
+    return created
 
 
 @frappe.whitelist()

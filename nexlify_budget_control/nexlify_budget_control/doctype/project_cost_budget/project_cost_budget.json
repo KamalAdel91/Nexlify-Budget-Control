@@ -7,6 +7,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "estimation_tab",
   "naming_series",
   "restriction_section",
   "restrict_to_budget_categories",
@@ -25,13 +26,45 @@
   "conversion_rate",
   "details_section",
   "details",
+  "section_break_budget_totals",
+  "budget_details_total",
+  "column_break_budget_totals",
+  "budget_difference",
   "amended_from",
   "execution_tab",
   "total_work_days",
+  "column_break_work_days",
+  "working_days_per_month",
+  "column_break_duration",
+  "duration_months",
+  "section_break_equipment_scope",
   "equipment_scope_summary_html",
-  "resources_section",
-  "estimated_vehicles",
-  "petty_cash"
+  "section_break_rates_table",
+  "team_rates",
+  "manpower_cost",
+  "accommodation_section",
+  "accommodation",
+  "accommodation_total",
+  "test_equipment_section",
+  "test_equipment",
+  "test_equipment_total",
+  "transportation_section",
+  "transportation",
+  "fuel_maintenance_total",
+  "transportation_total",
+  "other_costs_section",
+  "other_costs",
+  "other_costs_table_total",
+  "pricing_section",
+  "cost_summary_html",
+  "column_break_pricing",
+  "margin_percentage",
+  "pricing_kpis_html",
+  "total_cost",
+  "margin_amount",
+  "total_price",
+  "price_per_day",
+  "other_cost_total"
  ],
  "fields": [
   {
@@ -123,8 +156,7 @@
    "fieldname": "details",
    "fieldtype": "Table",
    "label": "Budget Details",
-   "options": "Project Cost Budget Detail",
-   "reqd": 1
+   "options": "Project Cost Budget Detail"
   },
   {
    "fieldname": "amended_from",
@@ -147,7 +179,7 @@
   {
    "fieldname": "execution_tab",
    "fieldtype": "Tab Break",
-   "label": "Execution Estimation"
+   "label": "Details"
   },
   {
    "description": "Auto-calculated from Equipment Scope rows below.",
@@ -160,21 +192,6 @@
    "fieldname": "equipment_scope_summary_html",
    "fieldtype": "HTML",
    "label": "Equipment Scope"
-  },
-  {
-   "fieldname": "resources_section",
-   "fieldtype": "Section Break",
-   "label": "Resources"
-  },
-  {
-   "fieldname": "estimated_vehicles",
-   "fieldtype": "Int",
-   "label": "Estimated Vehicles"
-  },
-  {
-   "fieldname": "petty_cash",
-   "fieldtype": "Currency",
-   "label": "Petty Cash"
   },
   {
    "fieldname": "section_break_rtyw",
@@ -191,12 +208,237 @@
   {
    "fieldname": "column_break_obvk",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "26",
+   "fieldname": "working_days_per_month",
+   "fieldtype": "Int",
+   "label": "Working Days per Month",
+   "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_rates_table",
+   "fieldtype": "Section Break",
+   "label": "Team Daily Rates"
+  },
+  {
+   "fieldname": "team_rates",
+   "fieldtype": "Table",
+   "options": "Project Cost Budget Rate"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "other_costs_section",
+   "fieldtype": "Section Break",
+   "label": "Other Costs"
+  },
+  {
+   "fieldname": "other_costs",
+   "fieldtype": "Table",
+   "options": "Project Cost Budget Other Cost"
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Cost & Price Summary"
+  },
+  {
+   "fieldname": "duration_months",
+   "fieldtype": "Float",
+   "label": "Duration (Months)",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "manpower_cost",
+   "fieldtype": "Currency",
+   "label": "Manpower Cost",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "other_cost_total",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Other Cost",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "total_cost",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Total Cost",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_pricing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "margin_percentage",
+   "fieldtype": "Percent",
+   "label": "Margin %",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "margin_amount",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Margin Amount",
+   "options": "currency",
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "total_price",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Total Price",
+   "options": "currency",
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "price_per_day",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Price per Team Day",
+   "options": "currency",
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "accommodation_section",
+   "fieldtype": "Section Break",
+   "label": "Accommodation"
+  },
+  {
+   "fieldname": "accommodation",
+   "fieldtype": "Table",
+   "options": "Project Cost Budget Accommodation"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "test_equipment_section",
+   "fieldtype": "Section Break",
+   "label": "Test Equipment"
+  },
+  {
+   "fieldname": "test_equipment",
+   "fieldtype": "Table",
+   "options": "Project Cost Budget Test Equipment"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "transportation_section",
+   "fieldtype": "Section Break",
+   "label": "Car & Fuels"
+  },
+  {
+   "fieldname": "transportation",
+   "fieldtype": "Table",
+   "options": "Project Cost Budget Transportation"
+  },
+  {
+   "fieldname": "column_break_work_days",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_equipment_scope",
+   "fieldtype": "Section Break"
+  },
+  {
+   "bold": 1,
+   "fieldname": "accommodation_total",
+   "fieldtype": "Currency",
+   "label": "Accommodation Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "test_equipment_total",
+   "fieldtype": "Currency",
+   "label": "Test Equipment Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "transportation_total",
+   "fieldtype": "Currency",
+   "label": "Car & Fuels Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "other_costs_table_total",
+   "fieldtype": "Currency",
+   "label": "Other Costs Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_duration",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cost_summary_html",
+   "fieldtype": "HTML"
+  },
+  {
+   "fieldname": "pricing_kpis_html",
+   "fieldtype": "HTML"
+  },
+  {
+   "bold": 1,
+   "fieldname": "budget_details_total",
+   "fieldtype": "Currency",
+   "label": "Budget Details Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_budget_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "bold": 1,
+   "description": "Must be zero to submit. Updated on Save.",
+   "fieldname": "budget_difference",
+   "fieldtype": "Currency",
+   "label": "Difference vs Estimation Total Cost",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_budget_totals",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "fuel_maintenance_total",
+   "fieldtype": "Currency",
+   "label": "Fuel & Maintenance (Project Total)",
+   "options": "currency"
+  },
+  {
+   "fieldname": "estimation_tab",
+   "fieldtype": "Tab Break",
+   "label": "Estimation"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-21 10:23:57.727461",
+ "modified": "2026-09-23 21:55:33.084907",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Cost Budget",
@@ -283,6 +525,44 @@
    "print": 1,
    "read": 1,
    "report": 1,
+   "role": "Accounts User"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Estimation Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Estimation User",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "COO"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "CEO"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Accounts Manager"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
    "role": "Accounts User"
   }
  ],

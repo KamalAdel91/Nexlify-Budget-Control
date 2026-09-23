@@ -37,27 +37,32 @@ class ProjectPlanning(Document):
 		if not cost_budget:
 			return
 
+		def _n(x):
+			return "%g" % round(flt(x), 2)
+
 		scope_rows = frappe.get_all(
 			"Project Equipment Scope",
 			filters={"cost_budget": cost_budget, "docstatus": 1},
 			fields=["name", "equipment", "quantity", "total_days"],
 		)
 
+		issues = []
 		for scope in scope_rows:
-			used_quantity = frappe.db.sql(
+			estimated = flt(scope.quantity)
+			planned = flt(frappe.db.sql(
 				"""
 				select coalesce(sum(quantity), 0)
 				from `tabProject Visit Day`
 				where project_planning = %s and equipment = %s and docstatus < 2
 				""",
 				(self.name, scope.equipment),
-			)[0][0]
-			if flt(used_quantity) > flt(scope.quantity):
-				frappe.throw(
-					_("Equipment '{0}' is over-distributed: {1} planned, but only {2} in the Estimation.").format(
-						scope.equipment, used_quantity, scope.quantity
-					)
-				)
+			)[0][0])
+			if planned > estimated:
+				issues.append(_("{0}: {1} planned, but only {2} in the Estimation (over by {3}).").format(
+					scope.equipment, _n(planned), _n(estimated), _n(planned - estimated)))
+			elif planned < estimated:
+				issues.append(_("{0}: only {1} of {2} planned ({3} not planned yet).").format(
+					scope.equipment, _n(planned), _n(estimated), _n(estimated - planned)))
 
 			roles = frappe.get_all(
 				"Project Equipment Scope Role",
@@ -66,22 +71,25 @@ class ProjectPlanning(Document):
 			)
 			for role in roles:
 				allowed_days = flt(role.count) * flt(scope.total_days)
-				used_days = frappe.db.sql(
+				used_days = flt(frappe.db.sql(
 					"""
-					select count(*)
-					from `tabProject Visit Day Employee` e
-					inner join `tabProject Visit Day` d on d.name = e.parent
+					select coalesce(sum(r.count), 0)
+					from `tabProject Equipment Scope Role` r
+					inner join `tabProject Visit Day` d on d.name = r.parent and r.parenttype = 'Project Visit Day'
 					where d.project_planning = %s and d.equipment = %s
-					and e.designation = %s and d.docstatus < 2
+					and r.trade = %s and d.docstatus < 2
 					""",
 					(self.name, scope.equipment, role.trade),
-				)[0][0]
-				if flt(used_days) > allowed_days:
-					frappe.throw(
-						_("'{0}' on '{1}' is over-distributed: {2} person-days planned, but only {3} in the Estimation.").format(
-							role.trade, scope.equipment, used_days, allowed_days
-						)
-					)
+				)[0][0])
+				if used_days > allowed_days:
+					issues.append(_("{0} on {1}: {2} person-days planned, but only {3} in the Estimation.").format(
+						role.trade, scope.equipment, _n(used_days), _n(allowed_days)))
+
+		if issues:
+			frappe.throw(
+				"<br>".join("&bull; " + i for i in issues),
+				title=_("Plan does not match the Estimation"),
+			)
 
 	def _has_bypass_role(self):
 		bypass_role = frappe.db.get_single_value("Project Budget Settings", "budget_bypass_role")

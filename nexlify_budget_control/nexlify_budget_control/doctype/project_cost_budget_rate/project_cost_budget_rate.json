@@ -1,0 +1,65 @@
+{
+ "actions": [],
+ "creation": "2026-09-23 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "designation",
+  "basic_salary",
+  "factor",
+  "complete_salary",
+  "day_rate"
+ ],
+ "fields": [
+  {
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Designation",
+   "options": "Designation",
+   "reqd": 1
+  },
+  {
+   "fieldname": "basic_salary",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Basic Salary",
+   "options": "parent.currency",
+   "reqd": 1
+  },
+  {
+   "default": "2",
+   "fieldname": "factor",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Factor",
+   "reqd": 1
+  },
+  {
+   "fieldname": "complete_salary",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Complete Salary",
+   "options": "parent.currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "day_rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Salary / Day",
+   "options": "parent.currency",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "module": "Nexlify Budget Control",
+ "name": "Project Cost Budget Rate",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

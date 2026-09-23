@@ -13,7 +13,13 @@
   "estimation_button_roles",
   "overview_button_roles",
   "section_break_dashboard_filters",
-  "dashboard_filters"
+  "dashboard_filters",
+  "section_break_estimation_categories",
+  "manpower_budget_category",
+  "accommodation_budget_category",
+  "column_break_estimation_categories",
+  "test_equipment_budget_category",
+  "transportation_budget_category"
  ],
  "fields": [
   {
@@ -72,6 +78,40 @@
    "fieldtype": "Table",
    "label": "Dashboard Filters",
    "options": "Dashboard Filter Field"
+  },
+  {
+   "description": "Where each Execution Estimation table total is posted in the Budget Details (used for spending control).",
+   "fieldname": "section_break_estimation_categories",
+   "fieldtype": "Section Break",
+   "label": "Estimation Budget Categories"
+  },
+  {
+   "fieldname": "manpower_budget_category",
+   "fieldtype": "Link",
+   "label": "Manpower",
+   "options": "Budget Category"
+  },
+  {
+   "fieldname": "accommodation_budget_category",
+   "fieldtype": "Link",
+   "label": "Accommodation",
+   "options": "Budget Category"
+  },
+  {
+   "fieldname": "column_break_estimation_categories",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "test_equipment_budget_category",
+   "fieldtype": "Link",
+   "label": "Test Equipment",
+   "options": "Budget Category"
+  },
+  {
+   "fieldname": "transportation_budget_category",
+   "fieldtype": "Link",
+   "label": "Car & Fuels",
+   "options": "Budget Category"
   }
  ],
  "issingle": 1,

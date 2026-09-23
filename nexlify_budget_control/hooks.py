@@ -90,3 +90,12 @@ fixtures = [
                 ]
         }
 ]
+
+after_migrate = [
+	"nexlify_budget_control.nexlify_budget_control.setup_permissions.ensure_app_role_permissions",
+]
+
+auto_cancel_exempted_doctypes = [
+	"Project Visit Day",
+	"Project Equipment Scope",
+]
