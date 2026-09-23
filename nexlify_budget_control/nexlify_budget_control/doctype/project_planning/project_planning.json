@@ -21,8 +21,6 @@
   "visits_tab",
   "estimation_overview_section",
   "estimation_overview_html",
-  "plan_control_section",
-  "plan_control_html",
   "visits_section",
   "visits_html",
   "invoices_tab",
@@ -158,16 +156,6 @@
   {
    "fieldname": "column_break_vtxv",
    "fieldtype": "Column Break"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "plan_control_section",
-   "fieldtype": "Section Break",
-   "label": "Plan vs Estimation"
-  },
-  {
-   "fieldname": "plan_control_html",
-   "fieldtype": "HTML"
   }
  ],
  "index_web_pages_for_search": 1,

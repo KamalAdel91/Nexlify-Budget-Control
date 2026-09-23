@@ -19,14 +19,8 @@ class ProjectVisits(Document):
 		self.calculate_working_days()
 
 	def calculate_working_days(self):
-		if self.is_new():
-			self.working_days = 0
-			return
-		self.working_days = frappe.db.sql(
-			"""select count(distinct work_date) from `tabProject Visit Day`
-			where visit = %s and docstatus < 2""",
-			(self.name,),
-		)[0][0]
+		# Recalculated from the visit's equipment distribution (Planning Scope).
+		pass
 
 	def validate_cost_budget_submitted(self):
 		project = frappe.db.get_value("Project Planning", self.project_planning, "project")

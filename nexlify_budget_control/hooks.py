@@ -96,6 +96,5 @@ after_migrate = [
 ]
 
 auto_cancel_exempted_doctypes = [
-	"Project Visit Day",
 	"Project Equipment Scope",
 ]

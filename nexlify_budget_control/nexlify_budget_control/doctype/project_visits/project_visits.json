@@ -13,9 +13,7 @@
   "customer",
   "start_date",
   "end_date",
-  "working_days",
-  "visit_days_section",
-  "visit_days_html"
+  "working_days"
  ],
  "fields": [
   {
@@ -75,30 +73,15 @@
    "reqd": 1
   },
   {
-   "description": "Auto-calculated: number of distinct Visit Days.",
+   "description": "Auto-calculated from the visit's equipment distribution.",
    "fieldname": "working_days",
    "fieldtype": "Int",
    "label": "Working Days for This Visit",
    "read_only": 1
-  },
-  {
-   "fieldname": "visit_days_section",
-   "fieldtype": "Section Break",
-   "label": "Visit Days"
-  },
-  {
-   "fieldname": "visit_days_html",
-   "fieldtype": "HTML"
   }
  ],
  "index_web_pages_for_search": 1,
- "links": [
-  {
-   "group": "Planning",
-   "link_doctype": "Project Visit Day",
-   "link_fieldname": "visit"
-  }
- ],
+ "links": [],
  "modified": "2026-09-16 01:26:25.692096",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",

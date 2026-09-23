@@ -391,34 +391,12 @@ def _cancel_equipment_scope_rows(cost_budget):
         row_doc.cancel()
 
 
-def _submit_visit_days(project_planning):
-    for name in frappe.get_all(
-        "Project Visit Day", filters={"project_planning": project_planning, "docstatus": 0}, pluck="name"
-    ):
-        day = frappe.get_doc("Project Visit Day", name)
-        day.flags.ignore_planning_lock_check = True
-        day.flags.ignore_permissions = True
-        day.submit()
-
-
-def _cancel_visit_days(project_planning):
-    for name in frappe.get_all(
-        "Project Visit Day", filters={"project_planning": project_planning, "docstatus": 1}, pluck="name"
-    ):
-        day = frappe.get_doc("Project Visit Day", name)
-        day.flags.ignore_planning_lock_check = True
-        day.flags.ignore_permissions = True
-        day.cancel()
-
-
 def on_project_planning_submit(doc, method=None):
     """
     When a Project Planning is submitted, it becomes the active
     planning entry for its project: Project.custom_project_planning is
     pointed at this document. Mirrors on_project_cost_budget_submit.
     """
-    _submit_visit_days(doc.name)
-
     if not doc.project:
         return
     frappe.db.set_value(
@@ -441,8 +419,6 @@ def on_project_planning_cancel(doc, method=None):
     left untouched until a new Project Planning is submitted for
     the same project. Mirrors on_project_cost_budget_cancel.
     """
-    _cancel_visit_days(doc.name)
-
     if not doc.project:
         return
     current_linked = frappe.db.get_value("Project", doc.project, "custom_project_planning")
@@ -519,24 +495,8 @@ def get_project_visits(project_planning):
 	)
 
 	for v in visits:
-		eq_rows = frappe.db.sql(
-			"""select equipment, sum(quantity) as qty from `tabProject Visit Day`
-			where visit = %s and docstatus < 2 group by equipment order by equipment""",
-			(v.name,),
-			as_dict=True,
-		)
-		v["equipment_summary"] = ", ".join(f"{r.equipment} x{frappe.utils.flt(r.qty):g}" for r in eq_rows)
-
-		crew_rows = frappe.db.sql(
-			"""select r.trade, sum(r.count) as n
-			from `tabProject Equipment Scope Role` r
-			inner join `tabProject Visit Day` d on d.name = r.parent and r.parenttype = 'Project Visit Day'
-			where d.visit = %s and d.docstatus < 2
-			group by r.trade order by r.trade""",
-			(v.name,),
-			as_dict=True,
-		)
-		v["crew_summary"] = ", ".join(f"{r.trade}: {frappe.utils.cint(r.n)} days" for r in crew_rows)
+		v["equipment_summary"] = ""
+		v["crew_summary"] = ""
 
 	return visits
 
@@ -701,154 +661,6 @@ def delete_project_equipment_scope(name):
     cost_budget = doc.cost_budget
     frappe.delete_doc("Project Equipment Scope", name, ignore_permissions=True)
     _recalculate_cost_budget_total_work_days(cost_budget)
-
-
-# ---------------------------------------------------------------------------
-# Project Visit Day
-# ---------------------------------------------------------------------------
-
-def _visit_day_cost_budget(project_planning):
-    project = frappe.db.get_value("Project Planning", project_planning, "project")
-    return frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
-
-
-@frappe.whitelist()
-def get_visit_days(visit):
-    days = frappe.get_all(
-        "Project Visit Day",
-        filters={"visit": visit, "docstatus": ["<", 2]},
-        fields=["name", "work_date", "equipment", "quantity", "days_consumed", "docstatus"],
-        order_by="work_date asc, creation asc",
-    )
-    for d in days:
-        d["roles"] = frappe.get_all(
-            "Project Equipment Scope Role",
-            filters={"parent": d.name, "parenttype": "Project Visit Day"},
-            fields=["trade", "count"],
-            order_by="idx asc",
-        )
-    working_days = frappe.db.get_value("Project Visits", visit, "working_days") or 0
-    return {"days": days, "working_days": working_days}
-
-
-@frappe.whitelist()
-def get_visit_day_context(project_planning, work_date=None, exclude_day=None):
-    flt = frappe.utils.flt
-    cost_budget = _visit_day_cost_budget(project_planning)
-
-    scope = {}
-    if cost_budget:
-        scope_rows = frappe.get_all(
-            "Project Equipment Scope",
-            filters={"cost_budget": cost_budget, "docstatus": 1},
-            fields=["name", "equipment", "quantity", "days_per_equipment", "total_days"],
-        )
-        for s in scope_rows:
-            roles = frappe.get_all(
-                "Project Equipment Scope Role",
-                filters={"parent": s.name, "parenttype": "Project Equipment Scope"},
-                fields=["trade", "count"],
-            )
-            scope[s.equipment] = {
-                "quantity": flt(s.quantity),
-                "days_per_equipment": flt(s.days_per_equipment),
-                "total_days": flt(s.total_days),
-                "roles": {r.trade: flt(r.count) for r in roles},
-            }
-
-    used = {}
-    qty_rows = frappe.db.sql(
-        """
-        select equipment, coalesce(sum(quantity), 0) as qty
-        from `tabProject Visit Day`
-        where project_planning = %s and docstatus < 2 and name != %s
-        group by equipment
-        """,
-        (project_planning, exclude_day or ""),
-        as_dict=True,
-    )
-    for row in qty_rows:
-        used.setdefault(row.equipment, {"quantity": 0, "person_days": {}})["quantity"] = flt(row.qty)
-
-    pd_rows = frappe.db.sql(
-        """
-        select d.equipment, r.trade, coalesce(sum(r.count), 0) as n
-        from `tabProject Equipment Scope Role` r
-        inner join `tabProject Visit Day` d on d.name = r.parent and r.parenttype = 'Project Visit Day'
-        where d.project_planning = %s and d.docstatus < 2 and d.name != %s
-        group by d.equipment, r.trade
-        """,
-        (project_planning, exclude_day or ""),
-        as_dict=True,
-    )
-    for row in pd_rows:
-        used.setdefault(row.equipment, {"quantity": 0, "person_days": {}})["person_days"][row.trade] = flt(row.n)
-
-    return {"scope": scope, "used": used}
-
-
-@frappe.whitelist()
-def save_visit_day(values):
-    if isinstance(values, str):
-        values = frappe.parse_json(values)
-    frappe.has_permission("Project Visit Day", "write" if values.get("name") else "create", throw=True)
-
-    if values.get("name"):
-        doc = frappe.get_doc("Project Visit Day", values["name"])
-        if doc.docstatus != 0:
-            frappe.throw(_("Only draft Visit Days can be edited."))
-    else:
-        doc = frappe.new_doc("Project Visit Day")
-        doc.visit = values.get("visit")
-
-    doc.work_date = values.get("work_date")
-    doc.equipment = values.get("equipment")
-    doc.quantity = values.get("quantity")
-    doc.set("roles", [])
-    for role in values.get("roles") or []:
-        if role.get("trade"):
-            doc.append("roles", {"trade": role.get("trade"), "count": role.get("count")})
-
-    doc.save(ignore_permissions=True)
-    return doc.name
-
-
-@frappe.whitelist()
-def bulk_create_visit_days(visit, work_date, rows):
-    if isinstance(rows, str):
-        rows = frappe.parse_json(rows)
-    frappe.has_permission("Project Visit Day", "create", throw=True)
-
-    seen = set()
-    created = []
-    for row in rows or []:
-        equipment = row.get("equipment")
-        if not equipment:
-            continue
-        if equipment in seen:
-            frappe.throw(_("'{0}' is listed more than once for this day.").format(equipment))
-        seen.add(equipment)
-
-        doc = frappe.new_doc("Project Visit Day")
-        doc.visit = visit
-        doc.work_date = work_date
-        doc.equipment = equipment
-        doc.quantity = row.get("quantity")
-        for role in row.get("roles") or []:
-            if role.get("trade"):
-                doc.append("roles", {"trade": role.get("trade"), "count": role.get("count")})
-        doc.insert(ignore_permissions=True)
-        created.append(doc.name)
-    return created
-
-
-@frappe.whitelist()
-def delete_visit_day(name):
-    frappe.has_permission("Project Visit Day", "delete", doc=name, throw=True)
-    doc = frappe.get_doc("Project Visit Day", name)
-    if doc.docstatus != 0:
-        frappe.throw(_("Only draft Visit Days can be deleted."))
-    frappe.delete_doc("Project Visit Day", name, ignore_permissions=True)
 
 
 EXCLUDED_VISIT_EDIT_FIELDS = {"project_planning", "project", "visit_label"}
@@ -1147,7 +959,7 @@ def get_project_overview_summary(project):
 	}
 
 
-EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project Visit Day", 
+EXCLUDED_PROJECT_GATE_DOCTYPES = {
 	"Project",
 	"Project Planning",
 	"Project Cost Budget",
@@ -2758,37 +2570,6 @@ def carry_over_amended_planning(old_planning, new_planning):
         frappe.db.sql(
             f"update `tab{dt}` set project_planning = %s where project_planning = %s",
             (new_planning, old_planning),
-        )
-
-    skipped = []
-    cancelled_days = frappe.get_all(
-        "Project Visit Day",
-        filters={"project_planning": old_planning, "docstatus": 2},
-        pluck="name",
-        order_by="work_date asc",
-    )
-    for old_name in cancelled_days:
-        if frappe.db.exists("Project Visit Day", {"amended_from": old_name}):
-            continue
-        old_day = frappe.get_doc("Project Visit Day", old_name)
-        new_day = frappe.copy_doc(old_day)
-        new_day.docstatus = 0
-        new_day.amended_from = old_name
-        new_day.project_planning = new_planning
-        frappe.db.savepoint("carry_visit_day")
-        try:
-            new_day.insert(ignore_permissions=True)
-        except Exception:
-            frappe.db.rollback(save_point="carry_visit_day")
-            _pop_last_message()
-            skipped.append(f"{old_name} ({frappe.format(old_day.work_date, 'Date')})")
-
-    if skipped:
-        frappe.msgprint(
-            _("These cancelled Visit Days could not be copied to the amended plan and must be re-entered: {0}").format(
-                ", ".join(skipped)
-            ),
-            indicator="orange",
         )
 
 
