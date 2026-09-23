@@ -21,6 +21,8 @@
   "visits_tab",
   "estimation_overview_section",
   "estimation_overview_html",
+  "planning_scope_section",
+  "planning_scope_html",
   "visits_section",
   "visits_html",
   "invoices_tab",
@@ -156,6 +158,16 @@
   {
    "fieldname": "column_break_vtxv",
    "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "planning_scope_section",
+   "fieldtype": "Section Break",
+   "label": "Planning Scope"
+  },
+  {
+   "fieldname": "planning_scope_html",
+   "fieldtype": "HTML"
   }
  ],
  "index_web_pages_for_search": 1,

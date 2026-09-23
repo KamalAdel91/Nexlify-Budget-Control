@@ -11,12 +11,14 @@ frappe.ui.form.on("Project Planning", {
 	},
 
 	refresh: function(frm) {
+		frm.ignore_doctypes_on_cancel_all = ['Project Planning Scope'];
 		inject_visits_invoices_styles();
 		render_add_visits_button(frm);
 		render_add_invoice_button(frm);
 		render_visits_table(frm);
 		render_invoices_table(frm);
 		render_estimation_overview(frm);
+		render_planning_scope(frm);
 	},
 
 	on_submit: function(frm) {
@@ -1215,4 +1217,268 @@ window.open_add_visits_dialog_trigger = function() {
 
 window.open_add_invoice_dialog_trigger = function() {
 	open_add_invoice_dialog(_revenue_budget_frm);
+};
+
+// ---------------------------------------------------------------------------
+// Planning Scope: planned scope copied from the Estimation (can only go down)
+// ---------------------------------------------------------------------------
+
+const PS_METHOD = 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.';
+let _ps_frm = null;
+
+function ps_can_edit(frm) {
+	return !frm.is_new() && frm.doc.docstatus === 0 && !!(frm.perm && frm.perm[0] && frm.perm[0].write);
+}
+
+function ps_cell(plan, est) {
+	let r = n => Math.round(flt(n) * 100) / 100;
+	plan = r(plan);
+	est = r(est);
+	if (plan > est) {
+		return `<span style="color: var(--red-500, #e03131); font-weight:700;">${plan}</span>
+			<div style="font-size:11px; color: var(--red-500, #e03131);">${__('Est.')} ${est}</div>`;
+	}
+	if (plan < est) {
+		return `<span style="font-weight:600;">${plan}</span>
+			<div style="font-size:11px; color: var(--text-muted, #6c757d);">${__('Est.')} ${est}</div>`;
+	}
+	return `<span>${plan}</span>`;
+}
+
+function render_planning_scope(frm) {
+	_ps_frm = frm;
+	let field = frm.fields_dict.planning_scope_html;
+	if (!field) return;
+	if (frm.is_new()) {
+		field.$wrapper.html('');
+		return;
+	}
+	frappe.call({
+		method: PS_METHOD + 'get_planning_scope_rows',
+		args: { project_planning: frm.doc.name },
+		callback: function(r) {
+			frm.__ps = r.message || {};
+			field.$wrapper.html(ps_build_html(frm, frm.__ps));
+		}
+	});
+}
+
+function ps_build_html(frm, data) {
+	let rows = data.rows || [];
+	let trades = data.trade_columns || [];
+	let missing = data.missing || [];
+	let editable = ps_can_edit(frm);
+	let esc = v => frappe.utils.escape_html(v || '');
+
+	let buttons = '';
+	if (editable) {
+		if (!rows.length) {
+			buttons = `<button class="btn btn-xs btn-primary" onclick="ps_copy(0); return false;">${__('Copy from Estimation')}</button>`;
+		} else {
+			if (missing.length) {
+				buttons += `<button class="btn btn-xs btn-default" onclick="ps_copy(0); return false;">${__('Add missing ({0})', [missing.length])}</button> `;
+			}
+			buttons += `<button class="btn btn-xs btn-default" onclick="ps_copy(1); return false;">${__('Reset from Estimation')}</button>`;
+		}
+	} else if (frm.doc.docstatus === 1) {
+		buttons = `<span class="nrb-muted" style="font-size:12px;">${__('Plan is submitted. Cancel and Amend it to change the scope.')}</span>`;
+	}
+
+	let header = `<div style="display:flex; justify-content:space-between; align-items:center; margin:4px 0 8px; gap:8px; flex-wrap:wrap;">
+		<span class="nrb-muted" style="font-size:12px;">${__('Copied from the Estimation. Values can be reduced, never increased.')}</span>
+		<div>${buttons}</div>
+	</div>`;
+
+	if (!rows.length) {
+		return header + `<div class="nrb-empty">${__('No planning scope yet.')}</div>`;
+	}
+
+	let over = 0, sum_plan = 0, sum_est = 0;
+	let body = rows.map(row => {
+		let e = row.est || {};
+		if (flt(row.quantity) > flt(e.quantity)) over++;
+		if (flt(row.days_per_equipment) > flt(e.days_per_equipment)) over++;
+		sum_plan += flt(row.total_days);
+		sum_est += flt(e.total_days);
+
+		let trade_cells = trades.map(t => {
+			let p = flt((row.role_counts || {})[t]);
+			let ec = flt((e.role_counts || {})[t]);
+			if (!p && !ec) return `<td><span class="nrb-muted">-</span></td>`;
+			if (p > ec) over++;
+			return `<td>${ps_cell(p, ec)}</td>`;
+		}).join('');
+
+		let status = row.docstatus === 1
+			? `<span style="color: var(--green-600, #2b8a3e); font-weight:600;">${__('Submitted')}</span>`
+			: `<span class="nrb-muted">${__('Draft')}</span>`;
+		let edit = (editable && row.docstatus === 0)
+			? `<a href="#" class="nrb-link" onclick="ps_edit('${row.name}'); return false;">${__('Edit')}</a> | `
+			: '';
+		return `<tr>
+			<td>${esc(row.equipment)}</td>
+			<td>${ps_cell(row.quantity, e.quantity)}</td>
+			<td>${ps_cell(row.days_per_equipment, e.days_per_equipment)}</td>
+			${trade_cells}
+			<td>${ps_cell(row.total_days, e.total_days)}</td>
+			<td>${status}</td>
+			<td>${edit}<a href="/app/project-planning-scope/${row.name}" class="nrb-link" target="_blank">${__('Details')}</a></td>
+		</tr>`;
+	}).join('');
+
+	let box = (bg, fg, text) => `<div style="margin-bottom:8px; padding:8px 10px; border-radius:8px; background:${bg}; color:${fg}; font-weight:600;">${text}</div>`;
+	let banner = over
+		? box('var(--red-50, #fff5f5)', 'var(--red-600, #c92a2a)', __('{0} value(s) are above the Estimation. Submitting the plan is blocked until they are reduced.', [over]))
+		: box('var(--green-50, #ebfbee)', 'var(--green-700, #2b8a3e)', __('The planning scope is within the Estimation.'));
+	let removed = missing.length
+		? `<div class="nrb-muted" style="margin-top:6px; font-size:12px;">${__('Removed from the plan')}: ${missing.map(esc).join(', ')}</div>`
+		: '';
+
+	let min_width = (6 + trades.length) * 110;
+	return header + banner + `
+		<div class="nrb-table-wrapper">
+			<table class="nrb-table" style="min-width:${min_width}px;">
+				<thead><tr>
+					<th>${__('Equipment')}</th><th>${__('Qty')}</th><th>${__('Days/Unit')}</th>
+					${trades.map(t => `<th>${esc(t)}</th>`).join('')}
+					<th>${__('Total Days')}</th><th>${__('Status')}</th><th>${__('Actions')}</th>
+				</tr></thead>
+				<tbody>${body}</tbody>
+				<tfoot><tr style="font-weight:600;">
+					<td colspan="${3 + trades.length}" style="text-align:right;">${__('Total')}</td>
+					<td>${ps_cell(sum_plan, sum_est)}</td>
+					<td colspan="2"></td>
+				</tr></tfoot>
+			</table>
+		</div>` + removed;
+}
+
+window.ps_copy = function(reset) {
+	let frm = _ps_frm;
+	if (!frm) return;
+	let go = () => frappe.call({
+		method: PS_METHOD + 'copy_estimation_to_planning_scope',
+		args: { project_planning: frm.doc.name, reset: reset },
+		freeze: true,
+		callback: function(r) {
+			frappe.show_alert({ message: __('{0} equipment copied from the Estimation.', [r.message || 0]), indicator: 'green' });
+			render_planning_scope(frm);
+		}
+	});
+	if (reset) {
+		frappe.confirm(__('Reset the planning scope to the Estimation? All changes to draft rows will be lost.'), go);
+	} else {
+		go();
+	}
+};
+
+window.ps_edit = function(name) {
+	let frm = _ps_frm;
+	let row = (((frm && frm.__ps) || {}).rows || []).find(x => x.name === name);
+	if (!row) return;
+	let e = row.est || {};
+	let est_roles = e.role_counts || {};
+	let est_trades = Object.keys(est_roles);
+	let initial = Object.keys(row.role_counts || {}).map(t => ({ trade: t, count: row.role_counts[t] }));
+	var d;
+	let ready = false;
+
+	function current_roles() {
+		return (d.get_value('roles') || []).filter(x => x.trade).map(x => ({ trade: x.trade, count: cint(x.count) }));
+	}
+
+	function render_check() {
+		if (!ready) return;
+		let q = flt(d.get_value('quantity'));
+		let dpu = flt(d.get_value('days_per_equipment'));
+		let line = (label, plan, est) => {
+			let is_over = flt(plan) > flt(est);
+			let diff = flt(flt(plan) - flt(est), 2);
+			return `<tr>
+				<td>${frappe.utils.escape_html(label)}</td>
+				<td>${flt(est)}</td>
+				<td style="font-weight:600; color:${is_over ? 'var(--red-500, #e03131)' : 'inherit'};">
+					${flt(plan)}${is_over ? ` (${__('over by {0}', [diff])})` : ''}
+				</td>
+			</tr>`;
+		};
+		let lines = [
+			line(__('Quantity'), q, e.quantity),
+			line(__('Days per Equipment'), dpu, e.days_per_equipment),
+			line(__('Total Days'), flt(q * dpu, 2), e.total_days),
+		];
+		let roles = current_roles();
+		est_trades.forEach(t => {
+			let count = roles.filter(x => x.trade === t).reduce((s, x) => s + x.count, 0);
+			lines.push(line(t, count, est_roles[t]));
+		});
+		let warn = roles.filter(x => !est_trades.includes(x.trade))
+			.map(x => __('{0} is not a role of this equipment in the Estimation.', [frappe.utils.escape_html(x.trade)]));
+		d.fields_dict.check_html.$wrapper.html(`
+			<div class="nrb-table-wrapper">
+				<table class="nrb-table">
+					<thead><tr><th>${__('Item')}</th><th>${__('Estimation')}</th><th>${__('Plan')}</th></tr></thead>
+					<tbody>${lines.join('')}</tbody>
+				</table>
+			</div>
+			${warn.length ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background: var(--red-50, #fff5f5); color: var(--red-600, #c92a2a);">${warn.map(w => '&bull; ' + w).join('<br>')}</div>` : ''}
+			<div class="nrb-muted" style="margin-top:6px; font-size:11px;">${__('Values above the Estimation are allowed while drafting, but block submitting the plan.')}</div>
+		`);
+	}
+
+	d = new frappe.ui.Dialog({
+		title: __('Planning Scope: {0}', [row.equipment]),
+		size: 'large',
+		fields: [
+			{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, default: row.quantity, onchange: () => render_check() },
+			{ fieldname: 'cb_1', fieldtype: 'Column Break' },
+			{ fieldname: 'days_per_equipment', fieldtype: 'Float', label: __('Days per Equipment'), reqd: 1, default: row.days_per_equipment, onchange: () => render_check() },
+			{ fieldname: 'sb_crew', fieldtype: 'Section Break', label: __('Crew') },
+			{
+				fieldname: 'roles', fieldtype: 'Table', label: __('Crew'),
+				cannot_add_rows: false, in_place_edit: false,
+				data: initial, get_data: () => initial,
+				fields: [
+					{ fieldname: 'trade', fieldtype: 'Link', options: 'Designation', label: __('Trade'), reqd: 1, in_list_view: 1,
+					  get_query: () => ({ filters: { name: ['in', est_trades] } }) },
+					{ fieldname: 'count', fieldtype: 'Int', label: __('Count'), reqd: 1, default: 1, in_list_view: 1 }
+				]
+			},
+			{ fieldname: 'sb_check', fieldtype: 'Section Break', label: __('Plan vs Estimation') },
+			{ fieldname: 'check_html', fieldtype: 'HTML' }
+		],
+		primary_action_label: __('Save'),
+		primary_action: function(values) {
+			frappe.call({
+				method: PS_METHOD + 'update_planning_scope',
+				args: { name: name, values: { quantity: values.quantity, days_per_equipment: values.days_per_equipment, roles: current_roles() } },
+				freeze: true,
+				callback: function() {
+					d.hide();
+					frappe.show_alert({ message: __('Planning scope updated.'), indicator: 'green' });
+					render_planning_scope(frm);
+				}
+			});
+		},
+		secondary_action_label: __('Remove from Plan'),
+		secondary_action: function() {
+			frappe.confirm(__('Remove {0} from the plan?', [frappe.utils.escape_html(row.equipment)]), () => frappe.call({
+				method: PS_METHOD + 'delete_planning_scope',
+				args: { name: name },
+				freeze: true,
+				callback: function() {
+					d.hide();
+					frappe.show_alert({ message: __('Removed from the plan.'), indicator: 'green' });
+					render_planning_scope(frm);
+				}
+			}));
+		}
+	});
+	d.show();
+	ready = true;
+
+	let wrap = d.fields_dict.roles.grid.wrapper;
+	wrap.on('change awesomplete-selectcomplete', 'input', () => setTimeout(render_check, 200));
+	wrap.on('click', '.grid-add-row, .grid-append-row, .grid-insert-row, .grid-delete-row, .grid-remove-rows', () => setTimeout(render_check, 200));
+	render_check();
 };

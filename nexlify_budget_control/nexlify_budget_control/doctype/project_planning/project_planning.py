@@ -12,6 +12,9 @@ class ProjectPlanning(Document):
 		if self.amended_from:
 			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import carry_over_amended_planning
 			carry_over_amended_planning(self.amended_from, self.name)
+		else:
+			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import auto_copy_planning_scope
+			auto_copy_planning_scope(self.name)
 
 	def before_submit(self):
 		self.validate_invoice_percentage_total()

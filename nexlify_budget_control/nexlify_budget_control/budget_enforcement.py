@@ -397,6 +397,8 @@ def on_project_planning_submit(doc, method=None):
     planning entry for its project: Project.custom_project_planning is
     pointed at this document. Mirrors on_project_cost_budget_submit.
     """
+    _submit_planning_scope(doc.name)
+
     if not doc.project:
         return
     frappe.db.set_value(
@@ -419,6 +421,8 @@ def on_project_planning_cancel(doc, method=None):
     left untouched until a new Project Planning is submitted for
     the same project. Mirrors on_project_cost_budget_cancel.
     """
+    _cancel_planning_scope(doc.name)
+
     if not doc.project:
         return
     current_linked = frappe.db.get_value("Project", doc.project, "custom_project_planning")
@@ -661,6 +665,156 @@ def delete_project_equipment_scope(name):
     cost_budget = doc.cost_budget
     frappe.delete_doc("Project Equipment Scope", name, ignore_permissions=True)
     _recalculate_cost_budget_total_work_days(cost_budget)
+
+
+# ---------------------------------------------------------------------------
+# Project Planning Scope (the planned scope, copied from the Estimation)
+# ---------------------------------------------------------------------------
+
+def _planning_cost_budget(project_planning):
+    project = frappe.db.get_value("Project Planning", project_planning, "project")
+    return frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
+
+
+def _copy_planning_scope(project_planning, reset=False):
+    cost_budget = _planning_cost_budget(project_planning)
+    if not cost_budget:
+        return 0
+    if reset:
+        for name in frappe.get_all("Project Planning Scope",
+                                   filters={"project_planning": project_planning, "docstatus": 0}, pluck="name"):
+            frappe.delete_doc("Project Planning Scope", name, ignore_permissions=True)
+
+    existing = set(frappe.get_all("Project Planning Scope",
+                                  filters={"project_planning": project_planning, "docstatus": ["<", 2]},
+                                  pluck="estimation_scope"))
+    created = 0
+    estimation_rows = frappe.get_all(
+        "Project Equipment Scope",
+        filters={"cost_budget": cost_budget, "docstatus": 1},
+        fields=["name", "equipment", "quantity", "days_per_equipment"],
+        order_by="creation asc",
+    )
+    for est in estimation_rows:
+        if est.name in existing:
+            continue
+        doc = frappe.new_doc("Project Planning Scope")
+        doc.project_planning = project_planning
+        doc.estimation_scope = est.name
+        doc.equipment = est.equipment
+        doc.quantity = est.quantity
+        doc.days_per_equipment = est.days_per_equipment
+        for r in frappe.get_all("Project Equipment Scope Role",
+                                filters={"parent": est.name, "parenttype": "Project Equipment Scope"},
+                                fields=["trade", "count"], order_by="idx asc"):
+            doc.append("roles", {"trade": r.trade, "count": r.count})
+        doc.insert(ignore_permissions=True)
+        created += 1
+    return created
+
+
+def auto_copy_planning_scope(project_planning):
+    """Called when a new Project Planning is created: copy the submitted Estimation scope."""
+    cost_budget = _planning_cost_budget(project_planning)
+    if cost_budget and frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") == 1:
+        _copy_planning_scope(project_planning)
+
+
+@frappe.whitelist()
+def copy_estimation_to_planning_scope(project_planning, reset=0):
+    frappe.has_permission("Project Planning Scope", "create", throw=True)
+    if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 0:
+        frappe.throw(_("The plan is not in Draft."))
+    cost_budget = _planning_cost_budget(project_planning)
+    if not cost_budget or frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") != 1:
+        frappe.throw(_("The project's Estimation must be submitted first."))
+    return _copy_planning_scope(project_planning, reset=frappe.utils.cint(reset))
+
+
+@frappe.whitelist()
+def get_planning_scope_rows(project_planning):
+    flt = frappe.utils.flt
+    rows = frappe.get_all(
+        "Project Planning Scope",
+        filters={"project_planning": project_planning, "docstatus": ["<", 2]},
+        fields=["name", "estimation_scope", "equipment", "quantity", "days_per_equipment", "total_days", "docstatus"],
+        order_by="creation asc",
+    )
+    trades = []
+
+    def role_counts(parent, parenttype):
+        return {x.trade: flt(x.count) for x in frappe.get_all(
+            "Project Equipment Scope Role", filters={"parent": parent, "parenttype": parenttype},
+            fields=["trade", "count"], order_by="idx asc")}
+
+    for r in rows:
+        r["role_counts"] = role_counts(r.name, "Project Planning Scope")
+        est = None
+        if r.estimation_scope:
+            est = frappe.db.get_value("Project Equipment Scope", r.estimation_scope,
+                                      ["quantity", "days_per_equipment", "total_days"], as_dict=True)
+        r["est"] = {
+            "quantity": flt(est.quantity) if est else 0,
+            "days_per_equipment": flt(est.days_per_equipment) if est else 0,
+            "total_days": flt(est.total_days) if est else 0,
+            "role_counts": role_counts(r.estimation_scope, "Project Equipment Scope") if est else {},
+        }
+        for t in list(r["est"]["role_counts"]) + list(r["role_counts"]):
+            if t not in trades:
+                trades.append(t)
+    cost_budget = _planning_cost_budget(project_planning)
+    planned = {r.estimation_scope for r in rows}
+    missing = []
+    if cost_budget:
+        missing = [x.equipment for x in frappe.get_all(
+            "Project Equipment Scope", filters={"cost_budget": cost_budget, "docstatus": 1},
+            fields=["name", "equipment"], order_by="creation asc") if x.name not in planned]
+    return {"rows": rows, "trade_columns": trades, "missing": missing}
+
+
+@frappe.whitelist()
+def update_planning_scope(name, values):
+    if isinstance(values, str):
+        values = frappe.parse_json(values)
+    frappe.has_permission("Project Planning Scope", "write", doc=name, throw=True)
+    doc = frappe.get_doc("Project Planning Scope", name)
+    if doc.docstatus != 0:
+        frappe.throw(_("Only draft rows can be edited."))
+    doc.quantity = values.get("quantity")
+    doc.days_per_equipment = values.get("days_per_equipment")
+    doc.set("roles", [])
+    for role in values.get("roles") or []:
+        if role.get("trade"):
+            doc.append("roles", {"trade": role.get("trade"), "count": role.get("count")})
+    doc.save(ignore_permissions=True)
+    return doc.name
+
+
+@frappe.whitelist()
+def delete_planning_scope(name):
+    frappe.has_permission("Project Planning Scope", "delete", doc=name, throw=True)
+    doc = frappe.get_doc("Project Planning Scope", name)
+    if doc.docstatus != 0:
+        frappe.throw(_("Only draft rows can be deleted."))
+    frappe.delete_doc("Project Planning Scope", name, ignore_permissions=True)
+
+
+def _submit_planning_scope(project_planning):
+    for name in frappe.get_all("Project Planning Scope",
+                               filters={"project_planning": project_planning, "docstatus": 0}, pluck="name"):
+        row = frappe.get_doc("Project Planning Scope", name)
+        row.flags.ignore_planning_lock_check = True
+        row.flags.ignore_permissions = True
+        row.submit()
+
+
+def _cancel_planning_scope(project_planning):
+    for name in frappe.get_all("Project Planning Scope",
+                               filters={"project_planning": project_planning, "docstatus": 1}, pluck="name"):
+        row = frappe.get_doc("Project Planning Scope", name)
+        row.flags.ignore_planning_lock_check = True
+        row.flags.ignore_permissions = True
+        row.cancel()
 
 
 EXCLUDED_VISIT_EDIT_FIELDS = {"project_planning", "project", "visit_label"}
@@ -959,7 +1113,7 @@ def get_project_overview_summary(project):
 	}
 
 
-EXCLUDED_PROJECT_GATE_DOCTYPES = {
+EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project Planning Scope", 
 	"Project",
 	"Project Planning",
 	"Project Cost Budget",
@@ -2570,6 +2724,31 @@ def carry_over_amended_planning(old_planning, new_planning):
         frappe.db.sql(
             f"update `tab{dt}` set project_planning = %s where project_planning = %s",
             (new_planning, old_planning),
+        )
+
+    skipped = []
+    for old_name in frappe.get_all("Project Planning Scope",
+                                   filters={"project_planning": old_planning, "docstatus": 2},
+                                   pluck="name", order_by="creation asc"):
+        if frappe.db.exists("Project Planning Scope", {"amended_from": old_name}):
+            continue
+        old_row = frappe.get_doc("Project Planning Scope", old_name)
+        new_row = frappe.copy_doc(old_row)
+        new_row.docstatus = 0
+        new_row.amended_from = old_name
+        new_row.project_planning = new_planning
+        frappe.db.savepoint("carry_planning_scope")
+        try:
+            new_row.insert(ignore_permissions=True)
+        except Exception:
+            frappe.db.rollback(save_point="carry_planning_scope")
+            _pop_last_message()
+            skipped.append(f"{old_name} ({old_row.equipment})")
+
+    if skipped:
+        frappe.msgprint(
+            _("These Planning Scope rows could not be copied to the amended plan: {0}").format(", ".join(skipped)),
+            indicator="orange",
         )
 
 
