@@ -67,7 +67,6 @@ function open_edit_visits_dialog(frm) {
 }
 
 function build_edit_visits_dialog(frm, visits, field_defs) {
-	let has_working_days_column = field_defs.some(f => f.fieldname === 'working_days');
 	let initial_rows = visits.map(v => {
 		let row = { visit_name: v.name, label: v.visit_label };
 		field_defs.forEach(f => { row[f.fieldname] = v[f.fieldname]; });
@@ -117,10 +116,6 @@ function build_edit_visits_dialog(frm, visits, field_defs) {
 				data: initial_rows,
 				get_data: function() { return initial_rows; },
 				fields: grid_fields
-			},
-			{
-				fieldname: 'working_days_total_html',
-				fieldtype: 'HTML'
 			}
 		],
 		primary_action_label: __('OK'),
@@ -143,27 +138,7 @@ function build_edit_visits_dialog(frm, visits, field_defs) {
 		}
 	});
 
-	if (has_working_days_column) {
-		frappe.call({
-			method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_execution_distribution_summary',
-			args: { project_planning: frm.doc.name },
-			callback: function(r) {
-				let total = r.message ? r.message.total_work_days : 0;
-				function update_total() {
-					let rows = d.get_value('visits') || [];
-					let sum = 0;
-					rows.forEach(row => { sum += flt(row.working_days); });
-					let color = sum === total ? 'var(--green-500, #2b8a3e)' : (sum > total ? 'var(--red-500, #e03131)' : 'var(--orange-500, #e8590c)');
-					d.fields_dict.working_days_total_html.$wrapper.html(
-						`<div style="padding: 6px 0;">${__('Total Work Days')}: <b style="color: ${color};">${sum}</b> / ${total}</div>`
-					);
-				}
-				d.fields_dict.visits.grid.wrapper.on('change input', 'input, select', update_total);
-				d.fields_dict.visits.grid.wrapper.on('click', '.grid-delete-row, .grid-append-row', function() { setTimeout(update_total, 100); });
-				update_total();
-			}
-		});
-	}
+	
 
 	d.show();
 }
@@ -250,7 +225,6 @@ function render_add_visits_dialog(frm, visit_count, existing_count, field_defs) 
 		});
 	});
 
-	let has_working_days_column = field_defs.some(f => f.fieldname === 'working_days');
 
 	let d = new frappe.ui.Dialog({
 		title: __('Add Visits'),
@@ -277,10 +251,6 @@ function render_add_visits_dialog(frm, visit_count, existing_count, field_defs) 
 				data: initial_rows,
 				get_data: function() { return initial_rows; },
 				fields: grid_fields
-			},
-			{
-				fieldname: 'working_days_total_html',
-				fieldtype: 'HTML'
 			}
 		],
 		primary_action_label: __('OK'),
@@ -288,18 +258,6 @@ function render_add_visits_dialog(frm, visit_count, existing_count, field_defs) 
 			let rows = d.get_value('visits') || [];
 			if (!rows.length) {
 				frappe.msgprint(__('Add at least one visit row.'));
-				return;
-			}
-
-			if (has_working_days_column && _add_visits_work_days_state && _add_visits_work_days_state.exceeds && !_has_budget_bypass_role) {
-				frappe.msgprint({
-					title: __('Work Days Exceeded'),
-					message: __(
-						'Total Work Days ({0}) would exceed the Estimation total ({1}). Reduce the days before continuing.',
-						[_add_visits_work_days_state.grand_total, _add_visits_work_days_state.total]
-					),
-					indicator: 'red'
-				});
 				return;
 			}
 
@@ -318,42 +276,9 @@ function render_add_visits_dialog(frm, visit_count, existing_count, field_defs) 
 	});
 	d.show();
 
-	let _add_visits_work_days_state = null;
-	let _has_budget_bypass_role = false;
+	
 
-	frappe.call({
-		method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_budget_bypass_role',
-		callback: function(role_r) {
-			let bypass_role = role_r.message;
-			_has_budget_bypass_role = bypass_role ? (frappe.user_roles || []).includes(bypass_role) : false;
-		}
-	});
-
-	if (has_working_days_column) {
-		frappe.call({
-			method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_execution_distribution_summary',
-			args: { project_planning: frm.doc.name },
-			callback: function(r) {
-				let total = r.message ? r.message.total_work_days : 0;
-				let already_used = r.message ? r.message.distributed_work_days : 0;
-				function update_total() {
-					let rows = d.get_value('visits') || [];
-					let new_sum = 0;
-					rows.forEach(row => { new_sum += flt(row.working_days); });
-					let grand_total = already_used + new_sum;
-					let exceeds = grand_total > total;
-					_add_visits_work_days_state = { total: total, grand_total: grand_total, exceeds: exceeds };
-					let color = grand_total === total ? 'var(--green-500, #2b8a3e)' : (exceeds ? 'var(--red-500, #e03131)' : 'var(--orange-500, #e8590c)');
-					d.fields_dict.working_days_total_html.$wrapper.html(
-						`<div style="padding: 6px 0;">${__('Total Work Days')}: <b style="color: ${color};">${grand_total}</b> / ${total} (${__('already used')}: ${already_used})${exceeds && !_has_budget_bypass_role ? ' <b style="color: var(--red-500, #e03131);">— ' + __('exceeds limit') + '</b>' : ''}</div>`
-					);
-				}
-				d.fields_dict.visits.grid.wrapper.on('change input', 'input, select', update_total);
-				d.fields_dict.visits.grid.wrapper.on('click', '.grid-delete-row, .grid-append-row', function() { setTimeout(update_total, 100); });
-				update_total();
-			}
-		});
-	}
+	
 }
 
 let _project_planning_frm = null;
