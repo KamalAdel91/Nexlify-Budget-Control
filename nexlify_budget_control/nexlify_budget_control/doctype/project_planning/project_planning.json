@@ -9,6 +9,7 @@
  "field_order": [
   "naming_series",
   "project",
+  "estimation",
   "customer",
   "rejection_reason",
   "column_break_kcej",
@@ -168,6 +169,15 @@
   {
    "fieldname": "planning_scope_html",
    "fieldtype": "HTML"
+  },
+  {
+   "description": "Set automatically from the project's Estimation.",
+   "fieldname": "estimation",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Estimation",
+   "options": "Project Cost Budget",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

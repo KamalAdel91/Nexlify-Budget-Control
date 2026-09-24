@@ -62,14 +62,20 @@ function role_allows(allowed_roles) {
 }
 
 function render_budget_button(frm, opts) {
-    let existing = frm.doc[opts.linked_field];
-
-    frm.add_custom_button(existing ? opts.open_label : opts.create_label, function() {
-        if (existing) {
-            frappe.set_route('Form', opts.doctype, existing);
-        } else {
-            frappe.new_doc(opts.doctype, { project: frm.doc.name });
-        }
+    frappe.db.get_list(opts.doctype, {
+        filters: { project: frm.doc.name, docstatus: ['<', 2] },
+        fields: ['name'],
+        order_by: 'modified desc',
+        limit: 1
+    }).then(rows => {
+        let existing = (rows && rows.length) ? rows[0].name : null;
+        frm.add_custom_button(existing ? opts.open_label : opts.create_label, function() {
+            if (existing) {
+                frappe.set_route('Form', opts.doctype, existing);
+            } else {
+                frappe.new_doc(opts.doctype, { project: frm.doc.name });
+            }
+        });
     });
 }
 

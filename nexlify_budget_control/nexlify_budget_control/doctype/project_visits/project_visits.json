@@ -13,7 +13,12 @@
   "customer",
   "start_date",
   "end_date",
-  "working_days"
+  "working_days",
+  "visit_duration",
+  "allocations_section",
+  "allocations",
+  "team_section",
+  "team"
  ],
  "fields": [
   {
@@ -73,10 +78,42 @@
    "reqd": 1
   },
   {
-   "description": "Auto-calculated from the visit's equipment distribution.",
+   "description": "Sum of the work days of the equipment in this visit.",
    "fieldname": "working_days",
-   "fieldtype": "Int",
-   "label": "Working Days for This Visit",
+   "fieldtype": "Float",
+   "label": "Working Days",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "allocations_section",
+   "fieldtype": "Section Break",
+   "label": "Equipment"
+  },
+  {
+   "fieldname": "allocations",
+   "fieldtype": "Table",
+   "label": "Equipment",
+   "options": "Project Visit Allocation"
+  },
+  {
+   "fieldname": "team_section",
+   "fieldtype": "Section Break",
+   "label": "Visit Team"
+  },
+  {
+   "description": "Filled automatically from the equipment crews when empty. Adjust if needed.",
+   "fieldname": "team",
+   "fieldtype": "Table",
+   "label": "Visit Team",
+   "options": "Project Visit Team"
+  },
+  {
+   "description": "Days this team needs: for each role, person-days needed / headcount; the longest role decides.",
+   "fieldname": "visit_duration",
+   "fieldtype": "Float",
+   "label": "Visit Duration (days)",
+   "precision": "2",
    "read_only": 1
   }
  ],

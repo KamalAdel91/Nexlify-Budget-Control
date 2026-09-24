@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import getdate, flt
+from frappe.utils import cint, flt, getdate
 
 
 class ProjectVisits(Document):
@@ -19,8 +19,71 @@ class ProjectVisits(Document):
 		self.calculate_working_days()
 
 	def calculate_working_days(self):
-		# Recalculated from the visit's equipment distribution (Planning Scope).
-		pass
+		self._check_planning_still_draft()
+		self._validate_allocations()
+		self._validate_team()
+		self.working_days = flt(sum(flt(a.work_days) for a in (self.allocations or [])), 2)
+		self.visit_duration = self._compute_duration()
+
+	def _compute_duration(self):
+		"""Person-days needed per role / headcount; the longest role decides. 0 if a needed role has nobody."""
+		needed = {}
+		for a in self.allocations or []:
+			for r in frappe.get_all(
+				"Project Equipment Scope Role",
+				filters={"parent": a.planning_scope, "parenttype": "Project Planning Scope"},
+				fields=["trade", "count"],
+			):
+				needed[r.trade] = needed.get(r.trade, 0) + flt(a.work_days) * cint(r.count)
+		team = {}
+		for t in self.team or []:
+			team[t.trade] = team.get(t.trade, 0) + cint(t.headcount)
+		durations = []
+		for trade, person_days in needed.items():
+			if team.get(trade, 0) <= 0:
+				return 0
+			durations.append(person_days / team[trade])
+		return flt(max(durations), 2) if durations else 0
+
+	def _check_planning_still_draft(self):
+		if self.flags.ignore_planning_lock_check or not self.project_planning:
+			return
+		if frappe.db.get_value("Project Planning", self.project_planning, "docstatus") == 1:
+			frappe.throw(_("Cannot modify this visit: its Project Planning ({0}) is already submitted.").format(
+				self.project_planning))
+
+	def _validate_allocations(self):
+		seen = set()
+		for a in self.allocations or []:
+			scope = frappe.db.get_value(
+				"Project Planning Scope", a.planning_scope,
+				["project_planning", "equipment", "days_per_equipment", "docstatus"], as_dict=True,
+			)
+			if not scope or scope.project_planning != self.project_planning or scope.docstatus == 2:
+				frappe.throw(_("Equipment row {0}: not part of this plan's Planning Scope.").format(a.idx))
+			if a.planning_scope in seen:
+				frappe.throw(_("{0} is listed more than once in this visit.").format(scope.equipment))
+			seen.add(a.planning_scope)
+			if flt(a.quantity) <= 0:
+				frappe.throw(_("Equipment row {0}: quantity must be greater than zero.").format(a.idx))
+			a.equipment = scope.equipment
+			a.days_per_equipment = scope.days_per_equipment
+			a.work_days = flt(flt(a.quantity) * flt(scope.days_per_equipment), 4)
+
+	def _validate_team(self):
+		if not self.team and self.allocations:
+			for trade, count in suggested_visit_team([a.planning_scope for a in self.allocations]).items():
+				self.append("team", {"trade": trade, "headcount": count})
+		allowed = set(suggested_visit_team([a.planning_scope for a in self.allocations]).keys()) if self.allocations else None
+		seen = set()
+		for t in self.team or []:
+			if cint(t.headcount) <= 0:
+				frappe.throw(_("Visit Team: headcount for {0} must be greater than zero.").format(t.trade))
+			if t.trade in seen:
+				frappe.throw(_("Visit Team: {0} is listed more than once.").format(t.trade))
+			seen.add(t.trade)
+			if allowed is not None and t.trade not in allowed:
+				frappe.throw(_("Visit Team: {0} is not a role of the equipment in this visit.").format(t.trade))
 
 	def validate_cost_budget_submitted(self):
 		project = frappe.db.get_value("Project Planning", self.project_planning, "project")
@@ -62,3 +125,16 @@ def _ordinal(n):
 	else:
 		suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 	return f"{n}{suffix}"
+
+
+def suggested_visit_team(planning_scopes):
+	"""One team working on the equipment one after the other: the largest crew needed per role."""
+	team = {}
+	for scope in planning_scopes or []:
+		for r in frappe.get_all(
+			"Project Equipment Scope Role",
+			filters={"parent": scope, "parenttype": "Project Planning Scope"},
+			fields=["trade", "count"],
+		):
+			team[r.trade] = max(team.get(r.trade, 0), cint(r.count))
+	return team

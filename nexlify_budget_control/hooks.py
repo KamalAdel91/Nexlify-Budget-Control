@@ -96,6 +96,7 @@ after_migrate = [
 ]
 
 auto_cancel_exempted_doctypes = [
+	"Project Planning",
 	"Project Planning Scope",
 	"Project Equipment Scope",
 ]

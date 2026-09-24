@@ -8,13 +8,20 @@ from frappe.utils import cint, flt, getdate
 
 
 class ProjectCostBudget(Document):
+	def on_trash(self):
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import cascade_delete_estimation
+		cascade_delete_estimation(self)
+
 	def after_insert(self):
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import link_project_document
+		link_project_document(self.project, "custom_budget_cost", self.name)
 		if self.amended_from:
 			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import carry_over_amended_cost_budget
 			carry_over_amended_cost_budget(self.amended_from, self.name)
 
 	def validate(self):
 		"""Validate budget document before saving."""
+		self._validate_single_active_estimation()
 		self._validate_date_range()
 		self._validate_conversion_rate()
 		self._validate_duplicate_categories()
@@ -213,6 +220,20 @@ class ProjectCostBudget(Document):
 			where cost_budget = %s and docstatus in (0, 1)""",
 			(self.name,),
 		)[0][0]
+
+	def before_cancel(self):
+		plan = frappe.db.get_value("Project Planning", {"project": self.project, "docstatus": 1}, "name")
+		if plan:
+			frappe.throw(_("Cancel the Project Planning ({0}) first: it is built on this Estimation.").format(plan))
+
+	def _validate_single_active_estimation(self):
+		other = frappe.db.get_value(
+			"Project Cost Budget",
+			{"project": self.project, "docstatus": ["<", 2], "name": ["!=", self.name or ""]},
+			"name",
+		)
+		if other:
+			frappe.throw(_("This project already has an Estimation ({0}). Open it instead of creating a new one.").format(other))
 
 	def _validate_date_range(self):
 		"""Ensure from_date is before to_date."""

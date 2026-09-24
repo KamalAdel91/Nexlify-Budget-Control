@@ -358,11 +358,30 @@ def on_project_cost_budget_submit(doc, method=None):
     the parent (per the app-wide "child locks with parent" principle).
     """
     _submit_equipment_scope_rows(doc.name)
+    _relink_planning_scope(doc)
 
     if not doc.project:
         return
     frappe.db.set_value("Project", doc.project, "custom_budget_cost", doc.name)
     _sync_project_overview(doc.project)
+
+
+def _relink_planning_scope(cost_budget_doc):
+    """After an amended Estimation is submitted, point draft Planning Scope rows to its new rows."""
+    if not cost_budget_doc.project:
+        return
+    for plan in frappe.get_all("Project Planning", filters={"project": cost_budget_doc.project, "docstatus": 0}, pluck="name"):
+        frappe.db.set_value("Project Planning", plan, "estimation", cost_budget_doc.name, update_modified=False)
+        for row in frappe.get_all("Project Planning Scope", filters={"project_planning": plan, "docstatus": 0},
+                                  fields=["name", "estimation_scope"]):
+            if not row.estimation_scope:
+                continue
+            if frappe.db.get_value("Project Equipment Scope", row.estimation_scope, "cost_budget") == cost_budget_doc.name:
+                continue
+            new_row = frappe.db.get_value("Project Equipment Scope",
+                                          {"amended_from": row.estimation_scope, "cost_budget": cost_budget_doc.name}, "name")
+            if new_row:
+                frappe.db.set_value("Project Planning Scope", row.name, "estimation_scope", new_row, update_modified=False)
 
 
 def _submit_equipment_scope_rows(cost_budget):
@@ -468,23 +487,32 @@ def _sync_project_overview(project_name):
 	)
 
 	existing = frappe.db.get_value(
-		"Project Overview", {"project": project_name, "docstatus": ["!=", 2]}, "name"
+		"Project Overview", {"project": project_name, "docstatus": ["!=", 2]}, ["name", "docstatus"], as_dict=True
 	)
 
 	if existing:
-		frappe.db.set_value(
-			"Project Overview",
-			existing,
-			{"cost_budget": cost_budget, "revenue_budget": revenue_budget},
-		)
+		# An approved (submitted) Overview is never changed
+		if existing.docstatus == 0:
+			frappe.db.set_value(
+				"Project Overview",
+				existing.name,
+				{"cost_budget": cost_budget, "revenue_budget": revenue_budget},
+			)
+		if frappe.db.get_value("Project", project_name, "custom_project_overview") != existing.name:
+			frappe.db.set_value("Project", project_name, "custom_project_overview", existing.name, update_modified=False)
 		return
 
 	if cost_budget and revenue_budget:
+		# Continue the approval history from the last cancelled Overview, if any
+		last_cancelled = frappe.db.get_value(
+			"Project Overview", {"project": project_name, "docstatus": 2}, "name", order_by="modified desc"
+		)
 		frappe.get_doc({
 			"doctype": "Project Overview",
 			"project": project_name,
 			"cost_budget": cost_budget,
 			"revenue_budget": revenue_budget,
+			"amended_from": last_cancelled,
 		}).insert(ignore_permissions=True)
 
 
@@ -499,8 +527,12 @@ def get_project_visits(project_planning):
 	)
 
 	for v in visits:
-		v["equipment_summary"] = ""
-		v["crew_summary"] = ""
+		alloc = frappe.get_all("Project Visit Allocation", filters={"parent": v.name, "parenttype": "Project Visits"},
+			fields=["equipment", "quantity"], order_by="idx asc")
+		v["equipment_summary"] = ", ".join(f"{a.equipment} x{frappe.utils.flt(a.quantity):g}" for a in alloc)
+		team = frappe.get_all("Project Visit Team", filters={"parent": v.name, "parenttype": "Project Visits"},
+			fields=["trade", "headcount"], order_by="idx asc")
+		v["crew_summary"] = ", ".join(f"{t.trade} x{t.headcount}" for t in team)
 
 	return visits
 
@@ -529,6 +561,9 @@ def get_project_equipment_scope_rows_for_planning(project_planning):
     cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
     if not cost_budget:
         return {"rows": [], "trade_columns": []}
+    status = frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus")
+    if status != 1:
+        return {"rows": [], "trade_columns": [], "estimation_status": status, "cost_budget": cost_budget}
     return get_project_equipment_scope_rows(cost_budget)
 
 
@@ -680,10 +715,25 @@ def _copy_planning_scope(project_planning, reset=False):
     cost_budget = _planning_cost_budget(project_planning)
     if not cost_budget:
         return 0
+    updated = 0
     if reset:
+        # Update draft rows in place (never delete: they may be allocated in visits)
         for name in frappe.get_all("Project Planning Scope",
                                    filters={"project_planning": project_planning, "docstatus": 0}, pluck="name"):
-            frappe.delete_doc("Project Planning Scope", name, ignore_permissions=True)
+            row = frappe.get_doc("Project Planning Scope", name)
+            est = frappe.db.get_value("Project Equipment Scope", row.estimation_scope,
+                                      ["quantity", "days_per_equipment", "docstatus"], as_dict=True) if row.estimation_scope else None
+            if not est or est.docstatus != 1:
+                continue
+            row.quantity = est.quantity
+            row.days_per_equipment = est.days_per_equipment
+            row.set("roles", [])
+            for r in frappe.get_all("Project Equipment Scope Role",
+                                    filters={"parent": row.estimation_scope, "parenttype": "Project Equipment Scope"},
+                                    fields=["trade", "count"], order_by="idx asc"):
+                row.append("roles", {"trade": r.trade, "count": r.count})
+            row.save(ignore_permissions=True)
+            updated += 1
 
     existing = set(frappe.get_all("Project Planning Scope",
                                   filters={"project_planning": project_planning, "docstatus": ["<", 2]},
@@ -710,7 +760,7 @@ def _copy_planning_scope(project_planning, reset=False):
             doc.append("roles", {"trade": r.trade, "count": r.count})
         doc.insert(ignore_permissions=True)
         created += 1
-    return created
+    return created + updated
 
 
 def auto_copy_planning_scope(project_planning):
@@ -769,7 +819,8 @@ def get_planning_scope_rows(project_planning):
         missing = [x.equipment for x in frappe.get_all(
             "Project Equipment Scope", filters={"cost_budget": cost_budget, "docstatus": 1},
             fields=["name", "equipment"], order_by="creation asc") if x.name not in planned]
-    return {"rows": rows, "trade_columns": trades, "missing": missing}
+    return {"rows": rows, "trade_columns": trades, "missing": missing,
+            "estimation_status": frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") if cost_budget else None}
 
 
 @frappe.whitelist()
@@ -796,6 +847,15 @@ def delete_planning_scope(name):
     doc = frappe.get_doc("Project Planning Scope", name)
     if doc.docstatus != 0:
         frappe.throw(_("Only draft rows can be deleted."))
+    visits = frappe.db.sql_list(
+        """select distinct v.visit_label from `tabProject Visit Allocation` a
+        inner join `tabProject Visits` v on v.name = a.parent and a.parenttype = 'Project Visits'
+        where a.planning_scope = %s""",
+        (name,),
+    )
+    if visits:
+        frappe.throw(_("{0} is allocated in: {1}. Remove it from those visits first.").format(
+            doc.equipment, ", ".join(v or "-" for v in visits)))
     frappe.delete_doc("Project Planning Scope", name, ignore_permissions=True)
 
 
@@ -815,6 +875,37 @@ def _cancel_planning_scope(project_planning):
         row.flags.ignore_planning_lock_check = True
         row.flags.ignore_permissions = True
         row.cancel()
+
+
+@frappe.whitelist()
+def get_visit_allocation_context(project_planning, visit=None):
+    """Planning Scope rows with the quantity already allocated in the other visits (for live remaining)."""
+    flt, cint = frappe.utils.flt, frappe.utils.cint
+    scope = frappe.get_all(
+        "Project Planning Scope",
+        filters={"project_planning": project_planning, "docstatus": ["<", 2]},
+        fields=["name", "equipment", "quantity", "days_per_equipment"],
+        order_by="creation asc",
+    )
+    other = frappe.db.sql(
+        """
+        select a.planning_scope, coalesce(sum(a.quantity), 0) as qty
+        from `tabProject Visit Allocation` a
+        inner join `tabProject Visits` v on v.name = a.parent and a.parenttype = 'Project Visits'
+        where v.project_planning = %s and v.name != %s
+        group by a.planning_scope
+        """,
+        (project_planning, visit or ""),
+        as_dict=True,
+    )
+    used = {r.planning_scope: flt(r.qty) for r in other}
+    for s in scope:
+        s["allocated_elsewhere"] = used.get(s.name, 0)
+        s["roles"] = {r.trade: cint(r.count) for r in frappe.get_all(
+            "Project Equipment Scope Role",
+            filters={"parent": s.name, "parenttype": "Project Planning Scope"},
+            fields=["trade", "count"])}
+    return {"scope": scope}
 
 
 EXCLUDED_VISIT_EDIT_FIELDS = {"project_planning", "project", "visit_label"}
@@ -851,6 +942,7 @@ def get_project_visits_editable_fields():
 					"label": cf.label,
 					"options": cf.options,
 					"reqd": cf.reqd,
+					"read_only": cf.read_only,
 					"in_list_view": 1,
 				}
 				for cf in child_meta.fields
@@ -2785,3 +2877,56 @@ def carry_over_amended_cost_budget(old_cb, new_cb):
             ),
             indicator="orange",
         )
+
+# ---------------------------------------------------------------------------
+# Cascade delete: deleting an Estimation / Planning deletes its own documents
+# ---------------------------------------------------------------------------
+
+def _clear_link(doctype, fieldname, value):
+    if not frappe.get_meta(doctype).has_field(fieldname):
+        return
+    for name in frappe.get_all(doctype, filters={fieldname: value}, pluck="name"):
+        frappe.db.set_value(doctype, name, fieldname, None, update_modified=False)
+
+
+def _approved_overview(fieldname, value):
+    if not frappe.get_meta("Project Overview").has_field(fieldname):
+        return None
+    return frappe.db.get_value("Project Overview", {fieldname: value, "docstatus": 1}, "name")
+
+
+def cascade_delete_planning(plan):
+    overview = _approved_overview("revenue_budget", plan.name)
+    if overview:
+        frappe.throw(_("Cannot delete: the approved Project Overview {0} is based on this plan.").format(overview))
+    # order matters: invoices link visits, visits link the planning scope
+    for dt in ("Project Invoicing", "Project Visits", "Project Planning Scope"):
+        for name in frappe.get_all(dt, filters={"project_planning": plan.name}, pluck="name"):
+            frappe.delete_doc(dt, name, ignore_permissions=True, force=True)
+    _clear_link("Project", "custom_project_planning", plan.name)
+    _clear_link("Project Overview", "revenue_budget", plan.name)
+
+
+def cascade_delete_estimation(cb):
+    if cb.project:
+        plan = frappe.db.get_value("Project Planning", {"project": cb.project, "docstatus": ["<", 2]}, "name")
+        if plan:
+            frappe.throw(_("Cannot delete: the Project Planning {0} is built on this Estimation. Delete or cancel the plan first.").format(plan))
+    overview = _approved_overview("cost_budget", cb.name)
+    if overview:
+        frappe.throw(_("Cannot delete: the approved Project Overview {0} is based on this Estimation.").format(overview))
+    _clear_link("Project Planning", "estimation", cb.name)  # cancelled plans keep their record
+    for name in frappe.get_all("Project Equipment Scope", filters={"cost_budget": cb.name}, pluck="name"):
+        _clear_link("Project Planning Scope", "estimation_scope", name)  # cancelled plans keep their rows
+        frappe.delete_doc("Project Equipment Scope", name, ignore_permissions=True, force=True)
+    _clear_link("Project", "custom_budget_cost", cb.name)
+    _clear_link("Project Overview", "cost_budget", cb.name)
+
+
+def link_project_document(project, fieldname, docname):
+    """Point the Project at its current Estimation / Planning as soon as one is created (new or amended)."""
+    if not project:
+        return
+    if frappe.db.get_value("Project", project, fieldname) != docname:
+        frappe.db.set_value("Project", project, fieldname, docname, update_modified=False)
+    _sync_project_overview(project)

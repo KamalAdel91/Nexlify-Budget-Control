@@ -312,6 +312,22 @@ function fmt_matrix_value(n) {
 
 // Arrange the visit Edit dialog fields side by side (known fields), keep everything else below
 function vd_layout_visit_fields(fields) {
+	fields.forEach(f => {
+		if (f.fieldname === 'allocations' && f.fields) {
+			f.fields = f.fields.filter(cf => !cf.read_only);
+			f.fields.forEach(cf => {
+				if (cf.fieldname === 'planning_scope') { cf.label = __('Equipment'); cf.only_select = 1; }
+			});
+		}
+		if (f.fieldname === 'team' && f.fields) {
+			f.label = '';
+			f.fields.forEach(cf => { if (cf.fieldname === 'trade') cf.only_select = 1; });
+		}
+	});
+	let team_idx = fields.findIndex(f => f.fieldname === 'team');
+	if (team_idx !== -1 && !fields.some(f => f.fieldname === 'team_suggest_html')) {
+		fields.splice(team_idx, 0, { fieldname: 'team_suggest_html', fieldtype: 'HTML' });
+	}
 	let by = {};
 	fields.forEach(f => { by[f.fieldname] = f; });
 	let used = new Set();
@@ -329,7 +345,7 @@ function vd_layout_visit_fields(fields) {
 	}
 
 	row(['company', 'customer'], 'sb_parties');
-	row(['start_date', 'end_date', 'working_days'], 'sb_dates');
+	row(['start_date', 'end_date', 'working_days', 'visit_duration'], 'sb_dates');
 
 	let rest = fields.filter(f => !used.has(f.fieldname));
 	if (rest.length) {
@@ -381,11 +397,12 @@ window.open_visit_quick_edit = function(visit_name) {
 												label: cf.label,
 												options: cf.options,
 												reqd: cf.reqd,
+												read_only: cf.read_only,
 												in_list_view: 1
 											};
-											if (f.fieldname === 'sub_periods' && cf.fieldname === 'equipment') {
+											if (f.fieldname === 'allocations' && cf.fieldname === 'planning_scope') {
 												field_def.get_query = function() {
-													return { filters: { name: ['in', allowed_equipment] } };
+													return { filters: { project_planning: plan_name, docstatus: ['<', 2] } };
 												};
 											}
 											return field_def;
@@ -418,8 +435,9 @@ window.open_visit_quick_edit = function(visit_name) {
 								primary_action_label: __('Save'),
 								primary_action: function(values) {
 									let row = Object.assign({ visit_name: visit.name }, values);
-									if (d.fields_dict.crew) row.crew = d.get_value('crew') || [];
-									if (d.fields_dict.equipment) row.equipment = d.get_value('equipment') || [];
+									if (d.fields_dict.allocations) row.allocations = (d.get_value('allocations') || []).filter(x => x.planning_scope).map(x => ({ planning_scope: x.planning_scope, quantity: flt(x.quantity) }));
+									if (d.fields_dict.team) row.team = (d.get_value('team') || []).filter(x => x.trade).map(x => ({ trade: x.trade, headcount: cint(x.headcount) }));
+									Object.keys(row).forEach(k => { if (k.endsWith('_remaining_html')) delete row[k]; });
 									frappe.call({
 										method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.bulk_update_project_visits',
 										args: { rows: [row] },
@@ -450,6 +468,7 @@ window.open_visit_quick_edit = function(visit_name) {
 								}
 							});
 							d.show();
+							vd_wire_allocations(d, plan_name, visit.name);
 
 							let set_working_days_promise = Promise.resolve();
 							if (full_doc.working_days !== undefined && full_doc.working_days !== null) {
@@ -853,6 +872,7 @@ window.open_invoicing_quick_edit = function(invoice_name) {
 										label: cf.label,
 										options: cf.options,
 										reqd: cf.reqd,
+										read_only: cf.read_only,
 										in_list_view: 1
 									};
 									if (f.fieldname === 'visits' && cf.fieldname === 'project_visit') {
@@ -1146,7 +1166,7 @@ function render_estimation_overview(frm) {
 			let trade_columns = data.trade_columns || [];
 
 			if (!rows.length) {
-				frm.set_df_property('estimation_overview_html', 'options', `<div class="text-muted" style="padding:16px; text-align:center; border:1px dashed var(--border-color, #e9ecef); border-radius:10px;">${__('No Costing (Estimation) submitted yet for this project.')}</div>`);
+				frm.set_df_property('estimation_overview_html', 'options', `<div class="text-muted" style="padding:16px; text-align:center; border:1px dashed var(--border-color, #e9ecef); border-radius:10px;">${(data.estimation_status === 2 ? __('The Estimation ({0}) is cancelled. The plan will follow its amended version once it is submitted.', [data.cost_budget]) : __('No Costing (Estimation) submitted yet for this project.'))}</div>`);
 				frm.refresh_field('estimation_overview_html');
 				return;
 			}
@@ -1289,6 +1309,9 @@ function ps_build_html(frm, data) {
 		<div>${buttons}</div>
 	</div>`;
 
+	if (data.estimation_status !== undefined && data.estimation_status !== null && data.estimation_status !== 1) {
+		header = `<div style="margin-bottom:8px; padding:8px 10px; border-radius:8px; background: var(--orange-50, #fff4e6); color: var(--orange-700, #d9480f); font-weight:600;">${__('The Estimation is not submitted (cancelled or draft). The plan cannot be submitted until it is submitted again.')}</div>` + header;
+	}
 	if (!rows.length) {
 		return header + `<div class="nrb-empty">${__('No planning scope yet.')}</div>`;
 	}
@@ -1482,3 +1505,218 @@ window.ps_edit = function(name) {
 	wrap.on('click', '.grid-add-row, .grid-append-row, .grid-insert-row, .grid-delete-row, .grid-remove-rows', () => setTimeout(render_check, 200));
 	render_check();
 };
+
+// ---------------------------------------------------------------------------
+// Visit Edit dialog: live remaining per equipment + suggested Visit Team
+// ---------------------------------------------------------------------------
+
+function vd_wire_allocations(d, plan_name, visit_name) {
+	if (!d.fields_dict.allocations) return;
+	let ctx = null;
+	let r2 = n => Math.round(flt(n) * 100) / 100;
+	let esc = v => frappe.utils.escape_html(v || '');
+
+	function current_alloc() {
+		return (d.get_value('allocations') || []).filter(x => x.planning_scope);
+	}
+	function current_team() {
+		return (d.get_value('team') || []).filter(x => x.trade);
+	}
+	function suggested_team(alloc, scope_map) {
+		let team = {};
+		alloc.forEach(a => {
+			let s = scope_map[a.planning_scope];
+			Object.keys((s && s.roles) || {}).forEach(t => { team[t] = Math.max(team[t] || 0, cint(s.roles[t])); });
+		});
+		return team;
+	}
+
+	function render() {
+		let $a = d.fields_dict.allocations_remaining_html ? d.fields_dict.allocations_remaining_html.$wrapper : null;
+		let $t = d.fields_dict.team_remaining_html ? d.fields_dict.team_remaining_html.$wrapper : null;
+		if (!ctx) {
+			if ($a) $a.html(`<div class="nrb-muted">${__('Loading...')}</div>`);
+			return;
+		}
+		let scope_map = {};
+		(ctx.scope || []).forEach(s => { scope_map[s.name] = s; });
+		let alloc = current_alloc();
+
+		// ---- remaining per equipment ----
+		let warnings = [];
+		let seen = {};
+		alloc.forEach(a => {
+			if (seen[a.planning_scope]) warnings.push(__('{0} is listed more than once.', [esc((scope_map[a.planning_scope] || {}).equipment || a.planning_scope)]));
+			seen[a.planning_scope] = true;
+		});
+		let visit_days = 0;
+		let rows = (ctx.scope || []).map(s => {
+			let here = alloc.filter(x => x.planning_scope === s.name).reduce((t, x) => t + flt(x.quantity), 0);
+			visit_days += here * flt(s.days_per_equipment);
+			let remaining = r2(flt(s.quantity) - flt(s.allocated_elsewhere) - here);
+			let color = remaining < 0 ? 'var(--red-500, #e03131)' : (remaining === 0 ? 'var(--green-500, #2b8a3e)' : 'var(--orange-500, #e8590c)');
+			let text = remaining < 0 ? `${remaining} (${__('over by {0}', [Math.abs(remaining)])})` : remaining;
+			return `<tr${here ? ' style="background: var(--control-bg, #f8f9fb);"' : ''}>
+				<td>${esc(s.equipment)}</td>
+				<td>${r2(s.quantity)}</td>
+				<td>${r2(s.allocated_elsewhere)}</td>
+				<td>${here ? `<b>${r2(here)}</b>` : '<span class="nrb-muted">-</span>'}</td>
+				<td style="color:${color}; font-weight:600;">${text}</td>
+			</tr>`;
+		}).join('');
+		if ($a) {
+			$a.html(`
+				<div class="nrb-table-wrapper" style="margin-top:6px;">
+					<table class="nrb-table">
+						<thead><tr>
+							<th>${__('Equipment')}</th><th>${__('Planned')}</th><th>${__('Other Visits')}</th>
+							<th>${__('This Visit')}</th><th>${__('Remaining')}</th>
+						</tr></thead>
+						<tbody>${rows}</tbody>
+					</table>
+				</div>
+				<div class="nrb-muted" style="margin-top:6px; font-size:12px;">${__('Work days in this visit')}: <b>${r2(visit_days)}</b></div>
+				${warnings.length ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background: var(--red-50, #fff5f5); color: var(--red-600, #c92a2a);">${warnings.map(w => '&bull; ' + w).join('<br>')}</div>` : ''}
+			`);
+		}
+
+		// ---- Visit Team: suggestion above the table, control table below ----
+		let suggested = suggested_team(alloc, scope_map);
+		let trades = Object.keys(suggested);
+		let team = current_team();
+		let team_map = {};
+		team.forEach(x => { team_map[x.trade] = (team_map[x.trade] || 0) + cint(x.headcount); });
+
+		let $s = d.fields_dict.team_suggest_html ? d.fields_dict.team_suggest_html.$wrapper : null;
+		if ($s) {
+			let suggestion = trades.length
+				? trades.map(t => `${esc(t)} &times; ${suggested[t]}`).join(', ')
+				: `<span class="nrb-muted">${__('Add equipment first.')}</span>`;
+			$s.html(`
+				<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0 6px;">
+					<div>
+						<b>${__('Visit Team')}</b>
+						<span class="nrb-muted" style="font-size:12px; margin-left:8px;">${__('Suggested')}: ${suggestion}</span>
+					</div>
+					${trades.length ? `<button class="btn btn-xs btn-default vd-use-suggested">${__('Use suggested team')}</button>` : ''}
+				</div>
+			`);
+			$s.find('.vd-use-suggested').on('click', function() {
+				d.fields_dict.team.df.data = trades.map(t => ({ trade: t, headcount: suggested[t] }));
+				d.fields_dict.team.grid.refresh();
+				render();
+			});
+		}
+
+		if ($t) {
+			let needed = {};
+			alloc.forEach(a => {
+				let s = scope_map[a.planning_scope];
+				if (!s) return;
+				let wd = flt(a.quantity) * flt(s.days_per_equipment);
+				Object.keys(s.roles || {}).forEach(t => { needed[t] = (needed[t] || 0) + wd * cint(s.roles[t]); });
+			});
+			let effective = team.length ? team_map : suggested;
+			let roles = trades.slice();
+			Object.keys(team_map).forEach(t => { if (!roles.includes(t)) roles.push(t); });
+
+			let days_by_role = {};
+			let duration = 0, missing = [];
+			roles.forEach(t => {
+				if (!needed[t]) return;
+				let hc = cint(effective[t]);
+				if (!hc) { missing.push(t); return; }
+				days_by_role[t] = needed[t] / hc;
+				duration = Math.max(duration, days_by_role[t]);
+			});
+			if (d.fields_dict.visit_duration) d.set_value('visit_duration', missing.length ? 0 : r2(duration));
+
+			let start_date = d.get_value('start_date'), end_date = d.get_value('end_date');
+			let calendar = (start_date && end_date) ? frappe.datetime.get_diff(end_date, start_date) + 1 : 0;
+
+			let rows = Object.keys(needed).map(t => {
+				let sug = cint(suggested[t]);
+				let hc = cint(effective[t]);
+				let diff = hc - sug;
+				let diff_color = diff === 0 ? 'var(--green-500, #2b8a3e)' : (diff > 0 ? 'var(--orange-500, #e8590c)' : 'var(--red-500, #e03131)');
+				let diff_text = diff > 0 ? `+${diff}` : `${diff}`;
+				let days = days_by_role[t];
+				let days_cell;
+				if (!needed[t]) {
+					days_cell = '<span class="nrb-muted">-</span>';
+				} else if (days === undefined) {
+					days_cell = `<span style="color: var(--red-500, #e03131); font-weight:600;">${__('No one')}</span>`;
+				} else {
+					let decides = r2(days) === r2(duration);
+					let over = calendar && days > calendar;
+					let color = over ? 'var(--orange-600, #e8590c)' : 'inherit';
+					days_cell = `<span style="color:${color}; font-weight:${decides ? 700 : 400};">${r2(days)}</span>`;
+				}
+				return `<tr style="background: var(--control-bg, #f8f9fb);">
+					<td>${esc(t)}</td>
+					<td>${r2(needed[t])}</td>
+					<td>${hc || '-'}</td>
+					<td>${days_by_role[t] === undefined ? `<span style="color: var(--red-500, #e03131); font-weight:600;">${__('No one')}</span>` : r2(days_by_role[t])}</td>
+				</tr>`;
+			}).join('');
+
+			let notes = [];
+			if (!team.length && trades.length) {
+				notes.push(`<div class="nrb-muted" style="margin-top:6px; font-size:12px;">${__('The Visit Team is empty: the suggested team will be used when you save.')}</div>`);
+			}
+			if (roles.length && !missing.length) {
+				notes.push(`<div style="margin-top:6px; font-size:12px;">${__('Visit duration with this team')}: <b>${r2(duration)}</b> ${__('days')}${calendar ? ` &middot; ${__('Visit period')}: ${calendar} ${__('calendar days')}` : ''}</div>`);
+				if (calendar && duration > calendar) {
+					notes.push(`<div style="margin-top:6px; padding:8px 10px; border-radius:8px; background: var(--orange-50, #fff4e6); color: var(--orange-700, #d9480f);">${__('This team needs {0} days, but the visit period is {1} days. Add people or extend the visit.', [r2(duration), calendar])}</div>`);
+				}
+			}
+			if (missing.length && team.length) {
+				notes.push(`<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background: var(--red-50, #fff5f5); color: var(--red-600, #c92a2a);">${missing.map(t => '&bull; ' + __('{0} is needed for the selected equipment but has no one in the Visit Team.', [esc(t)])).join('<br>')}</div>`);
+			}
+
+			$t.html(roles.length ? `
+				<div class="nrb-table-wrapper" style="margin-top:6px;">
+					<table class="nrb-table">
+						<thead><tr>
+							<th>${__('Role')}</th><th>${__('Person-days needed')}</th><th>${__('Headcount')}</th><th>${__('Days needed')}</th>
+						</tr></thead>
+						<tbody>${rows}</tbody>
+					</table>
+				</div>
+				${notes.join('')}
+			` : notes.join(''));
+		}
+	}
+
+	function bind(field) {
+		if (!field || !field.grid) return;
+		let wrap = field.grid.wrapper;
+		wrap.on('change awesomplete-selectcomplete', 'input', function() { setTimeout(render, 200); });
+		wrap.on('click', '.grid-add-row, .grid-append-row, .grid-insert-row, .grid-delete-row, .grid-remove-rows', function() { setTimeout(render, 200); });
+	}
+	bind(d.fields_dict.allocations);
+	bind(d.fields_dict.team);
+	['start_date', 'end_date'].forEach(fn => {
+		if (d.fields_dict[fn] && d.fields_dict[fn].$input) d.fields_dict[fn].$input.on('change', () => setTimeout(render, 100));
+	});
+
+	// Visit Team: only the roles of the selected equipment (or of the whole plan if none selected yet)
+	function allowed_trades() {
+		let scope = (ctx && ctx.scope) || [];
+		let picked = current_alloc().map(a => a.planning_scope);
+		let source = picked.length ? scope.filter(s => picked.includes(s.name)) : scope;
+		let trades = [];
+		source.forEach(s => Object.keys(s.roles || {}).forEach(t => { if (!trades.includes(t)) trades.push(t); }));
+		return trades.length ? trades : ['__none__'];
+	}
+	let team_grid = d.fields_dict.team && d.fields_dict.team.grid;
+	let trade_df = ((team_grid && team_grid.docfields) || (d.fields_dict.team && d.fields_dict.team.df.fields) || [])
+		.find(x => x.fieldname === 'trade');
+	if (trade_df) {
+		trade_df.get_query = () => ({ filters: { name: ['in', allowed_trades()] } });
+	}
+
+	frappe.xcall('nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_visit_allocation_context',
+		{ project_planning: plan_name, visit: visit_name })
+		.then(r => { ctx = r || {}; render(); });
+}

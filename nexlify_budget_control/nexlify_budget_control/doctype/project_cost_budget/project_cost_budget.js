@@ -24,7 +24,7 @@ frappe.ui.form.on("Project Cost Budget", {
 	},
 
 	refresh: function(frm) {
-		frm.ignore_doctypes_on_cancel_all = ['Project Equipment Scope'];
+		frm.ignore_doctypes_on_cancel_all = ['Project Equipment Scope', 'Project Planning'];
 		render_equipment_scope_toolbar(frm);
 		render_equipment_scope_summary(frm);
 	}

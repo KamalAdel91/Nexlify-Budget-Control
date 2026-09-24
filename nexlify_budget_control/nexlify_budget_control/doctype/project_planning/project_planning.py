@@ -8,13 +8,30 @@ from frappe.utils import flt
 
 
 class ProjectPlanning(Document):
+	def on_trash(self):
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import cascade_delete_planning
+		cascade_delete_planning(self)
+
 	def after_insert(self):
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import link_project_document
+		link_project_document(self.project, "custom_project_planning", self.name)
 		if self.amended_from:
 			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import carry_over_amended_planning
 			carry_over_amended_planning(self.amended_from, self.name)
 		else:
 			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import auto_copy_planning_scope
 			auto_copy_planning_scope(self.name)
+
+	def validate(self):
+		if self.docstatus == 0:
+			self.estimation = _active_estimation(self.project)
+		other = frappe.db.get_value(
+			"Project Planning",
+			{"project": self.project, "docstatus": ["<", 2], "name": ["!=", self.name or ""]},
+			"name",
+		)
+		if other:
+			frappe.throw(_("This project already has a Project Planning ({0}). Open it instead of creating a new one.").format(other))
 
 	def before_submit(self):
 		self.validate_invoice_percentage_total()
@@ -41,3 +58,10 @@ class ProjectPlanning(Document):
 		if not bypass_role:
 			return False
 		return bypass_role in frappe.get_roles(frappe.session.user)
+
+
+def _active_estimation(project):
+	if not project:
+		return None
+	return (frappe.db.get_value("Project Cost Budget", {"project": project, "docstatus": 1}, "name")
+		or frappe.db.get_value("Project", project, "custom_budget_cost"))
