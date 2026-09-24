@@ -1,0 +1,72 @@
+import json
+import os
+
+import frappe
+
+
+def seed_master_data():
+	"""Adds the master data shipped in seed_data.json (regions, maintenance natures and types, project
+	types, equipment types) once per site. Existing records are never changed, and a record removed in
+	the UI later is not added again: after the first time, the UI owns this data."""
+	path = os.path.join(os.path.dirname(__file__), "seed_data.json")
+	if not os.path.exists(path):
+		return
+	applied = set(frappe.parse_json(frappe.db.get_default("nexlify_seeded_master_data") or "[]"))
+	changed = False
+	for doctype, rows in json.load(open(path)).items():
+		if not frappe.db.exists("DocType", doctype):
+			continue
+		for row in rows:
+			key = f"{doctype}|{row['name']}"
+			if key in applied:
+				continue
+			if not frappe.db.exists(doctype, row["name"]):
+				doc = frappe.get_doc({**row, "doctype": doctype})
+				doc.flags.ignore_links = True
+				doc.insert(ignore_permissions=True, ignore_if_duplicate=True)
+			applied.add(key)
+			changed = True
+	if changed:
+		frappe.db.set_default("nexlify_seeded_master_data", frappe.as_json(sorted(applied)))
+
+
+def _hash(text):
+	import hashlib
+	return hashlib.md5((text or "").strip().encode()).hexdigest()
+
+
+def update_scripts_once():
+	"""Puts the app's version of the Server / Client Scripts listed in script_updates.json on this site,
+	only when the site still has the old version (or none). A script edited in the UI is left alone
+	and an Error Log explains why. Each version is applied once per site."""
+	base = os.path.dirname(__file__)
+	path = os.path.join(base, "script_updates.json")
+	if not os.path.exists(path):
+		return
+	applied = set(frappe.parse_json(frappe.db.get_default("nexlify_script_updates") or "[]"))
+	changed = False
+	for item in json.load(open(path)):
+		dt, name = item["doctype"], item["name"]
+		new = open(os.path.join(base, item["file"])).read().strip()
+		key = f"{dt}|{name}|{_hash(new)}"
+		if key in applied:
+			continue
+		if not frappe.db.exists(dt, name):
+			frappe.get_doc({"doctype": dt, "name": name, "__newname": name, **item["fields"], "script": new}).insert(ignore_permissions=True)
+		else:
+			current = _hash(frappe.db.get_value(dt, name, "script"))
+			if current == _hash(new):
+				pass
+			elif current in item["replace_if_hash"]:
+				doc = frappe.get_doc(dt, name)
+				doc.script = new
+				doc.save(ignore_permissions=True)
+			else:
+				frappe.log_error(
+					title=f"Nexlify: {dt} not updated",
+					message=f"{dt} '{name}' was changed on this site, so the app did not replace it. "
+					f"The app's version is in nexlify_budget_control/setup/{item['file']}.")
+		applied.add(key)
+		changed = True
+	if changed:
+		frappe.db.set_default("nexlify_script_updates", frappe.as_json(sorted(applied)))

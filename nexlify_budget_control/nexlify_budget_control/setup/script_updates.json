@@ -1,0 +1,29 @@
+[
+ {
+  "doctype": "Server Script",
+  "name": "Opportunity - Create Project on Won",
+  "file": "scripts/opportunity___create_project_on_won.py",
+  "fields": {
+   "script_type": "DocType Event",
+   "reference_doctype": "Opportunity",
+   "doctype_event": "After Save",
+   "disabled": 0
+  },
+  "replace_if_hash": [
+   "253503e8c974900857f6ee929f360328"
+  ]
+ },
+ {
+  "doctype": "Client Script",
+  "name": "Opportunity - Unified Pipeline & Stage Validations",
+  "file": "scripts/opportunity___unified_pipeline_and_stage_validations.js",
+  "fields": {
+   "dt": "Opportunity",
+   "view": "Form",
+   "enabled": 1
+  },
+  "replace_if_hash": [
+   "6e0962bf28ef2d0475010b2fb42d07b6"
+  ]
+ }
+]

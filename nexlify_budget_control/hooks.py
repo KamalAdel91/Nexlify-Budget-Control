@@ -170,6 +170,8 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.ensure_app_role_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.merge_standard_into_custom_perms",
+	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
+	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
 ]
 
 auto_cancel_exempted_doctypes = [
@@ -180,4 +182,5 @@ auto_cancel_exempted_doctypes = [
 
 after_install = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
+	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 ]

@@ -1,0 +1,171 @@
+{
+ "Equipment Type": [
+  {
+   "equipment_type_name": "ATS",
+   "name": "ATS"
+  },
+  {
+   "equipment_type_name": "Aux Relays / Contactors / MCB",
+   "name": "Aux Relays / Contactors / MCB"
+  },
+  {
+   "equipment_type_name": "Central Battery System",
+   "name": "Central Battery System"
+  },
+  {
+   "equipment_type_name": "DC charger and Bat",
+   "name": "DC charger and Bat"
+  },
+  {
+   "equipment_type_name": "Dry Tr",
+   "name": "Dry Tr"
+  },
+  {
+   "equipment_type_name": "Final Distribution Board",
+   "name": "Final Distribution Board"
+  },
+  {
+   "equipment_type_name": "Generator",
+   "name": "Generator"
+  },
+  {
+   "equipment_type_name": "KWH Meter / Power Meter",
+   "name": "KWH Meter / Power Meter"
+  },
+  {
+   "equipment_type_name": "Lighting Power Substation",
+   "name": "Lighting Power Substation"
+  },
+  {
+   "equipment_type_name": "LV Cable",
+   "name": "LV Cable"
+  },
+  {
+   "equipment_type_name": "MDB",
+   "name": "MDB"
+  },
+  {
+   "equipment_type_name": "Motor Control Center",
+   "name": "Motor Control Center"
+  },
+  {
+   "equipment_type_name": "MV Cable",
+   "name": "MV Cable"
+  },
+  {
+   "equipment_type_name": "Oil Tr",
+   "name": "Oil Tr"
+  },
+  {
+   "equipment_type_name": "PFC",
+   "name": "PFC"
+  },
+  {
+   "equipment_type_name": "PSS",
+   "name": "PSS"
+  },
+  {
+   "equipment_type_name": "RMU",
+   "name": "RMU"
+  },
+  {
+   "equipment_type_name": "SMDB",
+   "name": "SMDB"
+  },
+  {
+   "equipment_type_name": "SWG",
+   "name": "SWG"
+  },
+  {
+   "equipment_type_name": "UPS",
+   "name": "UPS"
+  },
+  {
+   "equipment_type_name": "Vacuum Circuit Breaker",
+   "name": "Vacuum Circuit Breaker"
+  },
+  {
+   "equipment_type_name": "PM For MV Incomer SWGRS",
+   "name": "PM For MV Incomer SWGRS"
+  },
+  {
+   "equipment_type_name": "PM For MV Outgoing SWGRS",
+   "name": "PM For MV Outgoing SWGRS"
+  }
+ ],
+ "Maintenance Nature": [
+  {
+   "name": "PREVENTIVE",
+   "nature_name": "PREVENTIVE"
+  },
+  {
+   "name": "CORRECTIVE",
+   "nature_name": "CORRECTIVE"
+  },
+  {
+   "name": "EMERGENCY",
+   "nature_name": "EMERGENCY"
+  },
+  {
+   "name": "INSPECTION",
+   "nature_name": "INSPECTION"
+  }
+ ],
+ "Maintenance Type": [],
+ "Project Type": [
+  {
+   "name": "External",
+   "project_type": "External"
+  },
+  {
+   "name": "MONTHLY",
+   "project_type": "MONTHLY"
+  },
+  {
+   "name": "QUARTERLY",
+   "project_type": "QUARTERLY"
+  },
+  {
+   "name": "SEMI_ANNUAL",
+   "project_type": "SEMI_ANNUAL"
+  },
+  {
+   "name": "ANNUAL",
+   "project_type": "ANNUAL"
+  },
+  {
+   "name": "ONE_TIME",
+   "project_type": "ONE_TIME"
+  },
+  {
+   "name": "ON_CALL",
+   "project_type": "ON_CALL"
+  },
+  {
+   "name": "UNIT_PRICE",
+   "project_type": "UNIT_PRICE"
+  }
+ ],
+ "Region": [
+  {
+   "name": "CENTRAL",
+   "region_name": "CENTRAL"
+  },
+  {
+   "name": "EASTERN",
+   "region_name": "EASTERN"
+  },
+  {
+   "name": "WESTERN",
+   "region_name": "WESTERN"
+  },
+  {
+   "name": "NORTHERN",
+   "region_name": "NORTHERN"
+  },
+  {
+   "name": "SOUTHERN",
+   "region_name": "SOUTHERN"
+  }
+ ]
+}
