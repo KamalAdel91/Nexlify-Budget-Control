@@ -62,6 +62,7 @@ function role_allows(allowed_roles) {
 }
 
 function render_budget_button(frm, opts) {
+    if (!frappe.model.can_read(opts.doctype)) return;
     frappe.db.get_list(opts.doctype, {
         filters: { project: frm.doc.name, docstatus: ['<', 2] },
         fields: ['name'],

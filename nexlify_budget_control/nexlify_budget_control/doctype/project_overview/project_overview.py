@@ -20,7 +20,6 @@ class ProjectOverview(Document):
 			cost_budget = frappe.db.get_value("Project Planning", revenue_budget, "estimation") or cost_budget
 		self.cost_budget = cost_budget
 		self.revenue_budget = revenue_budget
-		self.contract_value = frappe.utils.flt(contract_value)
 
 	def on_update(self):
 		self._apply_return()
@@ -33,17 +32,17 @@ class ProjectOverview(Document):
 		if not frappe.utils.flt(self.contract_value):
 			frappe.throw(_("Cannot approve: the Contract Value is zero. Set the Planned Revenue on the project first."))
 		if not self.cost_budget:
-			frappe.throw(_("Cannot approve: Project Costing has not been created for this project yet."))
+			frappe.throw(_("Cannot approve: Estimation has not been created for this project yet."))
 		if not self.revenue_budget:
-			frappe.throw(_("Cannot approve: Project Plan has not been created for this project yet."))
+			frappe.throw(_("Cannot approve: Plan has not been created for this project yet."))
 
 		cost_status = frappe.db.get_value("Project Cost Budget", self.cost_budget, "docstatus")
 		plan_status = frappe.db.get_value("Project Planning", self.revenue_budget, "docstatus")
 
 		if cost_status != 1:
-			frappe.throw(_("Cannot approve: Project Costing has not been submitted yet."))
+			frappe.throw(_("Cannot approve: Estimation has not been submitted yet."))
 		if plan_status != 1 and frappe.db.get_value("Project Planning", self.revenue_budget, "status") != "Pending Approval":
-			frappe.throw(_("Cannot approve: the Project Plan has not been sent for approval."))
+			frappe.throw(_("Cannot approve: the Plan has not been sent for approval."))
 
 	def on_submit(self):
 		self._submit_plan()

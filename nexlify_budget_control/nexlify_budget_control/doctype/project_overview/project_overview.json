@@ -19,6 +19,8 @@
   "cost_budget",
   "overview_section",
   "overview_html",
+  "scope_section",
+  "scope_html",
   "workflow_state"
  ],
  "fields": [
@@ -62,14 +64,14 @@
   {
    "fieldname": "cost_budget",
    "fieldtype": "Link",
-   "label": "Project Costing",
+   "label": "Estimation",
    "options": "Project Cost Budget",
    "read_only": 1
   },
   {
    "fieldname": "revenue_budget",
    "fieldtype": "Link",
-   "label": "Project Plan",
+   "label": "Plan",
    "options": "Project Planning",
    "read_only": 1
   },
@@ -107,6 +109,7 @@
   },
   {
    "description": "From the Project's Planned Revenue (Opportunity Amount).",
+   "fetch_from": "project.custom_planned_revenue",
    "fieldname": "contract_value",
    "fieldtype": "Currency",
    "label": "Contract Value",
@@ -128,6 +131,16 @@
    "label": "Last Return Reason",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Scope: Plan vs Estimation"
+  },
+  {
+   "fieldname": "scope_html",
+   "fieldtype": "HTML",
+   "label": "Scope"
   }
  ],
  "index_web_pages_for_search": 1,

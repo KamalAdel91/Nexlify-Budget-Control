@@ -3035,3 +3035,76 @@ def link_project_document(project, fieldname, docname):
     if frappe.db.get_value("Project", project, fieldname) != docname:
         frappe.db.set_value("Project", project, fieldname, docname, update_modified=False)
     _sync_project_overview(project)
+
+
+def _copy_contract_to_plan(plan, file_url):
+    """Planning cannot read the Estimation, so the contract gets its own File attached to the plan."""
+    if file_url and not frappe.db.exists(
+        "File", {"file_url": file_url, "attached_to_doctype": "Project Planning", "attached_to_name": plan}
+    ):
+        src = frappe.db.get_value("File", {"file_url": file_url}, ["file_name", "is_private"], as_dict=True) or frappe._dict()
+        frappe.get_doc({
+            "doctype": "File",
+            "file_url": file_url,
+            "file_name": src.file_name,
+            "is_private": 1 if src.is_private is None else src.is_private,
+            "attached_to_doctype": "Project Planning",
+            "attached_to_name": plan,
+            "attached_to_field": "contract_no_prices",
+        }).insert(ignore_permissions=True)
+    frappe.db.set_value("Project Planning", plan, "contract_no_prices", file_url or None, update_modified=False)
+
+
+def on_project_cost_budget_update(doc, method=None):
+    """A new or replaced contract goes to the Estimation's draft plans."""
+    if not doc.has_value_changed("contract_no_prices"):
+        return
+    for plan in frappe.get_all("Project Planning", filters={"estimation": doc.name, "docstatus": 0, "status": "Draft"}, pluck="name"):
+        _copy_contract_to_plan(plan, doc.contract_no_prices)
+
+
+@frappe.whitelist()
+def get_overview_scope(overview):
+    """Equipment and crew counts of the Estimation and the Plan, for the Project Overview (no costs)."""
+    frappe.has_permission("Project Overview", "read", doc=overview, throw=True)
+    flt, cint = frappe.utils.flt, frappe.utils.cint
+    plan, cost_budget = frappe.db.get_value("Project Overview", overview, ["revenue_budget", "cost_budget"]) or (None, None)
+    fields = ["name", "equipment", "quantity", "days_per_equipment", "total_days"]
+    est = frappe.get_all("Project Equipment Scope", filters={"cost_budget": cost_budget, "docstatus": ["<", 2]},
+                         fields=fields, order_by="creation asc") if cost_budget else []
+    pln = frappe.get_all("Project Planning Scope", filters={"project_planning": plan, "docstatus": ["<", 2]},
+                         fields=fields + ["estimation_scope"], order_by="creation asc") if plan else []
+
+    roles = {}
+    names = [r.name for r in est] + [r.name for r in pln]
+    if names:
+        for r in frappe.get_all("Project Equipment Scope Role", filters={"parent": ["in", names]},
+                                fields=["parent", "trade", "count"], order_by="idx asc"):
+            roles.setdefault(r.parent, {})[r.trade] = cint(r.count)
+
+    trades = []
+
+    def pack(r):
+        rc = roles.get(r.name, {})
+        for t in rc:
+            if t not in trades:
+                trades.append(t)
+        return {"equipment": r.equipment, "quantity": flt(r.quantity), "days_per_equipment": flt(r.days_per_equipment),
+                "total_days": flt(r.total_days), "roles": rc}
+
+    est_rows = [pack(r) for r in est]
+    plan_rows = [pack(r) for r in pln]
+    empty = {"quantity": 0, "days_per_equipment": 0, "total_days": 0, "roles": {}}
+
+    comparison, used = [], set()
+    for i, r in enumerate(est):
+        match = next((j for j, p in enumerate(pln) if p.estimation_scope == r.name), None)
+        if match is not None:
+            used.add(match)
+        comparison.append({"equipment": r.equipment, "est": est_rows[i],
+                           "plan": plan_rows[match] if match is not None else empty, "not_planned": match is None})
+    for j, p in enumerate(pln):
+        if j not in used:
+            comparison.append({"equipment": p.equipment, "est": empty, "plan": plan_rows[j], "not_in_estimation": True})
+
+    return {"trades": trades, "estimation": est_rows, "plan": plan_rows, "comparison": comparison}

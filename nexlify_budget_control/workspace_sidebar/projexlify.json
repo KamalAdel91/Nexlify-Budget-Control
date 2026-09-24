@@ -179,9 +179,33 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "house",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Home Page Rules",
+   "link_to": "Home Page Rule",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "filter",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Dashboard Filters",
+   "link_to": "Nexlify Dashboard Filter",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-09-24 16:32:36.062656",
+ "modified": "2026-09-24 17:03:28.421428",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Projexlify",

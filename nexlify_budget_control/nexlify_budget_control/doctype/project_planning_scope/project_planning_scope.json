@@ -37,6 +37,7 @@
    "reqd": 1
   },
   {
+   "fetch_from": "project_planning.project",
    "fieldname": "project",
    "fieldtype": "Link",
    "label": "Project",
@@ -44,6 +45,7 @@
    "read_only": 1
   },
   {
+   "fetch_from": "project_planning.company",
    "fieldname": "company",
    "fieldtype": "Link",
    "label": "Company",
@@ -62,6 +64,7 @@
    "read_only": 1
   },
   {
+   "fetch_from": "estimation_scope.equipment",
    "fieldname": "equipment",
    "fieldtype": "Link",
    "in_list_view": 1,

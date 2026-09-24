@@ -14,6 +14,7 @@
   "section_break_ggra",
   "company",
   "customer",
+  "contract_no_prices",
   "column_break_xcgk",
   "project",
   "section_break_rtyw",
@@ -92,6 +93,7 @@
    "read_only": 1
   },
   {
+   "fetch_from": "project.company",
    "fieldname": "company",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -444,6 +446,13 @@
    "label": "Accommodation Basis",
    "options": "Main City\nOutside Main City\nCustom",
    "reqd": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "description": "Contract copy without selling prices. It is shared with Planning.",
+   "fieldname": "contract_no_prices",
+   "fieldtype": "Attach",
+   "label": "Contract (No Prices)"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -495,20 +504,6 @@
    "report": 1,
    "role": "Estimation User",
    "write": 1
-  },
-  {
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Planning Manager"
-  },
-  {
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Planning User"
   },
   {
    "export": 1,

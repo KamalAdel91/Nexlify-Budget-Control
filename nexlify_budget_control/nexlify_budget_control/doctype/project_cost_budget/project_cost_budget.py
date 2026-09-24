@@ -30,6 +30,8 @@ class ProjectCostBudget(Document):
 		self._calculate_estimation()
 
 	def before_submit(self):
+		if not self.contract_no_prices:
+			frappe.throw(_("Attach the Contract (No Prices) before submitting the Estimation."))
 		missing = self._missing_rate_trades()
 		if missing:
 			frappe.throw(

@@ -59,9 +59,9 @@
   {
    "fieldname": "via_import_mode",
    "fieldtype": "Check",
-   "label": "Logged During Import Mode",
    "in_list_view": 1,
    "in_standard_filter": 1,
+   "label": "Logged During Import Mode",
    "read_only": 1
   },
   {
@@ -87,11 +87,13 @@
    "read_only": 1
   },
   {
+   "fetch_from": "project.company",
    "fieldname": "company",
    "fieldtype": "Link",
    "in_standard_filter": 1,
    "label": "Company",
-   "options": "Company"
+   "options": "Company",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_message",

@@ -151,15 +151,26 @@ class ProjectPlanning(Document):
 				frappe.throw(_("The plan has no project."))
 			if not frappe.utils.flt(frappe.db.get_value("Project", self.project, "custom_planned_revenue")):
 				frappe.throw(_("The project's Planned Revenue (Opportunity Amount) is zero. Set it before sending the plan for approval."))
+			if not (self.contract_no_prices or frappe.db.get_value("Project Cost Budget", self.estimation, "contract_no_prices")):
+				frappe.throw(_("The plan has no Contract (No Prices). Ask the Estimation team to attach it to the Estimation."))
 			self.validate_invoice_percentage_total()
 			self.validate_execution_distribution()
 
 	def on_update(self):
+		self._pull_contract()
 		if self._is_being_sent_for_approval():
 			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _open_overview_for_plan
 			value = frappe.utils.flt(frappe.db.get_value("Project", self.project, "custom_planned_revenue"))
 			overview = _open_overview_for_plan(self, value)
 			self.add_comment("Info", _("Sent for approval. Project Overview: {0}").format(overview))
+
+	def _pull_contract(self):
+		if self.docstatus != 0 or self.status != "Draft" or not self.estimation:
+			return
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _copy_contract_to_plan
+		url = frappe.db.get_value("Project Cost Budget", self.estimation, "contract_no_prices")
+		if (url or None) != (self.contract_no_prices or None):
+			_copy_contract_to_plan(self.name, url)
 
 	def _is_being_sent_for_approval(self):
 		return (self.docstatus == 0 and not self.is_new() and self.status == "Pending Approval"
