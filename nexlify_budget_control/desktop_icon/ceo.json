@@ -1,0 +1,30 @@
+{
+ "app": "nexlify_budget_control",
+ "bg_color": "blue",
+ "creation": "2026-07-05 23:31:47.624904",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "layout-dashboard",
+ "icon_type": "App",
+ "idx": 4,
+ "label": "CEO",
+ "link_to": "Projexlify",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-09-24 16:32:36.024574",
+ "modified_by": "Administrator",
+ "name": "CEO",
+ "owner": "Administrator",
+ "parent_icon": "Projexlify",
+ "restrict_removal": 0,
+ "roles": [
+  {
+   "role": "CEO"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sidebar": "Projexlify",
+ "standard": 1
+}

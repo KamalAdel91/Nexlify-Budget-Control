@@ -1,0 +1,99 @@
+{
+ "app": "nexlify_budget_control",
+ "creation": "2026-09-24 16:23:52.494552",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "calculator",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "home",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Home",
+   "link_to": "Estimation",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Estimations",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Section Break"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "filters": "[[\"Project Cost Budget\", \"docstatus\", \"=\", 0, false]]",
+   "icon": "file-pen-line",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Draft Estimations",
+   "link_to": "Project Cost Budget",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "filters": "[[\"Project Cost Budget\", \"docstatus\", \"=\", 1, false]]",
+   "icon": "circle-check",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Submitted Estimations",
+   "link_to": "Project Cost Budget",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Setup",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Section Break"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "group",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Budget Categories",
+   "link_to": "Budget Category",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "folder",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Projects",
+   "link_to": "Project",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-09-24 16:32:36.105865",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Estimation",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Estimation"
+}

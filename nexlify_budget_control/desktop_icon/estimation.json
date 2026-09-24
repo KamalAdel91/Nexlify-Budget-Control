@@ -1,0 +1,30 @@
+{
+ "app": "nexlify_budget_control",
+ "bg_color": "blue",
+ "creation": "2026-09-24 16:23:52.536830",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "calculator",
+ "icon_type": "App",
+ "idx": 1,
+ "label": "Estimation",
+ "link_to": "Estimation",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-09-24 16:32:35.991158",
+ "modified_by": "Administrator",
+ "name": "Estimation",
+ "owner": "Administrator",
+ "parent_icon": "Projexlify",
+ "restrict_removal": 0,
+ "roles": [
+  {
+   "role": "Estimation User"
+  },
+  {
+   "role": "Estimation Manager"
+  }
+ ],
+ "sidebar": "Estimation",
+ "standard": 1
+}
