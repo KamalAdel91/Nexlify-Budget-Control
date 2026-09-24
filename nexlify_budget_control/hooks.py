@@ -163,36 +163,6 @@ fixtures = [
 				]
 			]
 		]
-	},
-	{
-		"dt": "Number Card",
-		"filters": [
-			[
-				"module",
-				"=",
-				"Nexlify Budget Control"
-			]
-		]
-	},
-	{
-		"dt": "Dashboard Chart",
-		"filters": [
-			[
-				"module",
-				"=",
-				"Nexlify Budget Control"
-			]
-		]
-	},
-	{
-		"dt": "Workspace",
-		"filters": [
-			[
-				"name",
-				"=",
-				"Projexlify"
-			]
-		]
 	}
 ]
 
