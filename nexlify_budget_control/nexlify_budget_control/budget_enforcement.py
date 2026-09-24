@@ -504,9 +504,6 @@ def _open_overview_for_plan(plan, contract_value):
         "contract_value": contract_value,
         "workflow_state": "Pending COO Approval",
     })
-    _refresh_plan_amounts(plan.name, contract_value)
-    from nexlify_budget_control.nexlify_budget_control.doctype.project_overview.project_overview import store_deal_numbers
-    store_deal_numbers(name)
     if frappe.db.get_value("Project", plan.project, "custom_project_overview") != name:
         frappe.db.set_value("Project", plan.project, "custom_project_overview", name, update_modified=False)
     return name
@@ -3194,11 +3191,3 @@ def get_overview_page(overview):
     history.sort(key=lambda h: h["date"])
     out["history"] = history[-20:]
     return out
-
-
-def _refresh_plan_amounts(plan, contract_value):
-    """Invoice amounts follow the current contract value when the plan goes for approval."""
-    flt = frappe.utils.flt
-    for inv in frappe.get_all("Project Invoicing", filters={"project_planning": plan}, fields=["name", "invoice_percentage"]):
-        frappe.db.set_value("Project Invoicing", inv.name, "amount",
-                            flt(flt(contract_value) * flt(inv.invoice_percentage) / 100, 2), update_modified=False)

@@ -9,8 +9,6 @@ from frappe.model.document import Document
 class ProjectOverview(Document):
 	def validate(self):
 		self.sync_from_project()
-		contract = frappe.db.get_value("Project", self.project, "custom_planned_revenue") if self.project else self.contract_value
-		self.update(deal_numbers(contract, self.cost_budget))
 
 	def sync_from_project(self):
 		if not self.project:
@@ -110,24 +108,3 @@ def set_return_reason(name, reason):
 	if not reason:
 		frappe.throw(_("Enter the reason for returning it."))
 	frappe.db.set_value("Project Overview", name, "return_reason", reason, update_modified=False)
-
-
-def deal_numbers(contract, cost_budget):
-	"""Cost, price, profit and the contract against the Estimation price (stored on the Overview)."""
-	flt = frappe.utils.flt
-	cost, price = (frappe.db.get_value("Project Cost Budget", cost_budget, ["total_cost", "total_price"]) or (0, 0)) if cost_budget else (0, 0)
-	contract, cost, price = flt(contract), flt(cost), flt(price)
-	profit = contract - cost
-	return {
-		"estimated_cost": cost,
-		"estimation_price": price,
-		"expected_profit": flt(profit, 2),
-		"profit_percentage": flt(profit / contract * 100, 2) if contract else 0,
-		"contract_vs_price": flt((contract / price - 1) * 100, 2) if price else 0,
-	}
-
-
-def store_deal_numbers(overview):
-	ov = frappe.db.get_value("Project Overview", overview, ["contract_value", "cost_budget"], as_dict=True)
-	if ov:
-		frappe.db.set_value("Project Overview", overview, deal_numbers(ov.contract_value, ov.cost_budget), update_modified=False)

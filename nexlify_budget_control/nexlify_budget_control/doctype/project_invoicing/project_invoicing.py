@@ -17,10 +17,6 @@ class ProjectInvoicing(Document):
 			self.invoice_label = f"{_ordinal(count + 1)} Invoice"
 
 	def validate(self):
-		# amount from the contract value (the project's Planned Revenue)
-		project = self.project or frappe.db.get_value("Project Planning", self.project_planning, "project")
-		contract = frappe.utils.flt(frappe.db.get_value("Project", project, "custom_planned_revenue")) if project else 0
-		self.amount = frappe.utils.flt(contract * frappe.utils.flt(self.invoice_percentage) / 100, 2)
 		# label follows the name: INV-01, INV-02...
 		if self.name and "-INV-" in self.name:
 			self.invoice_label = "-".join(self.name.split("-")[-2:])

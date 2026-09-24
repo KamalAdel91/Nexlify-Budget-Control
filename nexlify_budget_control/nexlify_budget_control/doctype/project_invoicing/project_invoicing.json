@@ -14,7 +14,6 @@
   "visits",
   "expected_invoice_date",
   "invoice_percentage",
-  "amount",
   "invoice_description",
   "computed_section",
   "status",
@@ -116,15 +115,6 @@
    "fieldname": "actual_date",
    "fieldtype": "Date",
    "label": "Actual Date",
-   "read_only": 1
-  },
-  {
-   "description": "Invoice percentage x the project's Planned Revenue.",
-   "fieldname": "amount",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Amount",
-   "no_copy": 1,
    "read_only": 1
   }
  ],

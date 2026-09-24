@@ -17,13 +17,6 @@
   "revenue_budget",
   "column_break_gjxd",
   "cost_budget",
-  "deal_section",
-  "estimated_cost",
-  "estimation_price",
-  "column_break_deal",
-  "expected_profit",
-  "profit_percentage",
-  "contract_vs_price",
   "overview_section",
   "overview_html",
   "scope_section",
@@ -148,52 +141,6 @@
    "fieldname": "scope_html",
    "fieldtype": "HTML",
    "label": "Scope"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "deal_section",
-   "fieldtype": "Section Break",
-   "label": "Deal"
-  },
-  {
-   "fieldname": "estimated_cost",
-   "fieldtype": "Currency",
-   "label": "Estimated Cost",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "estimation_price",
-   "fieldtype": "Currency",
-   "label": "Estimation Price",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_deal",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "expected_profit",
-   "fieldtype": "Currency",
-   "label": "Expected Profit",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "profit_percentage",
-   "fieldtype": "Percent",
-   "label": "Profit %",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "description": "Negative when the contract is below the Estimation price.",
-   "fieldname": "contract_vs_price",
-   "fieldtype": "Percent",
-   "label": "Contract vs Estimation Price %",
-   "no_copy": 1,
-   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
