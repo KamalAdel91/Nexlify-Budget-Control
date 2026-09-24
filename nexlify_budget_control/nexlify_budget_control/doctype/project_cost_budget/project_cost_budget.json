@@ -43,6 +43,7 @@
   "team_rates",
   "manpower_cost",
   "accommodation_section",
+  "accommodation_basis",
   "accommodation",
   "accommodation_total",
   "test_equipment_section",
@@ -223,6 +224,7 @@
    "label": "Team Daily Rates"
   },
   {
+   "description": "Filled automatically from the roles in the Equipment Scope. Enter Basic Salary and Factor.",
    "fieldname": "team_rates",
    "fieldtype": "Table",
    "options": "Project Cost Budget Rate"
@@ -433,12 +435,21 @@
    "fieldname": "estimation_tab",
    "fieldtype": "Tab Break",
    "label": "Estimation"
+  },
+  {
+   "default": "Main City",
+   "description": "Main City: basic salary x 4 / 12 per person per month. Outside Main City: basic salary x 5 / 12. Custom: enter the monthly cost.",
+   "fieldname": "accommodation_basis",
+   "fieldtype": "Select",
+   "label": "Accommodation Basis",
+   "options": "Main City\nOutside Main City\nCustom",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-23 21:55:33.084907",
+ "modified": "2026-09-24 03:11:49.889848",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Cost Budget",

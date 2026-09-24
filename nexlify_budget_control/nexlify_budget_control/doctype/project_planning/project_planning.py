@@ -50,8 +50,98 @@ class ProjectPlanning(Document):
 			)
 
 	def validate_execution_distribution(self):
-		# Rebuilt on the Planning Scope (distribution of the planned scope across visits).
-		return
+		"""Blocks Submit unless the plan follows the Estimation and is fully allocated to the visits."""
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import (
+			_planning_cost_budget,
+			_reconcile_planning_scope,
+		)
+
+		flt, cint, esc = frappe.utils.flt, frappe.utils.cint, frappe.utils.escape_html
+
+		cost_budget = _planning_cost_budget(self.name)
+		if not cost_budget or frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") != 1:
+			frappe.throw(_("The project's Estimation must be submitted before submitting the plan."),
+				title=_("Estimation not submitted"))
+
+		if self._has_bypass_role():
+			return
+
+		_reconcile_planning_scope(self.name)
+
+		def roles_of(parent, parenttype):
+			return {r.trade: cint(r.count) for r in frappe.get_all(
+				"Project Equipment Scope Role", filters={"parent": parent, "parenttype": parenttype},
+				fields=["trade", "count"])}
+
+		scope = frappe.get_all(
+			"Project Planning Scope", filters={"project_planning": self.name, "docstatus": 0},
+			fields=["name", "equipment", "quantity", "days_per_equipment", "estimation_scope"], order_by="creation asc")
+		if not scope:
+			frappe.throw(_("The Planning Scope is empty. Copy it from the Estimation first."))
+
+		allocated = {r.planning_scope: flt(r.qty) for r in frappe.db.sql(
+			"""select a.planning_scope, sum(a.quantity) as qty
+			from `tabProject Visit Allocation` a
+			inner join `tabProject Visits` v on v.name = a.parent and a.parenttype = 'Project Visits'
+			where v.project_planning = %s group by a.planning_scope""", (self.name,), as_dict=True)}
+
+		scope_issues, alloc_issues, visit_issues, team_issues = [], [], [], []
+		for s in scope:
+			est = frappe.db.get_value("Project Equipment Scope", s.estimation_scope,
+				["name", "quantity", "days_per_equipment", "cost_budget", "docstatus"], as_dict=True) if s.estimation_scope else None
+			if not est or est.cost_budget != cost_budget or est.docstatus != 1:
+				scope_issues.append(_("{0}: not in the Estimation. Remove it from the plan.").format(s.equipment))
+				continue
+			if flt(s.quantity) > flt(est.quantity):
+				scope_issues.append(_("{0}: quantity {1} is above the Estimation ({2}).").format(
+					s.equipment, flt(s.quantity), flt(est.quantity)))
+			if flt(s.days_per_equipment) > flt(est.days_per_equipment):
+				scope_issues.append(_("{0}: days per equipment {1} is above the Estimation ({2}).").format(
+					s.equipment, flt(s.days_per_equipment), flt(est.days_per_equipment)))
+			est_roles = roles_of(est.name, "Project Equipment Scope")
+			for trade, count in roles_of(s.name, "Project Planning Scope").items():
+				if count > est_roles.get(trade, 0):
+					scope_issues.append(_("{0}: {1} x{2} is above the Estimation ({3}).").format(
+						s.equipment, trade, count, est_roles.get(trade, 0)))
+
+			alloc = flt(allocated.get(s.name), 4)
+			planned = flt(s.quantity, 4)
+			if alloc > planned:
+				alloc_issues.append(_("{0}: {1} allocated to the visits, but the plan has {2} (over by {3}).").format(
+					s.equipment, alloc, planned, flt(alloc - planned, 4)))
+			elif alloc < planned:
+				alloc_issues.append(_("{0}: {1} of {2} allocated to the visits ({3} remaining).").format(
+					s.equipment, alloc, planned, flt(planned - alloc, 4)))
+
+		for v in frappe.get_all("Project Visits", filters={"project_planning": self.name},
+								fields=["name", "visit_label"], order_by="creation asc"):
+			label = v.visit_label or v.name
+			allocs = frappe.get_all("Project Visit Allocation", filters={"parent": v.name, "parenttype": "Project Visits"},
+									pluck="planning_scope")
+			if not allocs:
+				visit_issues.append(_("{0}: has no equipment.").format(label))
+				continue
+			needed = set()
+			for sc in allocs:
+				needed |= set(roles_of(sc, "Project Planning Scope"))
+			team = {t.trade for t in frappe.get_all("Project Visit Team",
+				filters={"parent": v.name, "parenttype": "Project Visits"}, fields=["trade", "headcount"]) if cint(t.headcount) > 0}
+			missing = sorted(needed - team)
+			if missing:
+				team_issues.append(_("{0}: the Visit Team has no {1}.").format(label, ", ".join(missing)))
+
+		sections = [
+			(_("Planning Scope vs Estimation"), scope_issues),
+			(_("Allocation to the visits"), alloc_issues),
+			(_("Visits"), visit_issues),
+			(_("Visit Teams"), team_issues),
+		]
+		html = "".join(
+			f"<b>{title}</b><ul>{''.join(f'<li>{esc(m)}</li>' for m in msgs)}</ul>"
+			for title, msgs in sections if msgs
+		)
+		if html:
+			frappe.throw(html, title=_("The plan cannot be submitted"))
 
 	def _has_bypass_role(self):
 		bypass_role = frappe.db.get_single_value("Project Budget Settings", "budget_bypass_role")

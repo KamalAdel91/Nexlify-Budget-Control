@@ -39,8 +39,6 @@ frappe.ui.form.on("Project Planning", {
 
 function render_add_visits_button(frm) {
 	if (frm.is_new()) return;
-	frm.add_custom_button(__('Add Visits'), () => open_add_visits_dialog(frm), __('Visits'));
-	frm.add_custom_button(__('Edit Visits'), () => open_edit_visits_dialog(frm), __('Visits'));
 }
 
 function open_edit_visits_dialog(frm) {
@@ -300,7 +298,7 @@ function render_visits_table(frm) {
 		args: { project_planning: frm.doc.name },
 		callback: function(r) {
 			_cached_visits = r.message || [];
-			frm.set_df_property('visits_html', 'options', build_visits_table_html(_cached_visits));
+			frm.set_df_property('visits_html', 'options', ((_cached_visits || []).length ? pp_toolbar_html(frm, 'visits') : '') + build_visits_table_html(_cached_visits));
 			frm.refresh_field('visits_html');
 		}
 	});
@@ -356,6 +354,10 @@ function vd_layout_visit_fields(fields) {
 }
 
 window.open_visit_quick_edit = function(visit_name) {
+	if (_revenue_budget_frm && _revenue_budget_frm.doc.docstatus !== 0) {
+		frappe.msgprint(__('The plan is submitted. Cancel and Amend it to change the visits.'));
+		return;
+	}
 	let visit = _cached_visits.find(v => v.name === visit_name);
 	if (!visit) return;
 
@@ -540,8 +542,6 @@ function build_visits_table_html(visits) {
 
 function render_add_invoice_button(frm) {
 	if (frm.is_new()) return;
-	frm.add_custom_button(__('Add Invoice'), () => open_add_invoice_dialog(frm), __('Invoicing'));
-	frm.add_custom_button(__('Edit Invoices'), () => open_edit_invoices_dialog(frm), __('Invoicing'));
 }
 
 function open_add_invoice_dialog(frm) {
@@ -822,7 +822,7 @@ function render_invoices_table(frm) {
 		args: { project_planning: frm.doc.name },
 		callback: function(r) {
 			_cached_invoices = r.message || [];
-			frm.set_df_property('invoices_html', 'options', build_invoices_table_html(_cached_invoices));
+			frm.set_df_property('invoices_html', 'options', ((_cached_invoices || []).length ? pp_toolbar_html(frm, 'invoices') : '') + build_invoices_table_html(_cached_invoices));
 			frm.refresh_field('invoices_html');
 		}
 	});
@@ -1288,6 +1288,7 @@ function ps_build_html(frm, data) {
 	let trades = data.trade_columns || [];
 	let missing = data.missing || [];
 	let editable = ps_can_edit(frm);
+	let not_in_count = rows.filter(r => r.not_in_estimation).length;
 	let esc = v => frappe.utils.escape_html(v || '');
 
 	let buttons = '';
@@ -1297,6 +1298,9 @@ function ps_build_html(frm, data) {
 		} else {
 			if (missing.length) {
 				buttons += `<button class="btn btn-xs btn-default" onclick="ps_copy(0); return false;">${__('Add missing ({0})', [missing.length])}</button> `;
+			}
+			if (not_in_count) {
+				buttons += `<button class="btn btn-xs btn-danger" onclick="ps_remove_all(); return false;">${__('Remove not in Estimation ({0})', [not_in_count])}</button> `;
 			}
 			buttons += `<button class="btn btn-xs btn-default" onclick="ps_copy(1); return false;">${__('Reset from Estimation')}</button>`;
 		}
@@ -1317,10 +1321,13 @@ function ps_build_html(frm, data) {
 	}
 
 	let over = 0, sum_plan = 0, sum_est = 0;
+	let not_in_est = [];
 	let body = rows.map(row => {
 		let e = row.est || {};
-		if (flt(row.quantity) > flt(e.quantity)) over++;
-		if (flt(row.days_per_equipment) > flt(e.days_per_equipment)) over++;
+		if (row.not_in_estimation) not_in_est.push(row.equipment);
+		let count_over = !row.not_in_estimation;
+		if (count_over && flt(row.quantity) > flt(e.quantity)) over++;
+		if (count_over && flt(row.days_per_equipment) > flt(e.days_per_equipment)) over++;
 		sum_plan += flt(row.total_days);
 		sum_est += flt(e.total_days);
 
@@ -1328,7 +1335,7 @@ function ps_build_html(frm, data) {
 			let p = flt((row.role_counts || {})[t]);
 			let ec = flt((e.role_counts || {})[t]);
 			if (!p && !ec) return `<td><span class="nrb-muted">-</span></td>`;
-			if (p > ec) over++;
+			if (count_over && p > ec) over++;
 			return `<td>${ps_cell(p, ec)}</td>`;
 		}).join('');
 
@@ -1336,10 +1343,12 @@ function ps_build_html(frm, data) {
 			? `<span style="color: var(--green-600, #2b8a3e); font-weight:600;">${__('Submitted')}</span>`
 			: `<span class="nrb-muted">${__('Draft')}</span>`;
 		let edit = (editable && row.docstatus === 0)
-			? `<a href="#" class="nrb-link" onclick="ps_edit('${row.name}'); return false;">${__('Edit')}</a> | `
+			? (row.not_in_estimation
+				? `<a href="#" class="nrb-link" style="color: var(--red-500, #e03131);" onclick="ps_remove('${row.name}'); return false;">${__('Remove')}</a> | `
+				: `<a href="#" class="nrb-link" onclick="ps_edit('${row.name}'); return false;">${__('Edit')}</a> | `)
 			: '';
 		return `<tr>
-			<td>${esc(row.equipment)}</td>
+			<td>${esc(row.equipment)}${row.not_in_estimation ? `<div style="font-size:11px; color: var(--red-500, #e03131); font-weight:600;">${__('not in the Estimation - remove it')}</div>` : ''}</td>
 			<td>${ps_cell(row.quantity, e.quantity)}</td>
 			<td>${ps_cell(row.days_per_equipment, e.days_per_equipment)}</td>
 			${trade_cells}
@@ -1350,8 +1359,11 @@ function ps_build_html(frm, data) {
 	}).join('');
 
 	let box = (bg, fg, text) => `<div style="margin-bottom:8px; padding:8px 10px; border-radius:8px; background:${bg}; color:${fg}; font-weight:600;">${text}</div>`;
-	let banner = over
-		? box('var(--red-50, #fff5f5)', 'var(--red-600, #c92a2a)', __('{0} value(s) are above the Estimation. Submitting the plan is blocked until they are reduced.', [over]))
+	let issues = [];
+	if (not_in_est.length) issues.push(__('{0} equipment not in the Estimation: {1}. Remove them from the plan.', [not_in_est.length, not_in_est.map(esc).join(', ')]));
+	if (over) issues.push(__('{0} value(s) are above the Estimation. Reduce them.', [over]));
+	let banner = issues.length
+		? box('var(--red-50, #fff5f5)', 'var(--red-600, #c92a2a)', issues.join('<br>') + `<div style="font-weight:400; font-size:12px; margin-top:4px;">${__('Submitting the plan is blocked until this is fixed.')}</div>`)
 		: box('var(--green-50, #ebfbee)', 'var(--green-700, #2b8a3e)', __('The planning scope is within the Estimation.'));
 	let removed = missing.length
 		? `<div class="nrb-muted" style="margin-top:6px; font-size:12px;">${__('Removed from the plan')}: ${missing.map(esc).join(', ')}</div>`
@@ -1720,3 +1732,67 @@ function vd_wire_allocations(d, plan_name, visit_name) {
 		{ project_planning: plan_name, visit: visit_name })
 		.then(r => { ctx = r || {}; render(); });
 }
+
+window.ps_remove = function(name) {
+	let frm = _ps_frm;
+	let row = (((frm && frm.__ps) || {}).rows || []).find(x => x.name === name);
+	if (!row) return;
+	frappe.confirm(__('Remove {0} from the plan?', [frappe.utils.escape_html(row.equipment)]), () => frappe.call({
+		method: PS_METHOD + 'delete_planning_scope',
+		args: { name: name },
+		freeze: true,
+		callback: function() {
+			frappe.show_alert({ message: __('Removed from the plan.'), indicator: 'green' });
+			render_planning_scope(frm);
+		}
+	}));
+};
+
+window.ps_remove_all = function() {
+	let frm = _ps_frm;
+	if (!frm) return;
+	frappe.confirm(__('Remove all equipment that is not in the Estimation from the plan?'), () => frappe.call({
+		method: PS_METHOD + 'remove_planning_scope_not_in_estimation',
+		args: { project_planning: frm.doc.name },
+		freeze: true,
+		callback: function(r) {
+			let res = r.message || {};
+			frappe.show_alert({ message: __('{0} equipment removed from the plan.', [res.removed || 0]), indicator: 'green' });
+			if ((res.skipped || []).length) {
+				frappe.msgprint({
+					title: __('Not removed'),
+					indicator: 'orange',
+					message: __('These are allocated in visits. Remove them from the visits first:') + '<br>' +
+						res.skipped.map(s => '&bull; ' + frappe.utils.escape_html(s)).join('<br>')
+				});
+			}
+			render_planning_scope(frm);
+		}
+	}));
+};
+
+// ---------------------------------------------------------------------------
+// Inline buttons above the Visits / Invoices tables (like the Equipment Scope)
+// ---------------------------------------------------------------------------
+
+function pp_toolbar_html(frm, kind) {
+	if (frm.doc.docstatus !== 0) {
+		let what = kind === 'visits' ? __('visits') : __('invoices');
+		return `<div class="nrb-muted" style="text-align:right; font-size:12px; margin:4px 0 8px;">${__('Plan is submitted. Cancel and Amend it to change the {0}.', [what])}</div>`;
+	}
+	if (!(frm.perm && frm.perm[0] && frm.perm[0].write)) return '';
+	let buttons = kind === 'visits'
+		? [[__('Edit Visits'), 'open_edit_visits_dialog_trigger', 'btn-default'], [__('Add Visits'), 'open_add_visits_dialog_trigger', 'btn-primary']]
+		: [[__('Edit Invoices'), 'open_edit_invoices_dialog_trigger', 'btn-default'], [__('Add Invoice'), 'open_add_invoice_dialog_trigger', 'btn-primary']];
+	return `<div style="display:flex; justify-content:flex-end; gap:8px; margin:4px 0 10px;">
+		${buttons.map(b => `<button class="btn btn-sm ${b[2]}" onclick="window.${b[1]}(); return false;">${b[0]}</button>`).join('')}
+	</div>`;
+}
+
+window.open_edit_visits_dialog_trigger = function() {
+	if (_revenue_budget_frm) open_edit_visits_dialog(_revenue_budget_frm);
+};
+
+window.open_edit_invoices_dialog_trigger = function() {
+	if (_revenue_budget_frm) open_edit_invoices_dialog(_revenue_budget_frm);
+};

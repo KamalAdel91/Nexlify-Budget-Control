@@ -33,7 +33,7 @@ class ProjectCostBudget(Document):
 		missing = self._missing_rate_trades()
 		if missing:
 			frappe.throw(
-				_("Add a daily rate in Team Daily Rates for: {0}").format(", ".join(sorted(missing))),
+				_("Enter the Basic Salary in Team Daily Rates for: {0}").format(", ".join(sorted(missing))),
 				title=_("Missing Team Rates"),
 			)
 		if flt(self.manpower_cost) and not self._estimation_categories().get("manpower"):
@@ -69,6 +69,43 @@ class ProjectCostBudget(Document):
 			)
 		return rows
 
+	def _sync_team_rate_rows(self):
+		"""One rate row per role used in the Equipment Scope; keeps entered salaries."""
+		if self.is_new():
+			return
+		trades = []
+		for s in self._scope_rows_with_roles():
+			for role in s.roles:
+				if role.trade not in trades:
+					trades.append(role.trade)
+		existing = {r.designation: r for r in (self.team_rates or [])}
+		keep = [existing[t] for t in trades if t in existing]
+		self.set("team_rates", keep)
+		for t in trades:
+			if t not in existing:
+				self.append("team_rates", {"designation": t, "factor": 2})
+		self.team_rates.sort(key=lambda r: trades.index(r.designation))
+		for i, r in enumerate(self.team_rates, 1):
+			r.idx = i
+
+	def _sync_accommodation_rows(self):
+		"""One row per Team Daily Rates role; monthly cost from the basic salary unless Custom."""
+		trades = [r.designation for r in (self.team_rates or [])]
+		existing = {a.designation: a for a in (self.accommodation or [])}
+		self.set("accommodation", [existing[t] for t in trades if t in existing])
+		for t in trades:
+			if t not in existing:
+				self.append("accommodation", {"designation": t, "persons": 1})
+		self.accommodation.sort(key=lambda a: trades.index(a.designation))
+		for i, a in enumerate(self.accommodation, 1):
+			a.idx = i
+
+		months_of_salary = {"Main City": 4, "Outside Main City": 5}.get(self.accommodation_basis)
+		if months_of_salary:
+			salary = {r.designation: flt(r.basic_salary) for r in (self.team_rates or [])}
+			for a in self.accommodation:
+				a.monthly_cost_per_person = flt(salary.get(a.designation, 0) * months_of_salary / 12, 2)
+
 	def _day_rates(self):
 		return {r.designation: flt(r.day_rate) for r in (self.team_rates or [])}
 
@@ -77,12 +114,13 @@ class ProjectCostBudget(Document):
 		missing = set()
 		for s in self._scope_rows_with_roles():
 			for role in s.roles:
-				if role.trade not in rates:
+				if flt(rates.get(role.trade)) <= 0:
 					missing.add(role.trade)
 		return missing
 
 	def _calculate_estimation(self):
 		"""Team rates -> manpower cost; other costs; totals, margin and price; auto budget rows."""
+		self._sync_team_rate_rows()
 		wdm = cint(self.working_days_per_month) or 26
 
 		seen = set()
@@ -103,6 +141,7 @@ class ProjectCostBudget(Document):
 		self.manpower_cost = flt(manpower, 2)
 
 		months = flt(self.duration_months)
+		self._sync_accommodation_rows()
 		for a in self.accommodation or []:
 			a.cost = flt(cint(a.persons) * flt(a.monthly_cost_per_person) * months, 2)
 		for t in self.test_equipment or []:

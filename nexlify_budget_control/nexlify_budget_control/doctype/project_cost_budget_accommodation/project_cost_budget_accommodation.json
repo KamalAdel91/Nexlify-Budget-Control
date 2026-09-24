@@ -17,6 +17,7 @@
    "in_list_view": 1,
    "label": "Designation",
    "options": "Designation",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -32,7 +33,8 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Monthly Cost per Person",
-   "options": "parent.currency"
+   "options": "parent.currency",
+   "read_only_depends_on": "eval:parent.accommodation_basis != 'Custom'"
   },
   {
    "fieldname": "cost",

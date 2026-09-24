@@ -321,6 +321,7 @@ function render_equipment_scope_summary(frm) {
 			frm.__pes_rows = (data.rows || []).filter(x => x.docstatus < 2);
 			frm.__pes_trades = data.trade_columns || [];
 			if (pes_can_edit(frm) && frm.perm && frm.perm[0] && frm.perm[0].write) {
+				pes_sync_team_rates(frm);
 				pes_recalculate(frm);
 			} else {
 				pes_render_table(frm);
@@ -332,6 +333,41 @@ function render_equipment_scope_summary(frm) {
 // ---------------------------------------------------------------------------
 // Live estimation: same formulas and rounding as the server (project_cost_budget.py)
 // ---------------------------------------------------------------------------
+
+function pes_sync_team_rates(frm) {
+	let trades = [];
+	(frm.__pes_rows || []).forEach(s => Object.keys(s.role_counts || {}).forEach(t => { if (!trades.includes(t)) trades.push(t); }));
+	let changed = false;
+	(frm.doc.team_rates || []).slice().forEach(r => {
+		if (!trades.includes(r.designation)) {
+			frappe.model.clear_doc(r.doctype, r.name);
+			changed = true;
+		}
+	});
+	trades.forEach(t => {
+		if (!(frm.doc.team_rates || []).some(r => r.designation === t)) {
+			frm.add_child('team_rates', { designation: t, factor: 2 });
+			changed = true;
+		}
+	});
+	(frm.doc.accommodation || []).slice().forEach(a => {
+		if (!trades.includes(a.designation)) {
+			frappe.model.clear_doc(a.doctype, a.name);
+			changed = true;
+		}
+	});
+	trades.forEach(t => {
+		if (!(frm.doc.accommodation || []).some(a => a.designation === t)) {
+			frm.add_child('accommodation', { designation: t, persons: 1 });
+			changed = true;
+		}
+	});
+	if (changed) {
+		frm.refresh_field('team_rates');
+		frm.refresh_field('accommodation');
+		frm.dirty();
+	}
+}
 
 function pes_can_see_price(frm) {
 	return !!(frm.perm && frm.perm[1] && frm.perm[1].read);
@@ -382,9 +418,14 @@ function pes_recalculate(frm) {
 		manpower = flt(manpower, 2);
 		pes_set_doc(frm, 'manpower_cost', manpower);
 
+		let acc_months = { 'Main City': 4, 'Outside Main City': 5 }[d.accommodation_basis] || 0;
+		let salary_by = {};
+		(d.team_rates || []).forEach(r => { salary_by[r.designation] = flt(r.basic_salary); });
 		let acc = 0;
 		(d.accommodation || []).forEach(a => {
-			let cost = flt(cint(a.persons) * flt(a.monthly_cost_per_person) * months, 2);
+			let monthly = acc_months ? flt(flt(salary_by[a.designation]) * acc_months / 12, 2) : flt(a.monthly_cost_per_person);
+			if (acc_months) pes_set_row(a, 'monthly_cost_per_person', monthly);
+			let cost = flt(cint(a.persons) * monthly * months, 2);
 			pes_set_row(a, 'cost', cost);
 			acc += cost;
 		});
@@ -453,7 +494,7 @@ function pes_render_table(frm) {
 	let sum_days = 0, sum_cost = 0, sum_price = 0;
 	let rows_html = rows.map(row => {
 		let rc = row.role_counts || {};
-		let missing = Object.keys(rc).filter(t => !(t in rates));
+		let missing = Object.keys(rc).filter(t => !flt(rates[t]));
 		let cost = flt(row.total_days) * pes_crew_day_cost(row, rates);
 		let row_price = manpower ? total_price * cost / manpower : 0;
 		let unit = flt(row.quantity) ? row_price / flt(row.quantity) : 0;
@@ -527,6 +568,7 @@ frappe.ui.form.on('Project Cost Budget', {
 	working_days_per_month: function(frm) { pes_recalculate(frm); },
 	margin_percentage: function(frm) { pes_recalculate(frm); },
 	fuel_maintenance_total: function(frm) { pes_recalculate(frm); },
+	accommodation_basis: function(frm) { frm.refresh_field('accommodation'); pes_recalculate(frm); },
 	team_rates_remove: function(frm) { pes_recalculate(frm); },
 	accommodation_remove: function(frm) { pes_recalculate(frm); },
 	test_equipment_remove: function(frm) { pes_recalculate(frm); },
