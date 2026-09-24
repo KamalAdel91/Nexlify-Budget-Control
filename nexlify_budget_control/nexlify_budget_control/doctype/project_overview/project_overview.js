@@ -223,3 +223,32 @@ function build_cost_section(cost_dashboard, currency) {
 		</div>
 	`;
 }
+
+// Return actions (Return to Planning / Return to COO) need a reason
+frappe.ui.form.on('Project Overview', {
+	before_workflow_action(frm) {
+		let action = frm.selected_workflow_action || '';
+		if (!action.startsWith('Return')) return;
+		return new Promise((resolve, reject) => {
+			frappe.dom.unfreeze();
+			let done = false;
+			let d = new frappe.ui.Dialog({
+				title: __(action),
+				fields: [{ fieldname: 'reason', fieldtype: 'Small Text', label: __('Reason'), reqd: 1 }],
+				primary_action_label: __(action),
+				primary_action(v) {
+					done = true;
+					d.hide();
+					frappe.call({
+						method: 'nexlify_budget_control.nexlify_budget_control.doctype.project_overview.project_overview.set_return_reason',
+						args: { name: frm.doc.name, reason: v.reason },
+						freeze: true
+					}).then(() => { frappe.dom.freeze(); resolve(); }, () => reject());
+				}
+			});
+			d.onhide = () => { if (!done) reject(); };
+			d.show();
+		});
+	}
+});
+

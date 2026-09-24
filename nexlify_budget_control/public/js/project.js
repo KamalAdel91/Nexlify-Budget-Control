@@ -19,7 +19,7 @@ function render_budget_creation_buttons(frm) {
         callback: function(r) {
             let settings = r.message || {};
 
-            if (frm.doc.custom_project_overview && role_allows(settings.overview_button_roles)) {
+            if (frm.doc.custom_project_overview && frappe.model.can_read('Project Overview') && role_allows(settings.overview_button_roles)) {
                 frm.add_custom_button('Open Overview', function() {
                     frappe.set_route('Form', 'Project Overview', frm.doc.custom_project_overview);
                 });

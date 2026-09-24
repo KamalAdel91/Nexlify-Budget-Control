@@ -34,6 +34,8 @@ class ProjectPlanning(Document):
 			frappe.throw(_("This project already has a Project Planning ({0}). Open it instead of creating a new one.").format(other))
 
 	def before_submit(self):
+		if self.flags.approved_from_overview:
+			return
 		self.validate_invoice_percentage_total()
 		self.validate_execution_distribution()
 
@@ -142,6 +144,26 @@ class ProjectPlanning(Document):
 		)
 		if html:
 			frappe.throw(html, title=_("The plan cannot be submitted"))
+
+	def before_save(self):
+		if self._is_being_sent_for_approval():
+			if not self.project:
+				frappe.throw(_("The plan has no project."))
+			if not frappe.utils.flt(frappe.db.get_value("Project", self.project, "custom_planned_revenue")):
+				frappe.throw(_("The project's Planned Revenue (Opportunity Amount) is zero. Set it before sending the plan for approval."))
+			self.validate_invoice_percentage_total()
+			self.validate_execution_distribution()
+
+	def on_update(self):
+		if self._is_being_sent_for_approval():
+			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _open_overview_for_plan
+			value = frappe.utils.flt(frappe.db.get_value("Project", self.project, "custom_planned_revenue"))
+			overview = _open_overview_for_plan(self, value)
+			self.add_comment("Info", _("Sent for approval. Project Overview: {0}").format(overview))
+
+	def _is_being_sent_for_approval(self):
+		return (self.docstatus == 0 and not self.is_new() and self.status == "Pending Approval"
+			and self.has_value_changed("status"))
 
 	def _has_bypass_role(self):
 		bypass_role = frappe.db.get_single_value("Project Budget Settings", "budget_bypass_role")

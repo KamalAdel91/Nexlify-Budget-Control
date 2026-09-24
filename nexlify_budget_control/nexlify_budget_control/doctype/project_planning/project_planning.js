@@ -354,8 +354,10 @@ function vd_layout_visit_fields(fields) {
 }
 
 window.open_visit_quick_edit = function(visit_name) {
-	if (_revenue_budget_frm && _revenue_budget_frm.doc.docstatus !== 0) {
-		frappe.msgprint(__('The plan is submitted. Cancel and Amend it to change the visits.'));
+	if (_revenue_budget_frm && (_revenue_budget_frm.doc.docstatus !== 0 || _revenue_budget_frm.doc.status === 'Pending Approval')) {
+		frappe.msgprint(_revenue_budget_frm.doc.docstatus !== 0
+			? __('The plan is submitted. Cancel and Amend it to change the visits.')
+			: __('The plan is waiting for approval. It can be changed after it is returned to Planning.'));
 		return;
 	}
 	let visit = _cached_visits.find(v => v.name === visit_name);
@@ -1247,7 +1249,7 @@ const PS_METHOD = 'nexlify_budget_control.nexlify_budget_control.budget_enforcem
 let _ps_frm = null;
 
 function ps_can_edit(frm) {
-	return !frm.is_new() && frm.doc.docstatus === 0 && !!(frm.perm && frm.perm[0] && frm.perm[0].write);
+	return !frm.is_new() && frm.doc.docstatus === 0 && frm.doc.status !== 'Pending Approval' && !!(frm.perm && frm.perm[0] && frm.perm[0].write);
 }
 
 function ps_cell(plan, est) {
@@ -1776,6 +1778,9 @@ window.ps_remove_all = function() {
 // ---------------------------------------------------------------------------
 
 function pp_toolbar_html(frm, kind) {
+	if (frm.doc.docstatus === 0 && frm.doc.status === 'Pending Approval') {
+		return `<div class="nrb-muted" style="text-align:right; font-size:12px; margin:4px 0 8px;">${__('Waiting for approval. Changes are locked until it is returned to Planning.')}</div>`;
+	}
 	if (frm.doc.docstatus !== 0) {
 		let what = kind === 'visits' ? __('visits') : __('invoices');
 		return `<div class="nrb-muted" style="text-align:right; font-size:12px; margin:4px 0 8px;">${__('Plan is submitted. Cancel and Amend it to change the {0}.', [what])}</div>`;
@@ -1796,3 +1801,12 @@ window.open_edit_visits_dialog_trigger = function() {
 window.open_edit_invoices_dialog_trigger = function() {
 	if (_revenue_budget_frm) open_edit_invoices_dialog(_revenue_budget_frm);
 };
+
+// Approval: the plan's Workflow shows the Actions; approval happens in the Project Overview
+frappe.ui.form.on('Project Planning', {
+	refresh(frm) {
+		if (frm.doc.docstatus === 0 && frm.doc.status === 'Pending Approval') {
+			frm.dashboard.set_headline_alert(__('Waiting for approval in the Project Overview.'), 'orange');
+		}
+	}
+});

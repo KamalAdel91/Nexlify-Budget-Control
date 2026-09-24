@@ -463,50 +463,50 @@ def on_project_cost_budget_cancel(doc, method=None):
 
 
 def _sync_project_overview(project_name):
-	"""
-	Called when a Cost Budget or Project Plan is submitted. Updates the
-	linked cost_budget/revenue_budget fields on the project's existing
-	Project Overview record (created externally when the Project itself
-	is opened). If no Project Overview exists yet for this project
-	(e.g. it predates the external script), one is created as a fallback.
-	"""
-	if not project_name:
-		return
-
-	cost_budget, revenue_budget = frappe.db.get_value(
-		"Project", project_name, ["custom_budget_cost", "custom_project_planning"]
-	)
-
-	existing = frappe.db.get_value(
-		"Project Overview", {"project": project_name, "docstatus": ["!=", 2]}, ["name", "docstatus"], as_dict=True
-	)
-
-	if existing:
-		# An approved (submitted) Overview is never changed
-		if existing.docstatus == 0:
-			frappe.db.set_value(
-				"Project Overview",
-				existing.name,
-				{"cost_budget": cost_budget, "revenue_budget": revenue_budget},
-			)
-		if frappe.db.get_value("Project", project_name, "custom_project_overview") != existing.name:
-			frappe.db.set_value("Project", project_name, "custom_project_overview", existing.name, update_modified=False)
-		return
-
-	if cost_budget and revenue_budget:
-		# Continue the approval history from the last cancelled Overview, if any
-		last_cancelled = frappe.db.get_value(
-			"Project Overview", {"project": project_name, "docstatus": 2}, "name", order_by="modified desc"
-		)
-		frappe.get_doc({
-			"doctype": "Project Overview",
-			"project": project_name,
-			"cost_budget": cost_budget,
-			"revenue_budget": revenue_budget,
-			"amended_from": last_cancelled,
-		}).insert(ignore_permissions=True)
+    """Keeps an existing draft Project Overview linked to the project's plan.
+    The Overview itself is created only when the plan is sent for approval."""
+    if not project_name:
+        return
+    existing = frappe.db.get_value(
+        "Project Overview", {"project": project_name, "docstatus": ["!=", 2]}, ["name", "docstatus"], as_dict=True
+    )
+    if not existing:
+        return
+    if existing.docstatus == 0:
+        plan = frappe.db.get_value("Project", project_name, "custom_project_planning")
+        cost_budget = (frappe.db.get_value("Project Planning", plan, "estimation") if plan else None) \
+            or frappe.db.get_value("Project", project_name, "custom_budget_cost")
+        frappe.db.set_value("Project Overview", existing.name, {"cost_budget": cost_budget, "revenue_budget": plan})
+    if frappe.db.get_value("Project", project_name, "custom_project_overview") != existing.name:
+        frappe.db.set_value("Project", project_name, "custom_project_overview", existing.name, update_modified=False)
 
 
+def _open_overview_for_plan(plan, contract_value):
+    """Creates the project's Overview (or reuses the draft one) and puts it in Pending COO Approval."""
+    existing = frappe.db.get_value(
+        "Project Overview", {"project": plan.project, "docstatus": ["!=", 2]}, ["name", "docstatus"], as_dict=True
+    )
+    if existing and existing.docstatus == 1:
+        frappe.throw(_("The project already has an approved Project Overview ({0}).").format(existing.name))
+    if existing:
+        name = existing.name
+    else:
+        last_cancelled = frappe.db.get_value(
+            "Project Overview", {"project": plan.project, "docstatus": 2}, "name", order_by="modified desc"
+        )
+        doc = frappe.get_doc({"doctype": "Project Overview", "project": plan.project, "amended_from": last_cancelled})
+        doc.insert(ignore_permissions=True)
+        name = doc.name
+    # set directly: the state is driven by the plan, not by a user action on the Overview
+    frappe.db.set_value("Project Overview", name, {
+        "revenue_budget": plan.name,
+        "cost_budget": _planning_cost_budget(plan.name),
+        "contract_value": contract_value,
+        "workflow_state": "Pending COO Approval",
+    })
+    if frappe.db.get_value("Project", plan.project, "custom_project_overview") != name:
+        frappe.db.set_value("Project", plan.project, "custom_project_overview", name, update_modified=False)
+    return name
 
 @frappe.whitelist()
 def get_project_visits(project_planning):
@@ -806,8 +806,37 @@ def auto_copy_planning_scope(project_planning):
         _copy_planning_scope(project_planning)
 
 
+def _assert_plan_editable(project_planning):
+    """Blocks changes to a plan that is submitted or waiting for approval."""
+    if not project_planning:
+        return
+    values = frappe.db.get_value("Project Planning", project_planning, ["docstatus", "status"], as_dict=True)
+    if not values:
+        return
+    if values.docstatus != 0:
+        frappe.throw(_("The plan is not in Draft."))
+    if values.status == "Pending Approval":
+        frappe.throw(_("The plan is waiting for approval. It can be changed after it is returned to Planning."),
+                     title=_("Plan locked"))
+
+
+def _assert_records_plan_editable(doctype, rows, key, deleted=None):
+    """Same check for visits / invoices, found from the rows being saved or deleted."""
+    rows = frappe.parse_json(rows) if isinstance(rows, str) else (rows or [])
+    deleted = frappe.parse_json(deleted) if isinstance(deleted, str) else (deleted or [])
+    names = [r.get(key) for r in rows if isinstance(r, dict) and r.get(key)]
+    names += [d if isinstance(d, str) else (d.get(key) or d.get("name")) for d in deleted]
+    plans = set()
+    for n in names:
+        if n:
+            plans.add(frappe.db.get_value(doctype, n, "project_planning"))
+    for plan in plans:
+        _assert_plan_editable(plan)
+
+
 @frappe.whitelist()
 def copy_estimation_to_planning_scope(project_planning, reset=0):
+    _assert_plan_editable(project_planning)
     frappe.has_permission("Project Planning Scope", "create", throw=True)
     if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 0:
         frappe.throw(_("The plan is not in Draft."))
@@ -865,6 +894,7 @@ def get_planning_scope_rows(project_planning):
 
 @frappe.whitelist()
 def update_planning_scope(name, values):
+    _assert_plan_editable(frappe.db.get_value("Project Planning Scope", name, "project_planning"))
     if isinstance(values, str):
         values = frappe.parse_json(values)
     frappe.has_permission("Project Planning Scope", "write", doc=name, throw=True)
@@ -883,6 +913,7 @@ def update_planning_scope(name, values):
 
 @frappe.whitelist()
 def delete_planning_scope(name):
+    _assert_plan_editable(frappe.db.get_value("Project Planning Scope", name, "project_planning"))
     frappe.has_permission("Project Planning Scope", "delete", doc=name, throw=True)
     doc = frappe.get_doc("Project Planning Scope", name)
     if doc.docstatus != 0:
@@ -901,6 +932,7 @@ def delete_planning_scope(name):
 
 @frappe.whitelist()
 def remove_planning_scope_not_in_estimation(project_planning):
+    _assert_plan_editable(project_planning)
     """Delete the draft Planning Scope rows whose equipment is not in the submitted Estimation (unless used in visits)."""
     frappe.has_permission("Project Planning Scope", "delete", throw=True)
     if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 0:
@@ -1034,6 +1066,7 @@ def get_visit_count(project_planning):
 
 @frappe.whitelist()
 def bulk_update_project_visits(rows, deleted=None):
+	_assert_records_plan_editable("Project Visits", rows, "visit_name", deleted)
 	import json as _json
 	if isinstance(rows, str):
 		rows = _json.loads(rows)
@@ -1058,6 +1091,7 @@ def bulk_update_project_visits(rows, deleted=None):
 
 @frappe.whitelist()
 def bulk_create_project_visits(project_planning, rows):
+	_assert_plan_editable(project_planning)
 	import json as _json
 	if isinstance(rows, str):
 		rows = _json.loads(rows)
@@ -1133,6 +1167,7 @@ def get_project_invoicing_full(invoice_name):
 
 @frappe.whitelist()
 def bulk_update_project_invoicing(rows, deleted=None):
+	_assert_records_plan_editable("Project Invoicing", rows, "invoice_name", deleted)
 	import json as _json
 	if isinstance(rows, str):
 		rows = _json.loads(rows)
@@ -1170,6 +1205,7 @@ def bulk_update_project_invoicing(rows, deleted=None):
 
 @frappe.whitelist()
 def bulk_create_project_invoicing(project_planning, rows):
+	_assert_plan_editable(project_planning)
 	import json as _json
 	if isinstance(rows, str):
 		rows = _json.loads(rows)
