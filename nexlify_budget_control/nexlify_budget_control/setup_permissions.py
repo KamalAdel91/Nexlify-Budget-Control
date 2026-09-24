@@ -83,3 +83,36 @@ def grant_link_select_permissions():
     if changed:
         frappe.db.set_default("nexlify_applied_link_select", frappe.as_json(sorted(applied)))
         frappe.clear_cache()
+
+
+PERM_FIELDS = ("read", "write", "create", "delete", "submit", "cancel", "amend", "report", "export",
+               "import", "share", "print", "email", "select")
+
+
+def merge_standard_into_custom_perms():
+    """When a site customised the permissions of one of our DocTypes (Custom DocPerm), Frappe ignores
+    the JSON permissions. Add the JSON rows that are missing there (our roles, permlevel 1), once per
+    site. Existing custom rows are never changed or removed."""
+    applied = set(frappe.parse_json(frappe.db.get_default("nexlify_applied_perm_merge") or "[]"))
+    changed = False
+    for dt in frappe.get_all("DocType", filters={"module": "Nexlify Budget Control", "istable": 0}, pluck="name"):
+        if not frappe.db.exists("Custom DocPerm", {"parent": dt}):
+            continue
+        custom = {(p.role, p.permlevel, p.if_owner) for p in
+                  frappe.get_all("Custom DocPerm", filters={"parent": dt}, fields=["role", "permlevel", "if_owner"])}
+        for p in frappe.get_all("DocPerm", filters={"parent": dt}, fields=["role", "permlevel", "if_owner", *PERM_FIELDS]):
+            key = f"{dt}|{p.role}|{p.permlevel}|{p.if_owner}"
+            if key in applied or (p.role, p.permlevel, p.if_owner) in custom or not frappe.db.exists("Role", p.role):
+                continue
+            row = frappe.new_doc("Custom DocPerm")
+            row.update({"parent": dt, "parenttype": "DocType", "parentfield": "permissions",
+                        "role": p.role, "permlevel": p.permlevel, "if_owner": p.if_owner})
+            for f in PERM_FIELDS:
+                row.set(f, p.get(f))
+            row.insert(ignore_permissions=True)
+            applied.add(key)
+            changed = True
+    if changed:
+        frappe.db.set_default("nexlify_applied_perm_merge", frappe.as_json(sorted(applied)))
+        frappe.clear_cache()
+

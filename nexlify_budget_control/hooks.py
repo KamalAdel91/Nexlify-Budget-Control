@@ -60,42 +60,146 @@ doctype_js = {
 }
 
 fixtures = [
-	{"dt": "Property Setter", "filters": [["module", "=", "Nexlify Budget Control"]]},
-        {
-                "doctype": "Custom Field",
-                "filters": [
-                        ["module", "=", "Nexlify Budget Control"]
-                ]
-        },
-        {
-                "doctype": "Number Card",
-                "filters": [
-                        ["module", "=", "Nexlify Budget Control"]
-                ]
-        },
-        {
-                "doctype": "Dashboard Chart",
-                "filters": [
-                        ["module", "=", "Nexlify Budget Control"]
-                ]
-        },
-        {
-                "doctype": "Role",
-                "filters": [
-                        ["name", "in", ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager", "O&M Manager", "COO", "CEO"]]
-                ]
-        },
-        {
-                "doctype": "Workspace",
-                "filters": [
-                        ["name", "=", "Projexlify"]
-                ]
-        }
+	{
+		"dt": "Role",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"Estimation User",
+					"Estimation Manager",
+					"Planning User",
+					"Planning Manager",
+					"O&M Manager",
+					"COO",
+					"CEO"
+				]
+			]
+		]
+	},
+	{
+		"dt": "Custom Field",
+		"or_filters": [
+			[
+				"module",
+				"=",
+				"Nexlify Budget Control"
+			],
+			[
+				"name",
+				"in",
+				[
+					"Project-custom_budget_cost",
+					"Project-custom_planned_revenue",
+					"Project-custom_opportunity",
+					"Project-custom_project_planning",
+					"Project-custom_project_overview",
+					"Project-custom_region",
+					"Project-custom_maintenance_nature",
+					"Project-custom_section_break_muryd",
+					"Project-custom_column_break_59yog",
+					"Project-custom_column_break_dyzps",
+					"Project-custom_column_break_vbwaw",
+					"Opportunity-custom_region",
+					"Opportunity-custom_maintenance_nature",
+					"Opportunity-custom_maintenance_type",
+					"Opportunity-custom_project_type"
+				]
+			]
+		]
+	},
+	{
+		"dt": "Property Setter",
+		"filters": [
+			[
+				"module",
+				"=",
+				"Nexlify Budget Control"
+			]
+		]
+	},
+	{
+		"dt": "Workflow State",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"Draft",
+					"Pending Approval",
+					"In Planning",
+					"Pending COO Approval",
+					"Pending CEO Approval",
+					"Approved"
+				]
+			]
+		]
+	},
+	{
+		"dt": "Workflow Action Master",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"Send for Approval",
+					"Approve",
+					"Return to Planning",
+					"Return to COO"
+				]
+			]
+		]
+	},
+	{
+		"dt": "Workflow",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"Project Overview Approval",
+					"Project Planning Approval"
+				]
+			]
+		]
+	},
+	{
+		"dt": "Number Card",
+		"filters": [
+			[
+				"module",
+				"=",
+				"Nexlify Budget Control"
+			]
+		]
+	},
+	{
+		"dt": "Dashboard Chart",
+		"filters": [
+			[
+				"module",
+				"=",
+				"Nexlify Budget Control"
+			]
+		]
+	},
+	{
+		"dt": "Workspace",
+		"filters": [
+			[
+				"name",
+				"=",
+				"Projexlify"
+			]
+		]
+	}
 ]
 
 after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.ensure_app_role_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
+	"nexlify_budget_control.nexlify_budget_control.setup_permissions.merge_standard_into_custom_perms",
 ]
 
 auto_cancel_exempted_doctypes = [

@@ -1,0 +1,30 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-24 14:29:25.763985",
+  "name": "Send for Approval",
+  "workflow_action_name": "Send for Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-24 15:12:43.258312",
+  "name": "Return to Planning",
+  "workflow_action_name": "Return to Planning"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-24 15:12:43.285902",
+  "name": "Return to COO",
+  "workflow_action_name": "Return to COO"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-06-14 23:25:59.822988",
+  "name": "Approve",
+  "workflow_action_name": "Approve"
+ }
+]
