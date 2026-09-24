@@ -70,3 +70,25 @@ def update_scripts_once():
 		changed = True
 	if changed:
 		frappe.db.set_default("nexlify_script_updates", frappe.as_json(sorted(applied)))
+
+
+# Operational documents lose the year in their name. Financial ones (Sales / Purchase Invoice,
+# Payment Entry, Journal Entry) keep it, for the accountants and ZATCA.
+NAMING_RULES_WITHOUT_YEAR = ("Project", "Opportunity", "Project Cost Budget", "Sales Order", "Material Request", "Expense Claim")
+
+
+def drop_year_from_naming_rules_once():
+	"""Removes .YYYY.- from the Document Naming Rules of operational documents, once per rule and only
+	when the rule still has the original prefix. Counters continue; existing documents keep their names."""
+	applied = set(frappe.parse_json(frappe.db.get_default("nexlify_naming_rules_without_year") or "[]"))
+	changed = False
+	for r in frappe.get_all("Document Naming Rule", filters={"document_type": ["in", NAMING_RULES_WITHOUT_YEAR]},
+			fields=["name", "document_type", "prefix"]):
+		if r.name in applied:
+			continue
+		if ".YYYY.-" in (r.prefix or ""):
+			frappe.db.set_value("Document Naming Rule", r.name, "prefix", r.prefix.replace(".YYYY.-", ""))
+		applied.add(r.name)
+		changed = True
+	if changed:
+		frappe.db.set_default("nexlify_naming_rules_without_year", frappe.as_json(sorted(applied)))

@@ -172,6 +172,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.merge_standard_into_custom_perms",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
+	"nexlify_budget_control.nexlify_budget_control.setup.seed.drop_year_from_naming_rules_once",
 ]
 
 auto_cancel_exempted_doctypes = [
