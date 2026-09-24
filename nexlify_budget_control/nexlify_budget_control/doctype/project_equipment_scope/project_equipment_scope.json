@@ -12,6 +12,12 @@
   "quantity",
   "days_per_equipment",
   "total_days",
+  "pricing_section",
+  "crew_day_cost",
+  "manpower_cost",
+  "column_break_pricing",
+  "unit_price",
+  "total_price",
   "roles_section",
   "roles"
  ],
@@ -79,6 +85,49 @@
    "fieldtype": "Table",
    "label": "Roles",
    "options": "Project Equipment Scope Role"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "description": "Sum of role count x day rate (Team Daily Rates).",
+   "fieldname": "crew_day_cost",
+   "fieldtype": "Currency",
+   "label": "Crew Day Cost",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "description": "Total days x crew day cost.",
+   "fieldname": "manpower_cost",
+   "fieldtype": "Currency",
+   "label": "Manpower Cost",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_pricing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "unit_price",
+   "fieldtype": "Currency",
+   "label": "Unit Price",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "description": "Estimation price shared by each equipment's part of the manpower cost.",
+   "fieldname": "total_price",
+   "fieldtype": "Currency",
+   "label": "Total Price",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -156,6 +205,41 @@
    "read": 1,
    "report": 1,
    "role": "Accounts User"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Accounts Manager"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Accounts User"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "CEO"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "COO"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Estimation Manager"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Estimation User"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager"
   }
  ],
  "sort_field": "modified",

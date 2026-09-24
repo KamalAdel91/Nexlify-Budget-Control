@@ -33,3 +33,42 @@ def ensure_app_role_permissions():
             if "read" not in ptypes:
                 update_permission_property(doctype, role, 0, "read", 0)
     frappe.db.commit()
+
+
+# Roles that only need to pick a record in a Link field (and see its name), not open it.
+# Add a line here, update the app and migrate: each entry is applied once per site,
+# then Role Permissions Manager owns it.
+LINK_SELECT = {
+    "Customer": ["Estimation User", "Estimation Manager"],
+}
+
+
+def grant_link_select_permissions():
+    """Applies each LINK_SELECT permission once per site, then leaves it to the UI."""
+    from frappe.permissions import add_permission, update_permission_property
+
+    applied = set(frappe.parse_json(frappe.db.get_default("nexlify_applied_link_select") or "[]"))
+    changed = False
+    for doctype, roles in LINK_SELECT.items():
+        if not frappe.db.exists("DocType", doctype):
+            continue
+        for role in roles:
+            key = f"{doctype}|{role}"
+            if key in applied or not frappe.db.exists("Role", role):
+                continue
+            row = frappe.db.get_value(
+                "Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0, "if_owner": 0},
+                ["name", "read", "select"], as_dict=True)
+            if row:
+                if not row.read and not row.select:
+                    update_permission_property(doctype, role, 0, "select", 1)
+            else:
+                # add_permission copies the doctype's standard permissions first, so other roles keep theirs
+                add_permission(doctype, role, 0, "select")
+                update_permission_property(doctype, role, 0, "read", 0)
+            applied.add(key)
+            changed = True
+    if changed:
+        frappe.db.set_default("nexlify_applied_link_select", frappe.as_json(sorted(applied)))
+        frappe.clear_cache()
+

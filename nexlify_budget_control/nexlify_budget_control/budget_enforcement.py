@@ -1292,6 +1292,7 @@ def get_project_overview_summary(project):
 		expected_profit = None
 
 	visits = get_project_visits(plan_name) if plan_name else []
+	visits = _enrich_overview_visits(visits)
 	invoices = get_project_invoicings(plan_name) if plan_name else []
 
 	return {
@@ -3108,3 +3109,85 @@ def get_overview_scope(overview):
             comparison.append({"equipment": p.equipment, "est": empty, "plan": plan_rows[j], "not_in_estimation": True})
 
     return {"trades": trades, "estimation": est_rows, "plan": plan_rows, "comparison": comparison}
+
+
+def _enrich_overview_visits(visits):
+    """Adds working days, the allocated equipment and the team to each visit, for the Project Overview."""
+    out = []
+    for v in visits or []:
+        v = frappe._dict(v)
+        if not v.get("name"):
+            out.append(v)
+            continue
+        v.working_days = frappe.db.get_value("Project Visits", v.name, "working_days")
+        equipment = []
+        for a in frappe.get_all("Project Visit Allocation", filters={"parent": v.name, "parenttype": "Project Visits"},
+                                fields=["planning_scope", "quantity"], order_by="idx asc"):
+            equipment.append({
+                "equipment": frappe.db.get_value("Project Planning Scope", a.planning_scope, "equipment") or a.planning_scope,
+                "quantity": frappe.utils.flt(a.quantity),
+            })
+        v.equipment = equipment
+        v.team = frappe.get_all("Project Visit Team", filters={"parent": v.name, "parenttype": "Project Visits"},
+                                fields=["trade", "headcount"], order_by="idx asc")
+        out.append(v)
+    return out
+
+
+@frappe.whitelist()
+def get_overview_page(overview):
+    """Everything the COO / CEO needs on the Project Overview, in one call."""
+    frappe.has_permission("Project Overview", "read", doc=overview, throw=True)
+    ov = frappe.db.get_value(
+        "Project Overview", overview,
+        ["name", "project", "customer", "contract_value", "revenue_budget", "cost_budget",
+         "workflow_state", "docstatus", "company", "return_reason"], as_dict=True)
+    if not ov:
+        return {}
+    out = {"overview": ov}
+    out["customer_name"] = frappe.db.get_value("Customer", ov.customer, "customer_name") if ov.customer else None
+    out["currency"] = (frappe.db.get_value("Project Cost Budget", ov.cost_budget, "currency") if ov.cost_budget else None) \
+        or (frappe.get_cached_value("Company", ov.company, "default_currency") if ov.company else None)
+
+    if ov.project:
+        pm = frappe.get_meta("Project")
+        fields = ["project_name"] + [f for f in ("expected_start_date", "expected_end_date", "custom_region",
+                                                  "custom_maintenance_nature", "is_active") if pm.has_field(f)]
+        out["project"] = frappe.db.get_value("Project", ov.project, fields, as_dict=True)
+    if ov.cost_budget:
+        out["estimation"] = frappe.db.get_value(
+            "Project Cost Budget", ov.cost_budget, ["name", "total_cost", "total_price", "margin_percentage", "docstatus"], as_dict=True)
+
+    plan = ov.revenue_budget
+    visits = []
+    if plan:
+        out["plan"] = frappe.db.get_value("Project Planning", plan, ["name", "status", "from_date", "to_date", "docstatus"], as_dict=True)
+        visits = frappe.get_all("Project Visits", filters={"project_planning": plan},
+                                fields=["name", "visit_label", "start_date", "end_date"], order_by="start_date asc, creation asc")
+        out["visits"] = _enrich_overview_visits(visits)
+
+        inv_meta = frappe.get_meta("Project Invoicing")
+        extra = [f for f in ("title", "invoice_title", "description", "invoice_date", "due_date", "status") if inv_meta.has_field(f)]
+        invoices = frappe.get_all("Project Invoicing", filters={"project_planning": plan},
+                                  fields=["name", "invoice_percentage"] + extra, order_by="creation asc")
+        has_visit_table = any(t.options == "Project Invoicing Visit" for t in inv_meta.get_table_fields())
+        labels = {v.name: (v.visit_label or v.name) for v in visits}
+        for inv in invoices:
+            inv["after_visits"] = []
+            if has_visit_table:
+                for row in frappe.get_all("Project Invoicing Visit", filters={"parent": inv.name, "parenttype": "Project Invoicing"},
+                                          fields=["project_visit"], order_by="idx asc"):
+                    inv["after_visits"].append(labels.get(row.project_visit, row.project_visit))
+        out["invoices"] = invoices
+
+    history = []
+    refs = [("Project Overview", ov.name)] + ([("Project Planning", plan)] if plan else [])
+    for dt, name in refs:
+        for cm in frappe.get_all("Comment", filters={"reference_doctype": dt, "reference_name": name,
+                                                     "comment_type": ["in", ["Comment", "Info"]]},
+                                 fields=["creation", "content", "owner"], order_by="creation asc"):
+            history.append({"date": cm.creation, "text": frappe.utils.strip_html(cm.content or "").strip(),
+                            "by": frappe.utils.get_fullname(cm.owner)})
+    history.sort(key=lambda h: h["date"])
+    out["history"] = history[-20:]
+    return out

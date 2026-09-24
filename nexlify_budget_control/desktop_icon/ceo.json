@@ -9,9 +9,9 @@
  "icon_type": "App",
  "idx": 4,
  "label": "CEO",
- "link_to": "Projexlify",
+ "link_to": "CEO",
  "link_type": "Workspace Sidebar",
- "modified": "2026-09-24 16:32:36.024574",
+ "modified": "2026-09-24 19:20:29.605941",
  "modified_by": "Administrator",
  "name": "CEO",
  "owner": "Administrator",
@@ -25,6 +25,6 @@
    "role": "System Manager"
   }
  ],
- "sidebar": "Projexlify",
+ "sidebar": "CEO",
  "standard": 1
 }

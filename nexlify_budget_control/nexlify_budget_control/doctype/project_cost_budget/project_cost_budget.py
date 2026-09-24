@@ -171,9 +171,29 @@ class ProjectCostBudget(Document):
 		self.total_price = flt(self.total_cost + self.margin_amount, 2)
 		self.price_per_day = flt(self.total_price / flt(self.total_work_days), 2) if flt(self.total_work_days) else 0
 
+		self._store_equipment_scope_prices()
 		self._sync_auto_budget_rows()
 		self.budget_details_total = flt(sum(flt(r.estimated_amount) for r in (self.details or [])), 2)
 		self.budget_difference = flt(self.budget_details_total - flt(self.total_cost), 2)
+
+	def _store_equipment_scope_prices(self, include_submitted=False):
+		"""Stores each equipment's crew day cost, manpower cost and its share of the price (same formulas as the form)."""
+		if self.is_new():
+			return
+		flt = frappe.utils.flt
+		rates = self._day_rates()
+		manpower = flt(self.manpower_cost)
+		statuses = [0, 1] if include_submitted else [0]
+		for r in frappe.get_all("Project Equipment Scope",
+				filters={"cost_budget": self.name, "docstatus": ["in", statuses]}, fields=["name", "quantity", "total_days"]):
+			roles = frappe.get_all("Project Equipment Scope Role",
+				filters={"parent": r.name, "parenttype": "Project Equipment Scope"}, fields=["trade", "count"])
+			crew = flt(sum(flt(x.count) * flt(rates.get(x.trade, 0)) for x in roles), 2)
+			cost = flt(flt(r.total_days) * crew, 2)
+			price = flt(flt(self.total_price) * cost / manpower, 2) if manpower else 0
+			unit = flt(price / flt(r.quantity), 2) if flt(r.quantity) else 0
+			frappe.db.set_value("Project Equipment Scope", r.name,
+				{"crew_day_cost": crew, "manpower_cost": cost, "total_price": price, "unit_price": unit}, update_modified=False)
 
 	def _estimation_categories(self):
 		fields = {
