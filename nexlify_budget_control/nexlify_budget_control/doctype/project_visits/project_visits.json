@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "hash",
+ "autoname": "format:{project}-VST-{##}",
  "creation": "2026-09-14 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -22,6 +22,7 @@
  ],
  "fields": [
   {
+   "description": "Filled from the ID (VST-01, VST-02...).",
    "fieldname": "visit_label",
    "fieldtype": "Data",
    "in_list_view": 1,

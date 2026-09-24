@@ -9,11 +9,17 @@ from frappe.utils import cint, flt, getdate
 
 class ProjectVisits(Document):
 	def before_insert(self):
+		# project before naming: the name starts with the project
+		if self.project_planning and not self.project:
+			self.project = frappe.db.get_value("Project Planning", self.project_planning, "project")
 		if not self.visit_label and self.project_planning:
 			count = frappe.db.count("Project Visits", {"project_planning": self.project_planning})
 			self.visit_label = f"{_ordinal(count + 1)} Visit"
 
 	def validate(self):
+		# label follows the name: VST-01, VST-02...
+		if self.name and "-VST-" in self.name:
+			self.visit_label = "-".join(self.name.split("-")[-2:])
 		self.validate_cost_budget_submitted()
 		self.validate_no_overlap()
 		self.calculate_working_days()

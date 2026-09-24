@@ -39,36 +39,47 @@ def ensure_app_role_permissions():
 # Add a line here, update the app and migrate: each entry is applied once per site,
 # then Role Permissions Manager owns it.
 LINK_SELECT = {
-    "Customer": ["Estimation User", "Estimation Manager"],
+    "Customer": ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager"],
+    "Company": ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager"],
+}
+
+
+# Roles that may open the linked record too (managers who review the whole project).
+LINK_READ = {
+    "Customer": ["COO", "CEO"],
+    "Company": ["COO", "CEO"],
 }
 
 
 def grant_link_select_permissions():
-    """Applies each LINK_SELECT permission once per site, then leaves it to the UI."""
+    """Applies each LINK_SELECT / LINK_READ entry once per site, then leaves it to the UI.
+    A role that already has any permission on the doctype is never touched."""
     from frappe.permissions import add_permission, update_permission_property
 
     applied = set(frappe.parse_json(frappe.db.get_default("nexlify_applied_link_select") or "[]"))
     changed = False
-    for doctype, roles in LINK_SELECT.items():
-        if not frappe.db.exists("DocType", doctype):
-            continue
-        for role in roles:
-            key = f"{doctype}|{role}"
-            if key in applied or not frappe.db.exists("Role", role):
+    for rules, ptype in ((LINK_SELECT, "select"), (LINK_READ, "read")):
+        for doctype, roles in rules.items():
+            if not frappe.db.exists("DocType", doctype):
                 continue
-            row = frappe.db.get_value(
-                "Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0, "if_owner": 0},
-                ["name", "read", "select"], as_dict=True)
-            if row:
-                if not row.read and not row.select:
-                    update_permission_property(doctype, role, 0, "select", 1)
-            else:
-                # add_permission copies the doctype's standard permissions first, so other roles keep theirs
-                add_permission(doctype, role, 0, "select")
-                update_permission_property(doctype, role, 0, "read", 0)
-            applied.add(key)
-            changed = True
+            for role in roles:
+                key = f"{doctype}|{role}" if ptype == "select" else f"{doctype}|{role}|read"
+                if key in applied or not frappe.db.exists("Role", role):
+                    continue
+                has_standard = frappe.db.exists("DocPerm", {"parent": doctype, "role": role, "permlevel": 0})
+                row = frappe.db.get_value(
+                    "Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0, "if_owner": 0},
+                    ["name", "read", "select"], as_dict=True)
+                if row:
+                    if not row.read and not row.select:
+                        update_permission_property(doctype, role, 0, ptype, 1)
+                elif not has_standard:
+                    # add_permission copies the doctype's standard permissions first, so other roles keep theirs
+                    add_permission(doctype, role, 0, ptype)
+                    if ptype == "select":
+                        update_permission_property(doctype, role, 0, "read", 0)
+                applied.add(key)
+                changed = True
     if changed:
         frappe.db.set_default("nexlify_applied_link_select", frappe.as_json(sorted(applied)))
         frappe.clear_cache()
-

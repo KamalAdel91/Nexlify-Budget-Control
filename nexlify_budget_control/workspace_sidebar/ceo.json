@@ -159,6 +159,18 @@
   {
    "child": 1,
    "collapsible": 1,
+   "icon": "cpu",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Equipment Types",
+   "link_to": "Equipment Type",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
    "icon": "group",
    "indent": 0,
    "keep_closed": 0,
@@ -239,7 +251,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-24 19:24:09.884847",
+ "modified": "2026-09-24 20:49:16.127780",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "CEO",

@@ -1,8 +1,17 @@
 {
  "app": "nexlify_budget_control",
- "charts": [],
- "content": "[{\"id\": \"dash_hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Dashboard</b></span>\", \"col\": 12}}, {\"id\": \"crd1\", \"type\": \"card\", \"data\": {\"card_name\": \"Projects\", \"col\": 4}}, {\"id\": \"crd2\", \"type\": \"card\", \"data\": {\"card_name\": \"Budgets\", \"col\": 4}}, {\"id\": \"crd3\", \"type\": \"card\", \"data\": {\"card_name\": \"Monitoring\", \"col\": 4}}, {\"id\": \"crd4\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}]",
- "creation": "2026-09-24 19:04:00.429521",
+ "charts": [
+  {
+   "chart_name": "Approved Contract Value per Month",
+   "label": "Approved Contract Value per Month"
+  },
+  {
+   "chart_name": "Violations by Type",
+   "label": "Violations by Type"
+  }
+ ],
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Overview</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Waiting for CEO Approval\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Projects\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Contract Value\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Budget Violations\", \"col\": 3}}, {\"id\": \"ch0\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Approved Contract Value per Month\", \"col\": 12}}, {\"id\": \"ch1\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Violations by Type\", \"col\": 12}}]",
+ "creation": "2026-09-24 21:56:40.112764",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -91,22 +100,32 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-24 19:19:26.366720",
+ "modified": "2026-09-24 22:00:18.620106",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Projexlify",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Waiting for CEO Approval",
+   "number_card_name": "Waiting for CEO Approval"
+  },
+  {
+   "label": "Active Projects",
+   "number_card_name": "Active Projects"
+  },
+  {
+   "label": "Active Contract Value",
+   "number_card_name": "Active Contract Value"
+  },
+  {
+   "label": "Open Budget Violations",
+   "number_card_name": "Open Budget Violations"
+  }
+ ],
  "owner": "Administrator",
  "public": 1,
  "quick_lists": [],
- "roles": [
-  {
-   "role": "CEO"
-  },
-  {
-   "role": "System Manager"
-  }
- ],
+ "roles": [],
  "sequence_id": 0.0,
  "shortcuts": [],
  "title": "Projexlify",

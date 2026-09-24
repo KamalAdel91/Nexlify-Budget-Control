@@ -68,6 +68,18 @@
    "type": "Link"
   },
   {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "boxes",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Planning Scope",
+   "link_to": "Project Planning Scope",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
    "child": 0,
    "collapsible": 1,
    "indent": 0,
@@ -114,7 +126,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-24 16:32:36.119881",
+ "modified": "2026-09-24 20:48:44.471486",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Planning",

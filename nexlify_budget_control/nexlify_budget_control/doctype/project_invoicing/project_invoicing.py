@@ -9,11 +9,17 @@ from frappe.utils import flt
 
 class ProjectInvoicing(Document):
 	def before_insert(self):
+		# project before naming: the name starts with the project
+		if self.project_planning and not self.project:
+			self.project = frappe.db.get_value("Project Planning", self.project_planning, "project")
 		if not self.invoice_label and self.project_planning:
 			count = frappe.db.count("Project Invoicing", {"project_planning": self.project_planning})
 			self.invoice_label = f"{_ordinal(count + 1)} Invoice"
 
 	def validate(self):
+		# label follows the name: INV-01, INV-02...
+		if self.name and "-INV-" in self.name:
+			self.invoice_label = "-".join(self.name.split("-")[-2:])
 		if frappe.flags.get("bulk_invoicing_operation"):
 			return
 		self.validate_total_percentage()

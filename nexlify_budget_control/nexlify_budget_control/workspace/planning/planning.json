@@ -1,7 +1,12 @@
 {
  "app": "nexlify_budget_control",
- "charts": [],
- "content": "[{\"id\": \"plan_header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Planning</b></span>\", \"col\": 12}}]",
+ "charts": [
+  {
+   "chart_name": "Visits per Month",
+   "label": "Visits per Month"
+  }
+ ],
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Planning</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Draft Plans\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Plans Returned by the COO\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Plans Waiting for Approval\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Visits This Month\", \"col\": 3}}, {\"id\": \"ch0\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Visits per Month\", \"col\": 12}}]",
  "creation": "2026-09-24 16:21:23.080405",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,11 +18,28 @@
  "label": "Planning",
  "link_type": "DocType",
  "links": [],
- "modified": "2026-09-24 16:21:23.080405",
+ "modified": "2026-09-24 22:00:18.525118",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Planning",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Draft Plans",
+   "number_card_name": "Draft Plans"
+  },
+  {
+   "label": "Plans Returned by the COO",
+   "number_card_name": "Plans Returned by the COO"
+  },
+  {
+   "label": "Plans Waiting for Approval",
+   "number_card_name": "Plans Waiting for Approval"
+  },
+  {
+   "label": "Visits This Month",
+   "number_card_name": "Visits This Month"
+  }
+ ],
  "owner": "Administrator",
  "public": 1,
  "quick_lists": [],

@@ -1,7 +1,12 @@
 {
  "app": "nexlify_budget_control",
- "charts": [],
- "content": "[{\"id\": \"est_header\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Estimation</b></span>\", \"col\": 12}}]",
+ "charts": [
+  {
+   "chart_name": "Estimations per Month",
+   "label": "Estimations per Month"
+  }
+ ],
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Estimation</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Draft Estimations\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Estimations Missing Contract\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Estimations Submitted This Month\", \"col\": 3}}, {\"id\": \"ch0\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Estimations per Month\", \"col\": 12}}]",
  "creation": "2026-09-24 16:23:52.335618",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,11 +18,24 @@
  "label": "Estimation",
  "link_type": "DocType",
  "links": [],
- "modified": "2026-09-24 16:23:52.335618",
+ "modified": "2026-09-24 22:00:18.463875",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Estimation",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Draft Estimations",
+   "number_card_name": "Draft Estimations"
+  },
+  {
+   "label": "Estimations Missing Contract",
+   "number_card_name": "Estimations Missing Contract"
+  },
+  {
+   "label": "Estimations Submitted This Month",
+   "number_card_name": "Estimations Submitted This Month"
+  }
+ ],
  "owner": "Administrator",
  "public": 1,
  "quick_lists": [],

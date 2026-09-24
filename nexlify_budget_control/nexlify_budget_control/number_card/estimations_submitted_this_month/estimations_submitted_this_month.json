@@ -1,0 +1,23 @@
+{
+ "creation": "2026-09-24 22:00:18.430332",
+ "currency": "SAR",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Project Cost Budget",
+ "filters_json": "[[\"Project Cost Budget\", \"docstatus\", \"=\", 1, false], [\"Project Cost Budget\", \"modified\", \"Timespan\", \"this month\", false]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Estimations Submitted This Month",
+ "modified": "2026-09-24 22:00:18.430332",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Estimations Submitted This Month",
+ "owner": "Administrator",
+ "report_function": "Sum",
+ "show_full_number": 0,
+ "show_percentage_stats": 0,
+ "stats_time_interval": "Daily",
+ "type": "Document Type"
+}

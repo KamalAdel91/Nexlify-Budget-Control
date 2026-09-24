@@ -27,7 +27,7 @@
    "fieldtype": "Select",
    "label": "Naming Series",
    "no_copy": 1,
-   "options": ".ABBR.-PES-.YYYY.-.####"
+   "options": ".ABBR.-PES-.####"
   },
   {
    "fieldname": "cost_budget",

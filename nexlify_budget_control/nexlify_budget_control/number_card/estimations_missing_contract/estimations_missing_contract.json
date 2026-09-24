@@ -1,0 +1,23 @@
+{
+ "creation": "2026-09-24 22:00:18.426381",
+ "currency": "SAR",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Project Cost Budget",
+ "filters_json": "[[\"Project Cost Budget\", \"docstatus\", \"=\", 1, false], [\"Project Cost Budget\", \"contract_no_prices\", \"is\", \"not set\", false]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Estimations Missing Contract",
+ "modified": "2026-09-24 22:00:18.426381",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Estimations Missing Contract",
+ "owner": "Administrator",
+ "report_function": "Sum",
+ "show_full_number": 0,
+ "show_percentage_stats": 0,
+ "stats_time_interval": "Daily",
+ "type": "Document Type"
+}

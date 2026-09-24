@@ -1,0 +1,23 @@
+{
+ "creation": "2026-09-24 22:00:18.376805",
+ "currency": "SAR",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Project Cost Budget",
+ "filters_json": "[[\"Project Cost Budget\", \"docstatus\", \"=\", 0, false]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Draft Estimations",
+ "modified": "2026-09-24 22:00:18.376805",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Draft Estimations",
+ "owner": "Administrator",
+ "report_function": "Sum",
+ "show_full_number": 0,
+ "show_percentage_stats": 0,
+ "stats_time_interval": "Daily",
+ "type": "Document Type"
+}

@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 0,
- "autoname": "hash",
+ "autoname": "format:{project}-INV-{##}",
  "creation": "2026-09-14 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -31,6 +31,7 @@
    "reqd": 1
   },
   {
+   "description": "Filled from the ID (INV-01, INV-02...).",
    "fieldname": "invoice_label",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -211,8 +212,10 @@
    "role": "Accounts User"
   }
  ],
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
+ "title_field": "invoice_label",
  "track_changes": 1
 }
