@@ -1,11 +1,12 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:{project}-VST-{##}",
+ "autoname": "naming_series:",
  "creation": "2026-09-14 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
   "visit_label",
   "project_planning",
   "project",
@@ -116,6 +117,17 @@
    "label": "Visit Duration (days)",
    "precision": "2",
    "read_only": 1
+  },
+  {
+   "default": ".project.-VST-.##",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Series",
+   "no_copy": 1,
+   "options": ".project.-VST-.##",
+   "print_hide": 1,
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,

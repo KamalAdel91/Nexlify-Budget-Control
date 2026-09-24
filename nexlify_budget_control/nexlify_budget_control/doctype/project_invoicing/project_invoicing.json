@@ -1,11 +1,12 @@
 {
  "actions": [],
  "allow_rename": 0,
- "autoname": "format:{project}-INV-{##}",
+ "autoname": "naming_series:",
  "creation": "2026-09-14 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
   "project_planning",
   "invoice_label",
   "project",
@@ -116,6 +117,17 @@
    "fieldtype": "Date",
    "label": "Actual Date",
    "read_only": 1
+  },
+  {
+   "default": ".project.-INV-.##",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Series",
+   "no_copy": 1,
+   "options": ".project.-INV-.##",
+   "print_hide": 1,
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
