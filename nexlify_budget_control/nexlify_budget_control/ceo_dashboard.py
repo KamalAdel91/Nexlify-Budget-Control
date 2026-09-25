@@ -91,7 +91,10 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
 
     # ---------- budget health (same numbers as the current page) ----------
     from nexlify_budget_control.nexlify_budget_control.budget_enforcement import get_all_projects_budget_summary
-    rows = (get_all_projects_budget_summary(company=company, project=project, extra_filters=extra_filters) or {}).get("rows", [])
+    # filter by the same project set as every other section (the Project is the source of truth)
+    rows = (get_all_projects_budget_summary() or {}).get("rows", [])
+    if only is not None:
+        rows = [r for r in rows if r["project"] in only]
     cats, worst = {}, {}
     for r in rows:
         name = r["budget_category"] or _("(No Category)")

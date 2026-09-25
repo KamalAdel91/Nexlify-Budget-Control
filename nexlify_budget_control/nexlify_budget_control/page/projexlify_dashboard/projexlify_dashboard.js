@@ -13,6 +13,9 @@ frappe.pages["projexlify-dashboard"].on_page_show = function (wrapper) {
 	style.id = "nx-ceo-styles";
 	style.textContent = `
 		.nx-ceo { max-width: 1240px; margin: 0 auto; padding: 4px 4px 40px; }
+		.nx-ceo .nx-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; padding: 0; border: none; background: none; }
+		.nx-ceo .nx-filters > .form-group, .nx-ceo .nx-filters > .frappe-control { flex: 1 1 200px; max-width: 280px; width: auto; margin: 0; padding: 0; }
+		@media (max-width: 640px) { .nx-ceo .nx-filters > .form-group, .nx-ceo .nx-filters > .frappe-control { max-width: none; } }
 		.nx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 		.nx-kpi { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg, 12px); padding: 14px 16px; min-width: 0; }
 		.nx-kpi.nx-accent { border-color: var(--primary); }
@@ -55,21 +58,56 @@ class NexlifyCeoDashboard {
 		this.$body.on("click", "[data-open]", (e) => this.open($(e.currentTarget)));
 		page.set_secondary_action(__("Refresh"), () => this.refresh(), "refresh");
 		this.make_filters();
+		this.$body.prepend($(this.page.page_form).addClass("nx-filters"));
+		this.$content = $(`<div></div>`).appendTo(this.$body);
 		this.refresh();
 	}
 
 	make_filters() {
 		const change = () => this.refresh_soon();
-		this.company = this.page.add_field({ fieldtype: "Link", fieldname: "company", label: __("Company"), options: "Company", change });
-		this.project = this.page.add_field({ fieldtype: "Link", fieldname: "project", label: __("Project"), options: "Project", change });
+		const parent_change = () => { this.drop_unmatched_project(); this.refresh_soon(); };
+		this.company = this.page.add_field({
+			fieldtype: "Link", fieldname: "company", label: __("Company"), options: "Company", change: parent_change,
+		});
+		this.project = this.page.add_field({
+			fieldtype: "Link", fieldname: "project", label: __("Project"), options: "Project", change,
+			get_query: () => ({ filters: this.project_filters() }),
+		});
+		this.hint(this.company, __("All companies"));
+		this.hint(this.project, __("All projects"));
 		frappe.call({ method: "nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_dashboard_filter_fields" })
 			.then((r) => (r.message || []).forEach((f) => {
 				const ctrl = this.page.add_field({
 					fieldtype: f.link_doctype ? "Link" : "Data", options: f.link_doctype,
-					fieldname: `nx_${f.target_field}`, label: __(f.label), change,
+					fieldname: `nx_${f.target_field}`, label: __(f.label), change: parent_change,
 				});
 				this.dynamic.push({ ctrl, target_field: f.target_field, source_doctype: f.source_doctype });
+				this.hint(ctrl, __("All {0}", [__(f.label)]));
 			}));
+	}
+
+	hint(ctrl, text) {
+		if (ctrl && ctrl.$input) ctrl.$input.attr("placeholder", text);
+	}
+
+	project_filters() {
+		// the Project list follows the Company and every dynamic filter that lives on Project
+		const filters = {};
+		const company = this.company.get_value();
+		if (company) filters.company = company;
+		this.dynamic.forEach((d) => {
+			const v = d.ctrl.get_value();
+			if (v && d.source_doctype === "Project") filters[d.target_field] = v;
+		});
+		return filters;
+	}
+
+	async drop_unmatched_project() {
+		const project = this.project.get_value();
+		const filters = this.project_filters();
+		if (!project || !Object.keys(filters).length) return;
+		const match = await frappe.db.get_list("Project", { filters: { ...filters, name: project }, limit: 1 });
+		if (!match.length) this.project.set_value("");
 	}
 
 	refresh_soon() {
@@ -79,7 +117,7 @@ class NexlifyCeoDashboard {
 
 	async refresh() {
 		const token = (this._token = (this._token || 0) + 1);
-		if (!this.data) this.$body.html(`<div class="nx-empty">${__("Loading…")}</div>`);
+		if (!this.data) this.$content.html(`<div class="nx-empty">${__("Loading…")}</div>`);
 		const extra = this.dynamic.filter((d) => d.ctrl.get_value()).map((d) => ({
 			target_field: d.target_field, source_doctype: d.source_doctype, value: d.ctrl.get_value(),
 		}));
@@ -92,7 +130,7 @@ class NexlifyCeoDashboard {
 			this.data = r.message;
 			this.render();
 		} catch (e) {
-			if (token === this._token) this.$body.html(`<div class="nx-empty">${__("Couldn't load the dashboard. Refresh to try again.")}</div>`);
+			if (token === this._token) this.$content.html(`<div class="nx-empty">${__("Couldn't load the dashboard. Refresh to try again.")}</div>`);
 		}
 	}
 
@@ -121,7 +159,7 @@ class NexlifyCeoDashboard {
 
 	// ---------- render ----------
 	render() {
-		this.$body.html(`
+		this.$content.html(`
 			${this.render_kpis()}
 			${this.render_queue()}
 			<div class="nx-grid-2">
@@ -199,7 +237,7 @@ class NexlifyCeoDashboard {
 	}
 
 	render_chart() {
-		const d = this.data, el = this.$body.find(".nx-month-chart")[0];
+		const d = this.data, el = this.$content.find(".nx-month-chart")[0];
 		const months = d.monthly.slice(-12);
 		if (!months.length) {
 			$(el).html(`<div class="nx-empty">${__("No approved or pending plans yet.")}</div>`);
@@ -214,8 +252,9 @@ class NexlifyCeoDashboard {
 		datasets.push({ name: __("Cost"), values: months.map((m) => m.cost || 0) });
 		new frappe.Chart(el, {
 			data: { labels, datasets }, type: "bar", height: 220,
-			colors: d.can_see_price ? ["blue", "light-grey"] : ["light-grey"],
+			colors: d.can_see_price ? ["#2490EF", "#98A2B3"] : ["#98A2B3"],
 			barOptions: { spaceRatio: 0.4 },
+			axisOptions: { shortenYAxisNumbers: 1 },
 			tooltipOptions: { formatTooltipY: (v) => format_currency(v, d.currency, 0) },
 		});
 	}
