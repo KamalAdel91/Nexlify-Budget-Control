@@ -44,7 +44,8 @@ doc_events = {
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
 	},
 	"Project": {
-		"validate": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.validate_project_dates"
+		"validate": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.validate_project_dates",
+		"on_update": "nexlify_budget_control.nexlify_budget_control.project_sync.on_project_update"
 	}
 }
 
