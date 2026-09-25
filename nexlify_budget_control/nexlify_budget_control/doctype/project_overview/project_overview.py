@@ -9,6 +9,8 @@ from frappe.model.document import Document
 class ProjectOverview(Document):
 	def validate(self):
 		self.sync_from_project()
+		self.set_financials()
+		self.stamp_workflow_tracking()
 
 	def sync_from_project(self):
 		if not self.project:
@@ -20,6 +22,36 @@ class ProjectOverview(Document):
 			cost_budget = frappe.db.get_value("Project Planning", revenue_budget, "estimation") or cost_budget
 		self.cost_budget = cost_budget
 		self.revenue_budget = revenue_budget
+
+	def set_financials(self):
+		"""Stored copy of the numbers the Overview summary shows (frozen once approved)."""
+		from frappe.utils import flt
+		revenue = flt(self.contract_value)
+		cost = 0
+		if self.cost_budget and frappe.db.get_value("Project Cost Budget", self.cost_budget, "docstatus") == 1:
+			cost = flt(frappe.db.get_value("Project Cost Budget", self.cost_budget, "total_cost"))
+		self.planned_cost = cost
+		self.expected_profit = revenue - cost
+		self.margin_pct = flt(self.expected_profit / revenue * 100, 2) if revenue else 0
+
+	def _pending_states(self):
+		"""Every draft state after the first one in the active Workflow, so edits from the UI keep working."""
+		from frappe.model.workflow import get_workflow_name
+		name = get_workflow_name(self.doctype)
+		if not name:
+			return set()
+		states = frappe.get_cached_doc("Workflow", name).states
+		return {s.state for s in states[1:] if str(s.doc_status) == "0"}
+
+	def stamp_workflow_tracking(self):
+		now = frappe.utils.now_datetime()
+		if self.docstatus == 1 and not self.approved_on:
+			self.approved_on = now
+		if not self.is_new() and not self.has_value_changed("workflow_state"):
+			return
+		self.pending_since = now if self.workflow_state in self._pending_states() else None
+		if not self.is_new() and self._return_step():
+			self.return_count = frappe.utils.cint(self.return_count) + 1
 
 	def on_update(self):
 		self._apply_return()

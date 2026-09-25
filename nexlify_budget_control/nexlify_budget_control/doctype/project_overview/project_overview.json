@@ -8,6 +8,12 @@
   "naming_series",
   "project",
   "contract_value",
+  "planned_cost",
+  "expected_profit",
+  "margin_pct",
+  "pending_since",
+  "approved_on",
+  "return_count",
   "return_reason",
   "amended_from",
   "column_break_twmw",
@@ -116,6 +122,52 @@
    "read_only": 1
   },
   {
+   "fieldname": "planned_cost",
+   "fieldtype": "Currency",
+   "label": "Planned Cost",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "expected_profit",
+   "fieldtype": "Currency",
+   "label": "Expected Profit",
+   "read_only": 1,
+   "no_copy": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "margin_pct",
+   "fieldtype": "Percent",
+   "label": "Expected Margin",
+   "read_only": 1,
+   "no_copy": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "pending_since",
+   "fieldtype": "Datetime",
+   "label": "Pending Since",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "When it entered its current approval step."
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "return_count",
+   "fieldtype": "Int",
+   "label": "Times Returned",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
+  },
+  {
    "allow_on_submit": 1,
    "fieldname": "workflow_state",
    "fieldtype": "Link",
@@ -146,7 +198,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-24 19:09:37.500647",
+ "modified": "2026-09-25 22:18:25.834621",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Overview",
@@ -189,6 +241,21 @@
    "role": "CEO",
    "submit": 1,
    "write": 1
+  },
+  {
+   "role": "System Manager",
+   "permlevel": 1,
+   "read": 1
+  },
+  {
+   "role": "COO",
+   "permlevel": 1,
+   "read": 1
+  },
+  {
+   "role": "CEO",
+   "permlevel": 1,
+   "read": 1
   }
  ],
  "row_format": "Dynamic",

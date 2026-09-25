@@ -4,86 +4,45 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "budget_bypass_role",
-  "import_mode",
-  "section_break_rules",
-  "document_rules",
-  "section_break_button_roles",
-  "plan_button_roles",
-  "estimation_button_roles",
-  "overview_button_roles",
-  "section_break_dashboard_filters",
-  "dashboard_filters",
+  "tab_estimation",
   "section_break_estimation_categories",
   "manpower_budget_category",
   "accommodation_budget_category",
   "column_break_estimation_categories",
   "test_equipment_budget_category",
-  "transportation_budget_category"
+  "transportation_budget_category",
+  "tab_budget_control",
+  "section_break_enforcement",
+  "budget_bypass_role",
+  "column_break_enforcement",
+  "import_mode",
+  "section_break_rules",
+  "document_rules",
+  "tab_access",
+  "section_break_button_roles",
+  "plan_button_roles",
+  "estimation_button_roles",
+  "overview_button_roles",
+  "tab_dashboard",
+  "section_break_dashboard_kpis",
+  "target_margin_pct",
+  "low_margin_threshold",
+  "column_break_dashboard_kpis",
+  "approval_aging_warning_days",
+  "section_break_dashboard_filters",
+  "dashboard_filters"
  ],
  "fields": [
   {
-   "fieldname": "budget_bypass_role",
-   "fieldtype": "Link",
-   "label": "Role Allowed to Bypass Budget",
-   "options": "Role"
-  },
-  {
-   "description": "Enable temporarily before a large bulk import (e.g. Data Import). Every budget violation is still recorded in the Violation Log, but nothing will stop or warn during submission. Remember to turn this OFF again after the import finishes.",
-   "fieldname": "import_mode",
-   "fieldtype": "Check",
-   "label": "Import Mode (log all violations, never block)"
-  },
-  {
-   "fieldname": "section_break_rules",
-   "fieldtype": "Section Break",
-   "label": "Document Type Rules"
-  },
-  {
-   "fieldname": "document_rules",
-   "fieldtype": "Table",
-   "label": "Document Type Rules",
-   "options": "Document Type Rule"
-  },
-  {
-   "fieldname": "section_break_button_roles",
-   "fieldtype": "Section Break",
-   "label": "Button Visibility (leave empty = visible to everyone)"
-  },
-  {
-   "fieldname": "plan_button_roles",
-   "fieldtype": "Table MultiSelect",
-   "label": "Plan Button - Allowed Roles",
-   "options": "Has Role"
-  },
-  {
-   "fieldname": "estimation_button_roles",
-   "fieldtype": "Table MultiSelect",
-   "label": "Estimation Button - Allowed Roles",
-   "options": "Has Role"
-  },
-  {
-   "fieldname": "overview_button_roles",
-   "fieldtype": "Table MultiSelect",
-   "label": "Overview Button - Allowed Roles",
-   "options": "Has Role"
-  },
-  {
-   "fieldname": "section_break_dashboard_filters",
-   "fieldtype": "Section Break",
-   "label": "Dashboard Filters"
-  },
-  {
-   "fieldname": "dashboard_filters",
-   "fieldtype": "Table",
-   "label": "Dashboard Filters",
-   "options": "Dashboard Filter Field"
+   "fieldname": "tab_estimation",
+   "fieldtype": "Tab Break",
+   "label": "Estimation"
   },
   {
    "description": "Where each Execution Estimation table total is posted in the Budget Details (used for spending control).",
    "fieldname": "section_break_estimation_categories",
    "fieldtype": "Section Break",
-   "label": "Estimation Budget Categories"
+   "label": "Budget Categories"
   },
   {
    "fieldname": "manpower_budget_category",
@@ -112,11 +71,120 @@
    "fieldtype": "Link",
    "label": "Car & Fuels",
    "options": "Budget Category"
+  },
+  {
+   "fieldname": "tab_budget_control",
+   "fieldtype": "Tab Break",
+   "label": "Budget Control"
+  },
+  {
+   "fieldname": "section_break_enforcement",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "budget_bypass_role",
+   "fieldtype": "Link",
+   "label": "Role Allowed to Bypass Budget",
+   "options": "Role"
+  },
+  {
+   "fieldname": "column_break_enforcement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Enable temporarily before a large bulk import (e.g. Data Import). Every budget violation is still recorded in the Violation Log, but nothing will stop or warn during submission. Remember to turn this OFF again after the import finishes.",
+   "fieldname": "import_mode",
+   "fieldtype": "Check",
+   "label": "Import Mode (log all violations, never block)"
+  },
+  {
+   "fieldname": "section_break_rules",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "document_rules",
+   "fieldtype": "Table",
+   "label": "Document Type Rules",
+   "options": "Document Type Rule"
+  },
+  {
+   "fieldname": "tab_access",
+   "fieldtype": "Tab Break",
+   "label": "Access"
+  },
+  {
+   "fieldname": "section_break_button_roles",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "plan_button_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Plan Button - Allowed Roles",
+   "options": "Has Role",
+   "description": "Leave empty to show the button to everyone."
+  },
+  {
+   "fieldname": "estimation_button_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Estimation Button - Allowed Roles",
+   "options": "Has Role",
+   "description": "Leave empty to show the button to everyone."
+  },
+  {
+   "fieldname": "overview_button_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Overview Button - Allowed Roles",
+   "options": "Has Role",
+   "description": "Leave empty to show the button to everyone."
+  },
+  {
+   "fieldname": "tab_dashboard",
+   "fieldtype": "Tab Break",
+   "label": "Dashboard"
+  },
+  {
+   "fieldname": "section_break_dashboard_kpis",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "target_margin_pct",
+   "fieldtype": "Percent",
+   "label": "Target Margin",
+   "default": "30",
+   "description": "Company margin target shown on the CEO dashboard."
+  },
+  {
+   "fieldname": "low_margin_threshold",
+   "fieldtype": "Percent",
+   "label": "Low Margin Threshold",
+   "default": "25",
+   "description": "Projects below this margin appear in Needs Attention."
+  },
+  {
+   "fieldname": "column_break_dashboard_kpis",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "approval_aging_warning_days",
+   "fieldtype": "Int",
+   "label": "Approval Aging Warning (Days)",
+   "default": "3",
+   "description": "Approvals waiting longer than this are highlighted."
+  },
+  {
+   "fieldname": "section_break_dashboard_filters",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "dashboard_filters",
+   "fieldtype": "Table",
+   "label": "Dashboard Filters",
+   "options": "Dashboard Filter Field"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-07-05 12:00:00",
+ "modified": "2026-09-25 22:14:46.460870",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

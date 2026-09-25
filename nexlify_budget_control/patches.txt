@@ -6,3 +6,6 @@
 # Patches added in this section will be executed after doctypes are migrated
 nexlify_budget_control.patches.add_missing_project_indexes
 nexlify_budget_control.patches.setup_default_document_type_rules
+
+nexlify_budget_control.patches.set_dashboard_settings_defaults
+nexlify_budget_control.patches.backfill_overview_dashboard_fields
