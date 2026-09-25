@@ -5,9 +5,9 @@ from frappe import _
 
 YEAR = re.compile(r"^([A-Z]+)-([A-Z]+)-(20\d\d)-")
 TAIL = re.compile(r"^(.*?)(\d+)(-\d+)?$")
-# Operational documents only. Invoices and payments keep their names (their ledger entries use them).
+# Operational documents and payments. Invoices keep their names (ZATCA and their ledger entries use them).
 DOCTYPES = ["Project", "Opportunity", "Project Cost Budget", "Project Planning", "Project Overview",
-            "Project Equipment Scope", "Project Planning Scope", "Project Visits", "Project Invoicing"]
+            "Project Equipment Scope", "Project Planning Scope", "Project Visits", "Project Invoicing", "Payment Entry"]
 
 
 def _plan():

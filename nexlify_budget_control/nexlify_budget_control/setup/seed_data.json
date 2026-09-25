@@ -112,6 +112,84 @@
   }
  ],
  "Maintenance Type": [],
+ "Project Location": [
+  {
+   "location_name": "Riyadh",
+   "name": "Riyadh"
+  },
+  {
+   "location_name": "Jeddah",
+   "name": "Jeddah"
+  },
+  {
+   "location_name": "Mecca",
+   "name": "Mecca"
+  },
+  {
+   "location_name": "Medina",
+   "name": "Medina"
+  },
+  {
+   "location_name": "Dammam",
+   "name": "Dammam"
+  },
+  {
+   "location_name": "Khobar",
+   "name": "Khobar"
+  },
+  {
+   "location_name": "Dhahran",
+   "name": "Dhahran"
+  },
+  {
+   "location_name": "Tabuk",
+   "name": "Tabuk"
+  },
+  {
+   "location_name": "Abha",
+   "name": "Abha"
+  },
+  {
+   "location_name": "Taif",
+   "name": "Taif"
+  },
+  {
+   "location_name": "Al Khafji",
+   "name": "Al Khafji"
+  },
+  {
+   "location_name": "Jubail",
+   "name": "Jubail"
+  },
+  {
+   "location_name": "Yanbu",
+   "name": "Yanbu"
+  },
+  {
+   "location_name": "Hail",
+   "name": "Hail"
+  },
+  {
+   "location_name": "Al Kharj",
+   "name": "Al Kharj"
+  },
+  {
+   "location_name": "Najran",
+   "name": "Najran"
+  },
+  {
+   "location_name": "Al Ahsa",
+   "name": "Al Ahsa"
+  },
+  {
+   "location_name": "Qatif",
+   "name": "Qatif"
+  },
+  {
+   "location_name": "Neom",
+   "name": "Neom"
+  }
+ ],
  "Project Type": [
   {
    "name": "External",

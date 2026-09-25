@@ -74,7 +74,7 @@ def update_scripts_once():
 
 # Operational documents lose the year in their name. Financial ones (Sales / Purchase Invoice,
 # Payment Entry, Journal Entry) keep it, for the accountants and ZATCA.
-NAMING_RULES_WITHOUT_YEAR = ("Project", "Opportunity", "Project Cost Budget", "Sales Order", "Material Request", "Expense Claim")
+NAMING_RULES_WITHOUT_YEAR = ("Project", "Opportunity", "Project Cost Budget", "Sales Order", "Material Request", "Expense Claim", "Payment Entry")
 
 
 def drop_year_from_naming_rules_once():
@@ -92,3 +92,28 @@ def drop_year_from_naming_rules_once():
 		changed = True
 	if changed:
 		frappe.db.set_default("nexlify_naming_rules_without_year", frappe.as_json(sorted(applied)))
+
+
+def seed_locations_from_data_once():
+	"""Every location already used in an Opportunity or a Project gets a Project Location record,
+	so the Link fields point to real records after the Select to Link change. Once per site."""
+	if frappe.db.get_default("nexlify_locations_from_data") or not frappe.db.exists("DocType", "Project Location"):
+		return
+	for dt in ("Opportunity", "Project"):
+		if not frappe.db.has_column(dt, "custom_location"):
+			continue
+		for (value,) in frappe.db.sql(f"select distinct custom_location from `tab{dt}` where ifnull(custom_location, '') != ''"):
+			if not frappe.db.exists("Project Location", value):
+				frappe.get_doc({"doctype": "Project Location", "location_name": value}).insert(ignore_permissions=True)
+	frappe.db.set_default("nexlify_locations_from_data", "1")
+
+
+def copy_location_to_link_once():
+	"""The old Select value of custom_location goes to the new Link field custom_project_location. Once per site."""
+	if frappe.db.get_default("nexlify_location_copied"):
+		return
+	for dt in ("Opportunity", "Project"):
+		if frappe.db.has_column(dt, "custom_location") and frappe.db.has_column(dt, "custom_project_location"):
+			frappe.db.sql(f"""update `tab{dt}` set custom_project_location = custom_location
+				where ifnull(custom_project_location, '') = '' and ifnull(custom_location, '') != ''""")
+	frappe.db.set_default("nexlify_location_copied", "1")

@@ -29,7 +29,7 @@ if doc.sales_stage == "Closed Won":
             "customer": doc.party_name if doc.opportunity_from == "Customer" else None,
             "expected_start_date": doc.custom_closing_date,
             "custom_opportunity": doc.name,
-            "custom_location": doc.custom_location,
+            "custom_project_location": doc.custom_project_location,
             "project_type": doc.custom_project_type,
         })
         
