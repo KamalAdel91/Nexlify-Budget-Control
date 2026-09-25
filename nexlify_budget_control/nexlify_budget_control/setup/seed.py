@@ -130,8 +130,9 @@ def project_dates_from_estimation_once():
 			continue
 		if p.expected_start_date and p.expected_end_date:
 			continue
-		cb = frappe.db.get_value("Project Cost Budget", {"project": p.name, "docstatus": 1}, ["from_date", "to_date"],
-			as_dict=True, order_by="modified desc")
+		cb = frappe.db.sql("""select from_date, to_date from `tabProject Cost Budget`
+			where project = %s and docstatus = 1 order by modified desc limit 1""", p.name, as_dict=True)
+		cb = cb[0] if cb else None
 		if cb and cb.from_date and cb.to_date:
 			frappe.db.set_value("Project", p.name, {"expected_start_date": cb.from_date, "expected_end_date": cb.to_date}, update_modified=False)
 		else:

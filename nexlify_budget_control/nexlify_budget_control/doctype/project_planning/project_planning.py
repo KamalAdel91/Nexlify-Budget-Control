@@ -152,7 +152,7 @@ class ProjectPlanning(Document):
 			if not frappe.utils.flt(frappe.db.get_value("Project", self.project, "custom_planned_revenue")):
 				frappe.throw(_("The project's Planned Revenue (Opportunity Amount) is zero. Set it before sending the plan for approval."))
 			if not (self.contract_no_prices or frappe.db.get_value("Project Cost Budget", self.estimation, "contract_no_prices")):
-				frappe.throw(_("The plan has no Contract (No Prices). Ask the Estimation team to attach it to the Estimation."))
+				frappe.throw(_("The plan has no Contract. Ask the Estimation team to attach it to the Estimation."))
 			self.validate_invoice_percentage_total()
 			self.validate_execution_distribution()
 

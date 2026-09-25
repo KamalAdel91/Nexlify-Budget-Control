@@ -187,7 +187,7 @@
    "description": "From the Estimation.",
    "fieldname": "contract_no_prices",
    "fieldtype": "Attach",
-   "label": "Contract (No Prices)",
+   "label": "Contract",
    "read_only": 1
   }
  ],

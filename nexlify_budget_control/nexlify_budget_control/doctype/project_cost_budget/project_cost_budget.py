@@ -22,7 +22,6 @@ class ProjectCostBudget(Document):
 	def validate(self):
 		"""Validate budget document before saving."""
 		self._validate_single_active_estimation()
-		self._validate_date_range()
 		self._validate_conversion_rate()
 		self._validate_duplicate_categories()
 		self._set_default_currency()
@@ -242,8 +241,6 @@ class ProjectCostBudget(Document):
 					taken_over.append(row.budget_category)
 				row.is_auto = 1
 				row.estimated_amount = flt(amounts[row.budget_category], 2)
-				row.from_date = self.from_date
-				row.to_date = self.to_date
 				handled.add(row.budget_category)
 				keep.append(row)
 			elif row.is_auto:
@@ -257,8 +254,6 @@ class ProjectCostBudget(Document):
 				self.append("details", {
 					"budget_category": category,
 					"estimated_amount": flt(amount, 2),
-					"from_date": self.from_date,
-					"to_date": self.to_date,
 					"is_auto": 1,
 				})
 
@@ -295,18 +290,6 @@ class ProjectCostBudget(Document):
 		)
 		if other:
 			frappe.throw(_("This project already has an Estimation ({0}). Open it instead of creating a new one.").format(other))
-
-	def _validate_date_range(self):
-		"""Ensure from_date is before to_date."""
-		if self.from_date and self.to_date:
-			if getdate(self.from_date) > getdate(self.to_date):
-				frappe.throw(
-					_("From Date ({0}) cannot be after To Date ({1})").format(
-						frappe.format_date(self.from_date),
-						frappe.format_date(self.to_date),
-					),
-					title=_("Invalid Date Range"),
-				)
 
 	def _validate_conversion_rate(self):
 		"""Ensure conversion_rate is positive."""

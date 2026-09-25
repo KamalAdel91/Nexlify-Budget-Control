@@ -18,9 +18,7 @@
   "column_break_xcgk",
   "project",
   "section_break_rtyw",
-  "from_date",
   "column_break_ikkr",
-  "to_date",
   "section_break_kwgb",
   "currency",
   "column_break_obvk",
@@ -114,26 +112,12 @@
    "reqd": 1
   },
   {
-   "fieldname": "from_date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "From Date",
-   "reqd": 1
-  },
-  {
    "fetch_from": "project.customer",
    "fieldname": "customer",
    "fieldtype": "Link",
    "label": "Customer",
    "options": "Customer",
    "read_only": 1
-  },
-  {
-   "fieldname": "to_date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "To Date",
-   "reqd": 1
   },
   {
    "fieldname": "currency",

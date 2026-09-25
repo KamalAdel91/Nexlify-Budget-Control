@@ -1585,8 +1585,7 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
 
     detail_rows = frappe.db.sql(
         """
-        SELECT name, parent, budget_category,
-               from_date, to_date
+        SELECT name, parent, budget_category
         FROM `tabProject Cost Budget Detail`
         WHERE name IN %(names)s
         """,
@@ -1600,7 +1599,7 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
     )
     parent_rows = frappe.db.sql(
         """
-        SELECT name, project, from_date, to_date
+        SELECT name, project
         FROM `tabProject Cost Budget`
         WHERE name IN %(names)s
         """,
@@ -2834,9 +2833,8 @@ def get_all_projects_budget_summary(company=None, project=None, extra_filters=No
         f"""
         SELECT
             d.name AS row_name, d.parent AS budget_name, d.budget_category,
-            d.estimated_amount, d.from_date AS row_from_date, d.to_date AS row_to_date,
-            p.project, p.company, p.currency, p.conversion_rate,
-            p.from_date AS parent_from_date, p.to_date AS parent_to_date
+            d.estimated_amount,
+            p.project, p.company, p.currency, p.conversion_rate
         FROM `tabProject Cost Budget Detail` d
         INNER JOIN `tabProject Cost Budget` p ON d.parent = p.name
         INNER JOIN `tabProject` proj ON p.project = proj.name
@@ -2852,16 +2850,12 @@ def get_all_projects_budget_summary(company=None, project=None, extra_filters=No
         row_dict = {
             "budget_category": r.budget_category,
             "estimated_amount": r.estimated_amount,
-            "from_date": r.row_from_date,
-            "to_date": r.row_to_date,
         }
         parent_dict = {
             "project": r.project,
             "company": r.company,
             "currency": r.currency,
             "conversion_rate": r.conversion_rate,
-            "from_date": r.parent_from_date,
-            "to_date": r.parent_to_date,
         }
 
         _recalculate_row_from_dict(row_dict, parent_dict, getdate(frappe.utils.today()))

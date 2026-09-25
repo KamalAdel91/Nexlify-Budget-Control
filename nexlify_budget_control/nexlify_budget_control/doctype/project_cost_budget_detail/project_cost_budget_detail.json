@@ -9,8 +9,6 @@
  "field_order": [
   "budget_category",
   "is_auto",
-  "from_date",
-  "to_date",
   "estimated_amount",
   "warning_threshold_percentage",
   "applicability_section",
@@ -32,16 +30,6 @@
    "label": "Budget Category",
    "options": "Budget Category",
    "reqd": 1
-  },
-  {
-   "fieldname": "from_date",
-   "fieldtype": "Date",
-   "label": "From Date"
-  },
-  {
-   "fieldname": "to_date",
-   "fieldtype": "Date",
-   "label": "To Date"
   },
   {
    "fieldname": "estimated_amount",
