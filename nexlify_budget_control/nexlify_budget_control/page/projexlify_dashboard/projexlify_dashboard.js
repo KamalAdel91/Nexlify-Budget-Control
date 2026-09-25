@@ -1,354 +1,253 @@
 frappe.pages["projexlify-dashboard"].on_page_load = function (wrapper) {
-    const page = frappe.ui.make_app_page({
-        parent: wrapper,
-        title: __("Dashboard"),
-        single_column: true,
-    });
-    new NexlifyProjexlifyDashboard(page);
+	const page = frappe.ui.make_app_page({ parent: wrapper, title: __("Dashboard"), single_column: true });
+	wrapper.nx_dashboard = new NexlifyCeoDashboard(page);
 };
 
-(function inject_nexlify_dashboard_styles() {
-    if (document.getElementById("nexlify-dashboard-styles")) return;
-    const style = document.createElement("style");
-    style.id = "nexlify-dashboard-styles";
-    style.textContent = `
-        .nx-dash-wrap { max-width: 1200px; margin: 0 auto; padding: 12px 4px 40px; width: 100%; box-sizing: border-box; }
-        .nx-filter-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-        .nx-filter-bar select { font-size: 12px; padding: 6px 10px; border-radius: 6px; flex: 1 1 140px; min-width: 120px; max-width: 220px; }
-        .nx-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
-        .nx-card { border-radius: 8px; padding: 12px 14px; min-width: 0; }
-        .nx-card-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
-        .nx-card-value { font-size: 19px; font-weight: 700; word-break: break-word; }
-        .nx-card-sub { font-size: 10.5px; margin-top: 4px; }
-        .nx-section-title { font-size: 13px; font-weight: 700; margin: 18px 0 8px; }
-        .nx-chart-box { border-radius: 8px; padding: 12px 14px; }
-        .nx-table-scroll { overflow-x: auto; border-radius: 8px; -webkit-overflow-scrolling: touch; }
-        .nx-project-table { width: 100%; min-width: 640px; border-collapse: collapse; }
-        .nx-project-table th { text-align: left; padding: 8px 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
-        .nx-project-table td { padding: 7px 12px; font-size: 12px; white-space: nowrap; }
-        .nx-project-header td { font-weight: 700; font-size: 13px; }
-        .nx-category-row td { font-size: 11.5px; }
-        .nx-progress-track { flex: 1; height: 6px; border-radius: 3px; overflow: hidden; min-width: 50px; }
-        .nx-progress-fill { height: 100%; }
-        @media (max-width: 640px) {
-            .nx-filter-bar select { flex: 1 1 100%; max-width: none; }
-            .nx-cards-grid { grid-template-columns: 1fr 1fr; }
-            .nx-card-value { font-size: 16px; }
-        }
-    `;
-    document.head.appendChild(style);
+frappe.pages["projexlify-dashboard"].on_page_show = function (wrapper) {
+	if (wrapper.nx_dashboard && wrapper.nx_dashboard.data) wrapper.nx_dashboard.refresh();
+};
+
+(function inject_nx_ceo_styles() {
+	if (document.getElementById("nx-ceo-styles")) return;
+	const style = document.createElement("style");
+	style.id = "nx-ceo-styles";
+	style.textContent = `
+		.nx-ceo { max-width: 1240px; margin: 0 auto; padding: 4px 4px 40px; }
+		.nx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+		.nx-kpi { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg, 12px); padding: 14px 16px; min-width: 0; }
+		.nx-kpi.nx-accent { border-color: var(--primary); }
+		.nx-kpi-label { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: 6px; }
+		.nx-kpi-value { font-size: 22px; font-weight: 600; color: var(--heading-color); word-break: break-word; }
+		.nx-kpi-sub { font-size: var(--text-xs); margin-top: 4px; color: var(--text-muted); }
+		.nx-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+		.nx-sec-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: var(--text-md); font-weight: 600; color: var(--heading-color); margin: 22px 0 10px; }
+		.nx-sec-title small { font-weight: 400; color: var(--text-muted); font-size: var(--text-xs); }
+		.nx-box { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg, 12px); padding: 8px 16px; }
+		.nx-row { display: grid; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--border-color); font-size: var(--text-sm); color: var(--text-color); }
+		.nx-row:last-child { border-bottom: none; }
+		.nx-queue-row { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) 80px 100px; }
+		.nx-attn-row { grid-template-columns: minmax(0, 1fr) auto; }
+		.nx-head { color: var(--text-muted); font-size: var(--text-xs); }
+		.nx-bar-row { display: grid; grid-template-columns: 150px 1fr 60px; gap: 10px; align-items: center; padding: 7px 4px; font-size: var(--text-sm); color: var(--text-color); border-radius: var(--border-radius); }
+		.nx-track { height: 8px; border-radius: 4px; background: var(--control-bg); overflow: hidden; }
+		.nx-fill { height: 100%; border-radius: 4px; }
+		.nx-empty { color: var(--text-muted); font-size: var(--text-sm); padding: 14px 4px; }
+		.nx-foot { font-size: var(--text-xs); color: var(--text-muted); padding: 8px 4px 4px; border-top: 1px solid var(--border-color); margin-top: 4px; }
+		[data-open] { cursor: pointer; }
+		[data-open]:hover { background: var(--subtle-fg, var(--control-bg)); }
+		.nx-muted { color: var(--text-muted); } .nx-right { text-align: right; }
+		.nx-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		@media (max-width: 640px) {
+			.nx-kpis { grid-template-columns: 1fr 1fr; }
+			.nx-queue-row { grid-template-columns: minmax(0, 1fr) 100px; }
+			.nx-hide-sm { display: none; }
+			.nx-bar-row { grid-template-columns: 110px 1fr 50px; }
+		}
+	`;
+	document.head.appendChild(style);
 })();
 
-class NexlifyProjexlifyDashboard {
-    constructor(page) {
-        this.page = page;
-        this.render();
-    }
+class NexlifyCeoDashboard {
+	constructor(page) {
+		this.page = page;
+		this.dynamic = [];
+		this.$body = $(`<div class="nx-ceo"></div>`).appendTo(page.body);
+		this.$body.on("click", "[data-open]", (e) => this.open($(e.currentTarget)));
+		page.set_secondary_action(__("Refresh"), () => this.refresh(), "refresh");
+		this.make_filters();
+		this.refresh();
+	}
 
-    colors() {
-        const dark = document.documentElement.getAttribute("data-theme") === "dark" || document.body.classList.contains("dark");
-        return {
-            border: dark ? "#2E2E2C" : "#E7E5E4",
-            page_bg: dark ? "#171716" : "#F8F9FA",
-            card_bg: dark ? "#1F1F1E" : "#FFFFFF",
-            muted: dark ? "#A8A29E" : "#78716C",
-            heading: dark ? "#FAFAF9" : "#0C0A09",
-            danger: "#DC2626", warning: "#D97706", success: "#16A34A", info: "#2B6CB0",
-        };
-    }
+	make_filters() {
+		const change = () => this.refresh_soon();
+		this.company = this.page.add_field({ fieldtype: "Link", fieldname: "company", label: __("Company"), options: "Company", change });
+		this.project = this.page.add_field({ fieldtype: "Link", fieldname: "project", label: __("Project"), options: "Project", change });
+		frappe.call({ method: "nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_dashboard_filter_fields" })
+			.then((r) => (r.message || []).forEach((f) => {
+				const ctrl = this.page.add_field({
+					fieldtype: f.link_doctype ? "Link" : "Data", options: f.link_doctype,
+					fieldname: `nx_${f.target_field}`, label: __(f.label), change,
+				});
+				this.dynamic.push({ ctrl, target_field: f.target_field, source_doctype: f.source_doctype });
+			}));
+	}
 
-    async render() {
-        const c = this.colors();
-        const $body = $(this.page.body);
-        $body.empty();
+	refresh_soon() {
+		clearTimeout(this._timer);
+		this._timer = setTimeout(() => this.refresh(), 300);
+	}
 
-        const $wrap = $(`
-            <div class="nx-dash-wrap">
-                <div class="nx-filter-bar">
-                    <select id="pd-company" style="border:1px solid ${c.border};">
-                        <option value="">All Companies</option>
-                    </select>
-                    <select id="pd-project" style="border:1px solid ${c.border};">
-                        <option value="">All Projects</option>
-                    </select>
-                    <span id="pd-dynamic-filters" style="display:contents;"></span>
-                    <button id="pd-apply" class="btn btn-primary btn-sm">Apply Filter</button>
-                    <span id="pd-loading" style="font-size:11px; color:${c.muted}; display:none;">Loading…</span>
-                </div>
-                <div id="pd-cards" class="nx-cards-grid"></div>
-                <div id="pd-chart-section"></div>
-                <div id="pd-projects-section"></div>
-            </div>
-        `);
-        $body.append($wrap);
+	async refresh() {
+		const token = (this._token = (this._token || 0) + 1);
+		if (!this.data) this.$body.html(`<div class="nx-empty">${__("Loading…")}</div>`);
+		const extra = this.dynamic.filter((d) => d.ctrl.get_value()).map((d) => ({
+			target_field: d.target_field, source_doctype: d.source_doctype, value: d.ctrl.get_value(),
+		}));
+		try {
+			const r = await frappe.call({
+				method: "nexlify_budget_control.nexlify_budget_control.ceo_dashboard.get_ceo_dashboard_data",
+				args: { company: this.company.get_value() || null, project: this.project.get_value() || null, extra_filters: JSON.stringify(extra) },
+			});
+			if (token !== this._token) return;
+			this.data = r.message;
+			this.render();
+		} catch (e) {
+			if (token === this._token) this.$body.html(`<div class="nx-empty">${__("Couldn't load the dashboard. Refresh to try again.")}</div>`);
+		}
+	}
 
-        try {
-            const companies = await frappe.db.get_list("Company", { limit: 0, fields: ["name"] });
-            companies.forEach((c2) => $wrap.find("#pd-company").append(`<option value="${c2.name}">${c2.name}</option>`));
-        } catch (e) { console.error("NEXLIFY dashboard - company list failed:", e); }
+	// ---------- helpers ----------
+	esc(v) { return frappe.utils.escape_html(v == null ? "" : String(v)); }
+	money(v) { return v == null ? "—" : format_currency(v, this.data.currency, 0); }
+	pct(v) { return v == null ? "—" : `${(Math.round(v * 10) / 10).toLocaleString()}%`; }
+	pct_color(p) { return p >= 100 ? "var(--red-500)" : p >= 80 ? "var(--orange-500)" : "var(--green-500)"; }
+	margin_color(m) {
+		const s = this.data.settings;
+		if (m == null) return "var(--text-muted)";
+		return m < s.low_margin_threshold ? "var(--red-500)" : m < s.target_margin_pct ? "var(--orange-500)" : "var(--green-500)";
+	}
+	link_attrs(doctype, name, filters) {
+		return `data-open="1" data-doctype="${this.esc(doctype)}"` + (name ? ` data-name="${this.esc(name)}"` : "")
+			+ (filters ? ` data-filters="${this.esc(JSON.stringify(filters))}"` : "");
+	}
+	open($el) {
+		const t = $el.data();
+		if (t.name) frappe.set_route("Form", t.doctype, t.name);
+		else frappe.set_route("List", t.doctype, t.filters || {});
+	}
+	section(title, note, body) {
+		return `<div class="nx-sec-title"><span>${title}</span>${note ? `<small>${note}</small>` : ""}</div>${body}`;
+	}
 
-        try {
-            const projects = await frappe.db.get_list("Project", { limit: 0, fields: ["name"] });
-            projects.forEach((p) => $wrap.find("#pd-project").append(`<option value="${p.name}">${p.name}</option>`));
-        } catch (e) { console.error("NEXLIFY dashboard - project list failed:", e); }
+	// ---------- render ----------
+	render() {
+		this.$body.html(`
+			${this.render_kpis()}
+			${this.render_queue()}
+			<div class="nx-grid-2">
+				<div>${this.render_stages()}</div>
+				<div>${this.section(__("Revenue vs cost by month"), __("by plan start month"), `<div class="nx-box"><div class="nx-month-chart"></div></div>`)}</div>
+			</div>
+			<div class="nx-grid-2">
+				<div>${this.render_budget()}</div>
+				<div>${this.render_attention()}</div>
+			</div>
+		`);
+		this.render_chart();
+	}
 
-        try {
-            const r = await frappe.call({
-                method: "nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_dashboard_filter_fields",
-            });
-            const dynamicFields = r.message || [];
-            const $dyn = $wrap.find("#pd-dynamic-filters");
-            for (const field of dynamicFields) {
-                const $sel = $(`
-                    <select class="pd-dynamic-filter" data-field="${field.target_field}" data-source="${field.source_doctype}"
-                        style="font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid ${c.border}; flex:1 1 140px; min-width:120px; max-width:220px;">
-                        <option value="">All ${frappe.utils.escape_html(field.label)}</option>
-                    </select>
-                `);
-                $dyn.append($sel);
-                try {
-                    const options = await frappe.db.get_list(field.link_doctype, { limit: 0, fields: ["name"] });
-                    options.forEach((o) => $sel.append(`<option value="${o.name}">${o.name}</option>`));
-                } catch (e2) {
-                    console.error("NEXLIFY dashboard - dynamic filter options failed:", field.label, e2);
-                }
-            }
-        } catch (e) {
-            console.error("NEXLIFY dashboard - dynamic filter fields failed:", e);
-        }
+	render_kpis() {
+		const k = this.data.kpis, s = this.data.settings;
+		const card = (label, value, sub, extra = "", value_style = "") => `
+			<div class="nx-kpi ${extra}">
+				<div class="nx-kpi-label">${label}</div>
+				<div class="nx-kpi-value" style="${value_style}">${value}</div>
+				<div class="nx-kpi-sub">${sub || "&nbsp;"}</div>
+			</div>`;
+		return `<div class="nx-kpis">
+			${card(__("Contract value"), this.money(k.contract_value), __("{0} project(s)", [k.projects]))}
+			${card(__("Planned cost"), this.money(k.planned_cost), __("from approved estimations"))}
+			${card(__("Expected profit"), this.money(k.expected_profit), "", "", k.expected_profit < 0 ? "color: var(--red-500)" : "")}
+			${card(__("Avg margin"), this.pct(k.margin_pct),
+				`<span style="color:${this.margin_color(k.margin_pct)}">${__("Target {0}%", [s.target_margin_pct])}</span>`)}
+			${card(__("Waiting for you"), k.waiting_for_me,
+				k.waiting_for_me ? __("Oldest {0} day(s)", [k.oldest_wait_days]) : __("All clear"), "nx-accent",
+				k.waiting_for_me ? "color: var(--primary)" : "")}
+		</div>`;
+	}
 
-        $wrap.find("#pd-apply").on("click", () => this.run_query($wrap));
-        this.run_query($wrap);
-    }
+	render_queue() {
+		const q = this.data.queue;
+		const pill = (r) => {
+			const color = r.overdue ? "red" : r.waiting_days > 0 ? "orange" : "gray";
+			const text = r.waiting_days ? __("{0} day(s)", [r.waiting_days]) : __("Today");
+			return `<span class="indicator-pill ${color}">${text}</span>`;
+		};
+		const body = !q.length
+			? `<div class="nx-empty">${__("Nothing is waiting for your approval.")}</div>`
+			: `<div class="nx-row nx-queue-row nx-head">
+					<span>${__("Project")}</span><span class="nx-right nx-hide-sm">${__("Contract")}</span>
+					<span class="nx-right nx-hide-sm">${__("Margin")}</span><span class="nx-right">${__("Waiting")}</span>
+				</div>` + q.map((r) => `
+				<div class="nx-row nx-queue-row" ${this.link_attrs("Project Overview", r.name)}>
+					<span class="nx-ellipsis"><b>${this.esc(r.project)}</b> · ${this.esc(r.project_name)}
+						<div class="nx-muted nx-ellipsis">${this.esc(r.customer || "")}${r.return_count ? ` · ${__("returned {0}x", [r.return_count])}` : ""}</div></span>
+					<span class="nx-right nx-hide-sm">${this.money(r.contract_value)}</span>
+					<span class="nx-right nx-hide-sm" style="color:${this.margin_color(r.margin_pct)}">${this.pct(r.margin_pct)}</span>
+					<span class="nx-right">${pill(r)}</span>
+				</div>`).join("");
+		return this.section(__("Waiting for your approval"),
+			__("{0} pending in total", [this.data.kpis.pending_total]), `<div class="nx-box">${body}</div>`);
+	}
 
-    merge_filters(base_filters_json, doctype, company, project) {
-        let filters;
-        try { filters = JSON.parse(base_filters_json || "[]"); } catch (e) { filters = []; }
-        if (company) filters.push([doctype, "company", "=", company, false]);
-        if (project) filters.push([doctype, "project", "=", project, false]);
-        return filters;
-    }
+	render_stages() {
+		const st = this.data.stages;
+		const max = Math.max(1, ...st.map((s) => s.count));
+		const last = st.length - 1;
+		const rows = st.map((s, i) => {
+			const color = i === 0 ? "var(--gray-500)" : i === 1 ? "var(--blue-500)" : i === last ? "var(--green-500)" : "var(--orange-500)";
+			const attrs = i === 0 ? this.link_attrs("Project Cost Budget")
+				: i === 1 ? this.link_attrs("Project Planning", null, { docstatus: 0 })
+				: this.link_attrs("Project Overview", null, { workflow_state: s.stage });
+			return `<div class="nx-bar-row" ${attrs}>
+				<span class="nx-ellipsis">${this.esc(__(s.stage))}</span>
+				<div class="nx-track" style="height: 14px;"><div class="nx-fill" style="width:${(s.count / max) * 100}%; background:${color};"></div></div>
+				<span class="nx-right"><b>${s.count}</b></span>
+			</div>`;
+		}).join("");
+		return this.section(__("Pipeline by stage"), "", `<div class="nx-box">${rows}</div>`);
+	}
 
-    fmt_money(val, currency) {
-        const n = (val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return currency ? `${currency} ${n}` : n;
-    }
+	render_chart() {
+		const d = this.data, el = this.$body.find(".nx-month-chart")[0];
+		const months = d.monthly.slice(-12);
+		if (!months.length) {
+			$(el).html(`<div class="nx-empty">${__("No approved or pending plans yet.")}</div>`);
+			return;
+		}
+		const labels = months.map((m) => {
+			const [y, mo] = m.month.split("-");
+			return `${new Date(+y, +mo - 1, 1).toLocaleString(undefined, { month: "short" })} ${y.slice(2)}`;
+		});
+		const datasets = [];
+		if (d.can_see_price) datasets.push({ name: __("Revenue"), values: months.map((m) => m.revenue || 0) });
+		datasets.push({ name: __("Cost"), values: months.map((m) => m.cost || 0) });
+		new frappe.Chart(el, {
+			data: { labels, datasets }, type: "bar", height: 220,
+			colors: d.can_see_price ? ["blue", "light-grey"] : ["light-grey"],
+			barOptions: { spaceRatio: 0.4 },
+			tooltipOptions: { formatTooltipY: (v) => format_currency(v, d.currency, 0) },
+		});
+	}
 
-    async run_query($wrap) {
-        // Guard against overlapping runs: if the user clicks "Apply Filter"
-        // multiple times before the previous run finishes, later clicks are
-        // ignored until the in-flight one completes - prevents duplicated
-        // cards/rows from multiple concurrent async fetches racing each other.
-        if (this._isLoading) return;
-        this._isLoading = true;
+	render_budget() {
+		const b = this.data.budget, v = this.data.violations;
+		const rows = !b.categories.length
+			? `<div class="nx-empty">${__("No submitted estimations for this filter.")}</div>`
+			: b.categories.map((c) => `
+				<div class="nx-bar-row" title="${this.esc(this.money(c.actual))} / ${this.esc(this.money(c.estimated))}">
+					<span class="nx-ellipsis">${this.esc(c.category)}</span>
+					<div class="nx-track"><div class="nx-fill" style="width:${Math.min(c.pct, 100)}%; background:${this.pct_color(c.pct)};"></div></div>
+					<span class="nx-right" style="color:${this.pct_color(c.pct)}">${this.pct(c.pct)}</span>
+				</div>`).join("");
+		const types = v.by_type.map((t) => `${this.esc(__(t.type))}: <b>${t.count}</b>`).join(" · ");
+		const foot = `<div class="nx-foot">
+			${__("Actual {0} of {1} estimated", [this.money(b.totals.actual), this.money(b.totals.estimated)])}
+			<div ${this.link_attrs("Budget Violation Log")} style="margin-top:4px;">${__("{0} open violation(s)", [v.open])}${types ? ` — ${types}` : ""}</div>
+		</div>`;
+		return this.section(__("Budget health"), __("{0}% used", [b.totals.pct]), `<div class="nx-box">${rows}${foot}</div>`);
+	}
 
-        const $apply = $wrap.find("#pd-apply");
-        $apply.prop("disabled", true);
-
-        const c = this.colors();
-        const company = $wrap.find("#pd-company").val();
-        const project = $wrap.find("#pd-project").val();
-        const $loading = $wrap.find("#pd-loading");
-        $loading.show();
-
-        try {
-
-        // ---- Fetch category-level project rows first (drives everything) ----
-        let rows = [];
-        try {
-            const extraFilters = [];
-            $wrap.find(".pd-dynamic-filter").each(function () {
-                const val = $(this).val();
-                if (val) {
-                    extraFilters.push({
-                        target_field: $(this).data("field"),
-                        source_doctype: $(this).data("source"),
-                        value: val,
-                    });
-                }
-            });
-
-            const r = await frappe.call({
-                method: "nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_all_projects_budget_summary",
-                args: {
-                    company: company || null,
-                    project: project || null,
-                    extra_filters: JSON.stringify(extraFilters),
-                },
-            });
-            rows = (r.message && r.message.rows) || [];
-        } catch (e) {
-            console.error("NEXLIFY dashboard - budget summary fetch failed:", e);
-        }
-
-        const totalEstimated = rows.reduce((s, r) => s + (r.estimated || 0), 0);
-        const totalActual = rows.reduce((s, r) => s + (r.actual || 0), 0);
-        const projectSet = new Set(rows.map((r) => r.project));
-        const overallPct = totalEstimated ? Math.round((totalActual / totalEstimated) * 100) : 0;
-        const currency = rows.length ? rows[0].currency : "";
-
-        // ---- Cards: Open Violations + Active Budgets (via Number Card API) ----
-        const $cards = $wrap.find("#pd-cards");
-        $cards.empty();
-
-        const cardNames = ["Open Budget Violations", "Active Project Budgets"];
-        for (const name of cardNames) {
-            try {
-                const cardDoc = await frappe.db.get_doc("Number Card", name);
-                const filters = this.merge_filters(cardDoc.filters_json, cardDoc.document_type, company, project);
-                const resp = await frappe.call({
-                    method: "frappe.desk.doctype.number_card.number_card.get_result",
-                    args: { doc: JSON.stringify(cardDoc), filters: filters },
-                    error: () => {},
-                });
-                let value = "-";
-                if (resp.message !== undefined && resp.message !== null) {
-                    value = (typeof resp.message === "object" && "value" in resp.message) ? resp.message.value : resp.message;
-                }
-                $cards.append(`
-                    <div class="nx-card" style="background:${c.page_bg}; border:1px solid ${c.border};">
-                        <div class="nx-card-label" style="color:${c.muted};">${cardDoc.label}</div>
-                        <div class="nx-card-value" style="color:${c.heading};">${value}</div>
-                    </div>
-                `);
-            } catch (e) {
-                console.error("NEXLIFY dashboard - card fetch failed:", name, e);
-            }
-        }
-
-        // ---- Rich cards: Estimated Cost / Actual Cost (computed client-side from category rows) ----
-        $cards.append(`
-            <div class="nx-card" style="background:${c.page_bg}; border:1px solid ${c.info};">
-                <div class="nx-card-label" style="color:${c.info};">Estimated Cost</div>
-                <div class="nx-card-value" style="color:${c.heading};">${this.fmt_money(totalEstimated, currency)}</div>
-                <div class="nx-card-sub" style="color:${c.muted};">across ${projectSet.size} project(s)</div>
-            </div>
-        `);
-        const actualColor = overallPct >= 100 ? c.danger : (overallPct >= 80 ? c.warning : c.success);
-        $cards.append(`
-            <div class="nx-card" style="background:${c.page_bg}; border:1px solid ${actualColor};">
-                <div class="nx-card-label" style="color:${actualColor};">Actual Cost</div>
-                <div class="nx-card-value" style="color:${c.heading};">${this.fmt_money(totalActual, currency)}</div>
-                <div class="nx-card-sub" style="color:${actualColor};">${overallPct}% of estimated used</div>
-            </div>
-        `);
-
-        // ---- Chart: Violations by Type ----
-        await this.render_chart($wrap, company, project);
-
-        // ---- Detailed table: projects grouped, with category sub-rows ----
-        this.render_projects_table($wrap, rows);
-        } finally {
-            $loading.hide();
-            $apply.prop("disabled", false);
-            this._isLoading = false;
-        }
-    }
-
-    async render_chart($wrap, company, project) {
-        const c = this.colors();
-        const $chartSection = $wrap.find("#pd-chart-section");
-        $chartSection.empty();
-
-        try {
-            const chartName = "Violations by Type";
-            const chartDoc = await frappe.db.get_doc("Dashboard Chart", chartName);
-            const filters = this.merge_filters(chartDoc.filters_json, chartDoc.document_type, company, project);
-            const r = await frappe.call({
-                method: "frappe.desk.doctype.dashboard_chart.dashboard_chart.get",
-                args: {
-                    chart_name: chartName, filters: filters, refresh: 1,
-                    time_interval: chartDoc.time_interval || "", timespan: chartDoc.timespan || "",
-                    from_date: chartDoc.from_date || "", to_date: chartDoc.to_date || "",
-                },
-            });
-            const data = r.message;
-            let rowsHtml = `<div style="font-size:12px;color:${c.muted};">No data</div>`;
-            if (data && data.labels && data.labels.length) {
-                rowsHtml = data.labels.map((label, i) => {
-                    const val = (data.datasets && data.datasets[0] && data.datasets[0].values[i]) || 0;
-                    return `<div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid ${c.border};">
-                        <span style="color:${c.muted};">${label}</span><span style="font-weight:600; color:${c.heading};">${val}</span>
-                    </div>`;
-                }).join("");
-            }
-            $chartSection.append(`
-                <div class="nx-section-title" style="color:${c.heading};">Violations by Type</div>
-                <div class="nx-chart-box" style="background:${c.page_bg}; border:1px solid ${c.border};">${rowsHtml}</div>
-            `);
-        } catch (e) {
-            console.error("NEXLIFY dashboard - chart fetch failed:", e);
-        }
-    }
-
-    render_projects_table($wrap, rows) {
-        const c = this.colors();
-        const $section = $wrap.find("#pd-projects-section");
-        $section.empty();
-
-        if (!rows.length) {
-            $section.append(`
-                <div class="nx-section-title" style="color:${c.heading};">Budget Categories: Estimated vs Actual</div>
-                <div style="padding:14px; font-size:12px; color:${c.muted}; background:${c.page_bg}; border:1px solid ${c.border}; border-radius:8px;">
-                    No submitted project budgets found for this filter.
-                </div>
-            `);
-            return;
-        }
-
-        // Group rows by budget_category and SUM estimated/actual across
-        // whatever project(s) match the current filter - one row per
-        // category, never repeated per project.
-        const byCategory = {};
-        rows.forEach((r) => {
-            const key = r.budget_category || "(No Category)";
-            if (!byCategory[key]) {
-                byCategory[key] = { estimated: 0, actual: 0, currency: r.currency };
-            }
-            byCategory[key].estimated += r.estimated;
-            byCategory[key].actual += r.actual;
-        });
-
-        const bodyRows = Object.keys(byCategory).map((catName) => {
-            const cat = byCategory[catName];
-            const remaining = cat.estimated - cat.actual;
-            const pct = cat.estimated ? Math.round((cat.actual / cat.estimated) * 100) : 0;
-            const barColor = pct >= 100 ? c.danger : (pct >= 80 ? c.warning : c.success);
-            const remColor = remaining < 0 ? c.danger : c.heading;
-            return `
-                <tr class="nx-category-row" style="border-top:1px solid ${c.border};">
-                    <td style="color:${c.heading}; font-weight:600;">${frappe.utils.escape_html(catName)}</td>
-                    <td style="text-align:right; color:${c.heading};">${this.fmt_money(cat.estimated, cat.currency)}</td>
-                    <td style="text-align:right; color:${c.heading};">${this.fmt_money(cat.actual, cat.currency)}</td>
-                    <td style="text-align:right; color:${remColor};">${this.fmt_money(remaining, cat.currency)}</td>
-                    <td>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <div class="nx-progress-track" style="background:${c.border};">
-                                <div class="nx-progress-fill" style="width:${Math.min(pct,100)}%; background:${barColor};"></div>
-                            </div>
-                            <span style="font-size:11px; font-weight:600; color:${barColor}; min-width:32px;">${pct}%</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join("");
-
-        $section.append(`
-            <div class="nx-section-title" style="color:${c.heading};">Budget Categories: Estimated vs Actual</div>
-            <div class="nx-table-scroll" style="background:${c.card_bg}; border:1px solid ${c.border};">
-                <table class="nx-project-table">
-                    <thead>
-                        <tr style="background:${c.page_bg};">
-                            <th style="color:${c.muted};">Category</th>
-                            <th style="text-align:right; color:${c.muted};">Estimated</th>
-                            <th style="text-align:right; color:${c.muted};">Actual</th>
-                            <th style="text-align:right; color:${c.muted};">Remaining</th>
-                            <th style="color:${c.muted};">% Used</th>
-                        </tr>
-                    </thead>
-                    <tbody>${bodyRows}</tbody>
-                </table>
-            </div>
-        `);
-    }
+	render_attention() {
+		const a = this.data.attention;
+		const body = !a.length
+			? `<div class="nx-empty">${__("Nothing needs attention right now.")}</div>`
+			: a.map((x) => `
+				<div class="nx-row nx-attn-row" ${x.overview ? this.link_attrs("Project Overview", x.overview) : this.link_attrs("Project", x.project)}>
+					<span class="nx-ellipsis"><b>${this.esc(x.project)}</b> · ${this.esc(x.label)}
+						<div class="nx-muted nx-ellipsis">${this.esc(x.project_name)}</div></span>
+					<span class="indicator-pill ${x.severity === "danger" ? "red" : "orange"}">${this.esc(x.value)}</span>
+				</div>`).join("");
+		return this.section(__("Needs attention"), a.length ? __("{0} item(s)", [a.length]) : "", `<div class="nx-box">${body}</div>`);
+	}
 }

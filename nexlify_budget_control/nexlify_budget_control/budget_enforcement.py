@@ -477,8 +477,22 @@ def _sync_project_overview(project_name):
         cost_budget = (frappe.db.get_value("Project Planning", plan, "estimation") if plan else None) \
             or frappe.db.get_value("Project", project_name, "custom_budget_cost")
         frappe.db.set_value("Project Overview", existing.name, {"cost_budget": cost_budget, "revenue_budget": plan})
+        update_overview_stored_numbers(existing.name)
     if frappe.db.get_value("Project", project_name, "custom_project_overview") != existing.name:
         frappe.db.set_value("Project", project_name, "custom_project_overview", existing.name, update_modified=False)
+
+
+def update_overview_stored_numbers(name):
+    """Recomputes the stored numbers after a direct db update (which skips validate). Approved Overviews stay frozen."""
+    doc = frappe.get_doc("Project Overview", name)
+    if doc.docstatus != 0:
+        return
+    doc.set_financials()
+    frappe.db.set_value("Project Overview", name, {
+        "planned_cost": doc.planned_cost,
+        "expected_profit": doc.expected_profit,
+        "margin_pct": doc.margin_pct,
+    }, update_modified=False)
 
 
 def _open_overview_for_plan(plan, contract_value):
@@ -503,7 +517,9 @@ def _open_overview_for_plan(plan, contract_value):
         "cost_budget": _planning_cost_budget(plan.name),
         "contract_value": contract_value,
         "workflow_state": "Pending COO Approval",
+        "pending_since": frappe.utils.now_datetime(),
     })
+    update_overview_stored_numbers(name)
     if frappe.db.get_value("Project", plan.project, "custom_project_overview") != name:
         frappe.db.set_value("Project", plan.project, "custom_project_overview", name, update_modified=False)
     return name
