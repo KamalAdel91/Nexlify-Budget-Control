@@ -27,7 +27,6 @@ if doc.sales_stage == "Closed Won":
             "company": doc.company,
             "is_active": "No",
             "customer": doc.party_name if doc.opportunity_from == "Customer" else None,
-            "expected_start_date": doc.custom_closing_date,
             "custom_opportunity": doc.name,
             "custom_project_location": doc.custom_project_location,
             "project_type": doc.custom_project_type,
@@ -43,4 +42,4 @@ if doc.sales_stage == "Closed Won":
         doc.custom_project = project.name  # keep in-memory doc in sync too
         
         # 6. Inform user of execution completion
-        frappe.msgprint(f"Success: A new project has been created starting on {doc.custom_closing_date}: <b>{project.project_name}</b>")
+        frappe.msgprint(f"Success: A new project has been created: <b>{project.project_name}</b>")

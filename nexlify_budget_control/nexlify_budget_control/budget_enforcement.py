@@ -1629,8 +1629,7 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
         if not parent:
             continue
 
-        eff_from = row.from_date or parent.from_date
-        eff_to = row.to_date or parent.to_date
+        eff_from, eff_to = _project_window(parent.project)
         msg = (
             f"Project <b>{parent.project}</b>: Budget Category <b>{row.budget_category}</b> "
             f"is only active from <b>{frappe.utils.formatdate(eff_from)}</b> to "
@@ -1725,8 +1724,10 @@ def _evaluate_budget_row(row, parent, trigger_stage, doc_date,
 
 def _recalculate_row_from_dict(row, parent, doc_date):
     accounts = get_accounts_for_category(row.get("budget_category"))
-    eff_from = getdate(row.get("from_date") or parent.get("from_date"))
-    eff_to = getdate(row.get("to_date") or parent.get("to_date"))
+    p_from, p_to = _project_window(parent.get("project"))
+    # reports on a project without a planned period show every expense
+    eff_from = getdate(p_from) if p_from else getdate("1900-01-01")
+    eff_to = getdate(p_to) if p_to else getdate("2999-12-31")
     cr = flt(parent.get("conversion_rate")) or 1.0
 
     mr_base = _get_cached_amount(
@@ -2200,7 +2201,7 @@ def _get_affected_detail_rows(budget_name, categories, doc_date):
     rows = frappe.db.sql(
         """
         SELECT d.name AS row_name, d.parent AS parent_name,
-            d.from_date, d.to_date, p.from_date AS p_from_date, p.to_date AS p_to_date
+            p.project
         FROM `tabProject Cost Budget Detail` d
         INNER JOIN `tabProject Cost Budget` p ON d.parent = p.name
         WHERE p.name = %(budget_name)s
@@ -2214,9 +2215,11 @@ def _get_affected_detail_rows(budget_name, categories, doc_date):
     in_range = set()
     out_of_range = set()
     for r in rows:
-        eff_from = getdate(r.from_date or r.p_from_date)
-        eff_to = getdate(r.to_date or r.p_to_date)
-        if eff_from <= doc_date <= eff_to:
+        eff_from, eff_to = _project_window(r.project)
+        if not (eff_from and eff_to):
+            frappe.throw(_("Project {0} has no planned period (Expected Start and End Date). "
+                           "Costs can be booked only on a project with an approved plan.").format(r.project))
+        if getdate(eff_from) <= doc_date <= getdate(eff_to):
             in_range.add((r.row_name, r.parent_name))
         else:
             out_of_range.add((r.row_name, r.parent_name))
@@ -2750,8 +2753,8 @@ def get_project_budget_dashboard(project):
         "budget_name": budget_name,
         "is_submitted": True,
         "currency": parent.currency,
-        "from_date": parent.from_date,
-        "to_date": parent.to_date,
+        "from_date": _project_window(parent.project)[0],
+        "to_date": _project_window(parent.project)[1],
         "total_estimated": total_estimated,
         "total_cumulative": total_cumulative,
         "total_remaining": total_estimated - total_cumulative,
@@ -3191,3 +3194,19 @@ def get_overview_page(overview):
     history.sort(key=lambda h: h["date"])
     out["history"] = history[-20:]
     return out
+
+
+def _project_window(project):
+    """Cost control period: the project's Expected Start / End Date, set by the approved plan."""
+    if not project:
+        return None, None
+    cache = frappe.flags.setdefault("nexlify_project_windows", {})
+    if project not in cache:
+        cache[project] = tuple(frappe.db.get_value("Project", project, ["expected_start_date", "expected_end_date"]) or (None, None))
+    return cache[project]
+
+
+def validate_project_dates(doc, method=None):
+    """An Active project must have its planned period (the approved plan sets it before activating the project)."""
+    if doc.is_active == "Yes" and not (doc.expected_start_date and doc.expected_end_date):
+        frappe.throw(_("A project can be Active only with its planned period (Expected Start and End Date, set by the approved plan)."))

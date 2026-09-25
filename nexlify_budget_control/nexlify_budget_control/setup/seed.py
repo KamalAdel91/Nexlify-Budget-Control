@@ -117,3 +117,26 @@ def copy_location_to_link_once():
 			frappe.db.sql(f"""update `tab{dt}` set custom_project_location = custom_location
 				where ifnull(custom_project_location, '') = '' and ifnull(custom_location, '') != ''""")
 	frappe.db.set_default("nexlify_location_copied", "1")
+
+
+def project_dates_from_estimation_once():
+	"""Projects that became Active before plans existed get their Estimation period as the project's
+	Expected Start / End Date, so cost control (which uses the project dates) keeps working. Once per site."""
+	if frappe.db.get_default("nexlify_project_dates_from_estimation"):
+		return
+	missing = []
+	for p in frappe.get_all("Project", filters={"is_active": "Yes"}, fields=["name", "expected_start_date", "expected_end_date"]):
+		if frappe.db.exists("Project Planning", {"project": p.name, "docstatus": 1}):
+			continue
+		if p.expected_start_date and p.expected_end_date:
+			continue
+		cb = frappe.db.get_value("Project Cost Budget", {"project": p.name, "docstatus": 1}, ["from_date", "to_date"],
+			as_dict=True, order_by="modified desc")
+		if cb and cb.from_date and cb.to_date:
+			frappe.db.set_value("Project", p.name, {"expected_start_date": cb.from_date, "expected_end_date": cb.to_date}, update_modified=False)
+		else:
+			missing.append(p.name)
+	if missing:
+		frappe.log_error(title="Nexlify: active projects without a period",
+			message="These Active projects have no plan and no submitted Estimation dates: " + ", ".join(missing))
+	frappe.db.set_default("nexlify_project_dates_from_estimation", "1")

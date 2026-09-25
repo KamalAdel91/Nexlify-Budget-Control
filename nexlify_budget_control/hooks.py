@@ -10,39 +10,42 @@ app_license = "mit"
 # ---------------------------------------------------------------------------
 
 doc_events = {
-        "*": {
-                "before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference"
-        },
-        "Material Request": {
-                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_submit",
-                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_cancel"
-        },
-        "Purchase Order": {
-                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_submit",
-                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_cancel"
-        },
-        "Purchase Invoice": {
-                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_invoice_submit",
-                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_invoice_cancel"
-        },
-    "Journal Entry": {
-                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_journal_entry_submit",
-                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_journal_entry_cancel"
-        },
-        "Expense Claim": {
-                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_submit",
-                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_cancel"
-        },
-        "Project Cost Budget": {
-                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_submit",
-                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_cancel",
+	"*": {
+		"before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference"
+	},
+	"Material Request": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_cancel"
+	},
+	"Purchase Order": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_cancel"
+	},
+	"Purchase Invoice": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_invoice_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_invoice_cancel"
+	},
+	"Journal Entry": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_journal_entry_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_journal_entry_cancel"
+	},
+	"Expense Claim": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_cancel"
+	},
+	"Project Cost Budget": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_cancel",
 		"on_update": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_update",
 		"on_update_after_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_update"
-        },
-        "Project Planning": {
-                "on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_submit",
-                "on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
-        },
+	},
+	"Project Planning": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
+	},
+	"Project": {
+		"validate": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.validate_project_dates"
+	}
 }
 
 app_include_js = [
@@ -179,6 +182,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.drop_year_from_naming_rules_once",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_locations_from_data_once",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.copy_location_to_link_once",
+	"nexlify_budget_control.nexlify_budget_control.setup.seed.project_dates_from_estimation_once",
 ]
 
 auto_cancel_exempted_doctypes = [
