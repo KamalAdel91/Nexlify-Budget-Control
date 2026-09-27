@@ -1,28 +1,30 @@
 {
  "doctype": "DocType",
- "name": "Project Equipment Scope Role",
- "module": "Nexlify Budget Control",
- "istable": 1,
  "editable_grid": 1,
  "engine": "InnoDB",
  "fields": [
   {
    "fieldname": "trade",
-   "label": "Trade",
    "fieldtype": "Link",
-   "options": "Designation",
    "in_list_view": 1,
+   "label": "Manpower Category",
+   "link_filters": "[[\"Manpower Category\",\"enabled\",\"=\",1]]",
+   "options": "Manpower Category",
    "reqd": 1
   },
   {
+   "default": "1",
    "fieldname": "count",
-   "label": "Count",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "reqd": 1,
-   "default": "1"
+   "label": "Count",
+   "reqd": 1
   }
  ],
+ "istable": 1,
+ "modified": "2026-09-27 20:00:00.000000",
+ "module": "Nexlify Budget Control",
+ "name": "Project Equipment Scope Role",
  "permissions": [],
  "sort_field": "modified",
  "sort_order": "DESC"

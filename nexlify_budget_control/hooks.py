@@ -190,6 +190,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.copy_location_to_link_once",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.project_dates_from_estimation_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
+    "nexlify_budget_control.nexlify_budget_control.designation_manpower.backfill_designation_categories",  # ONE-TIME: remove in Cleanup deploy
 ]
 
 auto_cancel_exempted_doctypes = [

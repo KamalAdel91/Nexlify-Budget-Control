@@ -45,7 +45,7 @@ function render_equipment_scope_toolbar(frm) {
 
 function build_roles_fields_grid() {
 	return [
-		{ fieldname: 'trade', fieldtype: 'Link', options: 'Designation', label: __('Trade'), reqd: 1, in_list_view: 1 },
+		{ fieldname: 'trade', fieldtype: 'Link', options: 'Manpower Category', get_query: () => ({ filters: { enabled: 1 } }), label: __('Manpower Category'), reqd: 1, in_list_view: 1 },
 		{ fieldname: 'count', fieldtype: 'Int', label: __('Count'), reqd: 1, default: 1, in_list_view: 1 }
 	];
 }

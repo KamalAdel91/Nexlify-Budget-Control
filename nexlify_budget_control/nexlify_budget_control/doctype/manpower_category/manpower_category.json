@@ -27,7 +27,7 @@
   }
  ],
  "links": [],
- "modified": "2026-09-27 12:00:00.000000",
+ "modified": "2026-09-27 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Manpower Category",
@@ -58,6 +58,30 @@
    "read": 1,
    "report": 1,
    "role": "HR User"
+  },
+  {
+   "read": 1,
+   "role": "Estimation User"
+  },
+  {
+   "read": 1,
+   "role": "Estimation Manager"
+  },
+  {
+   "read": 1,
+   "role": "Planning User"
+  },
+  {
+   "read": 1,
+   "role": "Planning Manager"
+  },
+  {
+   "read": 1,
+   "role": "COO"
+  },
+  {
+   "read": 1,
+   "role": "CEO"
   }
  ],
  "sort_field": "creation",

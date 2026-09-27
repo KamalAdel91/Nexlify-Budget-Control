@@ -1476,7 +1476,7 @@ window.ps_edit = function(name) {
 				cannot_add_rows: false, in_place_edit: false,
 				data: initial, get_data: () => initial,
 				fields: [
-					{ fieldname: 'trade', fieldtype: 'Link', options: 'Designation', label: __('Trade'), reqd: 1, in_list_view: 1,
+					{ fieldname: 'trade', fieldtype: 'Link', options: 'Manpower Category', get_query: () => ({ filters: { enabled: 1 } }), label: __('Manpower Category'), reqd: 1, in_list_view: 1,
 					  get_query: () => ({ filters: { name: ['in', est_trades] } }) },
 					{ fieldname: 'count', fieldtype: 'Int', label: __('Count'), reqd: 1, default: 1, in_list_view: 1 }
 				]

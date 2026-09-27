@@ -127,7 +127,7 @@ class ProjectCostBudget(Document):
 		seen = set()
 		for r in self.team_rates or []:
 			if r.designation in seen:
-				frappe.throw(_("Designation {0} is listed more than once in Team Daily Rates.").format(r.designation))
+				frappe.throw(_("Manpower Category {0} is listed more than once in Team Daily Rates.").format(r.designation))
 			seen.add(r.designation)
 			r.complete_salary = flt(flt(r.basic_salary) * flt(r.factor), 2)
 			r.day_rate = flt(r.complete_salary / wdm, 2)
