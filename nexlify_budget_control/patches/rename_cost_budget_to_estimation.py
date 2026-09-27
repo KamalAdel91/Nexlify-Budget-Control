@@ -18,6 +18,10 @@ def execute():
         if original and os.path.exists(get_doc_path(self.module, "doctype", old)):
             return original(self, old, new)
 
+    # Same behaviour as the rehearsal: no file writes or folder moves while renaming,
+    # even if the site runs with developer mode on
+    dev_mode = frappe.conf.developer_mode
+    frappe.conf.developer_mode = 0
     if original:
         DocType.rename_files_and_folders = move_only_if_there
     try:
@@ -25,5 +29,6 @@ def execute():
             if frappe.db.exists("DocType", old) and not frappe.db.exists("DocType", new):
                 frappe.rename_doc("DocType", old, new, force=True)
     finally:
+        frappe.conf.developer_mode = dev_mode
         if original:
             DocType.rename_files_and_folders = original
