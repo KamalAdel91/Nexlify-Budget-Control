@@ -10,6 +10,9 @@ app_license = "mit"
 # ---------------------------------------------------------------------------
 
 doc_events = {
+    "Designation": {
+        "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
+    },
 	"*": {
 		"before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference"
 	},
@@ -112,8 +115,10 @@ fixtures = [
 					"Opportunity-custom_location",
 					"Project-custom_location",
 					"Opportunity-custom_project_location",
-					"Project-custom_project_location"
-				]
+					"Project-custom_project_location",
+            "Designation-is_project_site_designation",
+            "Designation-manpower_category",
+        ]
 			]
 		]
 	},
@@ -184,6 +189,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_locations_from_data_once",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.copy_location_to_link_once",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.project_dates_from_estimation_once",
+    "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
 ]
 
 auto_cancel_exempted_doctypes = [
