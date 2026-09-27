@@ -7,7 +7,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate
 
 
-class ProjectCostBudget(Document):
+class ProjectEstimation(Document):
 	def on_trash(self):
 		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import cascade_delete_estimation
 		cascade_delete_estimation(self)
@@ -284,7 +284,7 @@ class ProjectCostBudget(Document):
 
 	def _validate_single_active_estimation(self):
 		other = frappe.db.get_value(
-			"Project Cost Budget",
+			"Project Estimation",
 			{"project": self.project, "docstatus": ["<", 2], "name": ["!=", self.name or ""]},
 			"name",
 		)

@@ -4,7 +4,7 @@
 const EXCLUDED_PROJECT_GATE_DOCTYPES = [
 	"Project",
 	"Project Planning",
-	"Project Cost Budget",
+	"Project Estimation",
 	"Project Visits",
 	"Project Invoicing",
 	"Project Overview"

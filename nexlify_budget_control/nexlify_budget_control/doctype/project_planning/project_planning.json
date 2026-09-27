@@ -179,7 +179,7 @@
    "fieldtype": "Link",
    "in_standard_filter": 1,
    "label": "Estimation",
-   "options": "Project Cost Budget",
+   "options": "Project Estimation",
    "read_only": 1
   },
   {
@@ -194,7 +194,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-22 14:22:34.528927",
+ "modified": "2026-09-27 20:50:13.203417",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Planning",

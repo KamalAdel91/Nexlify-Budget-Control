@@ -140,7 +140,7 @@ function build_overview_html(data) {
 				${status_badge(data.plan_status, __('Not Created'))}
 			</div>
 			<div class="npo-status-card">
-				<span class="npo-status-label">${data.cost_name ? `<a href="/app/project-cost-budget/${data.cost_name}" class="npo-link">${__('Estimation')}</a>` : __('Estimation')}</span>
+				<span class="npo-status-label">${data.cost_name ? `<a href="/app/project-estimation/${data.cost_name}" class="npo-link">${__('Estimation')}</a>` : __('Estimation')}</span>
 				${status_badge(data.cost_status, __('Not Created'))}
 			</div>
 		</div>

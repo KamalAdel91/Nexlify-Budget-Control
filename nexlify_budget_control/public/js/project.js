@@ -30,7 +30,7 @@ function render_budget_creation_buttons(frm) {
                     create_label: 'Create Estimation',
                     open_label: 'Open Estimation',
                     linked_field: 'custom_budget_cost',
-                    doctype: 'Project Cost Budget'
+                    doctype: 'Project Estimation'
                 });
             }
 
@@ -38,7 +38,7 @@ function render_budget_creation_buttons(frm) {
                 let estimation_submitted = false;
                 if (frm.doc.custom_budget_cost) {
                     // نتأكد من حالة الـ Cost Budget قبل ما نعرض زرار Plan
-                    frappe.db.get_value('Project Cost Budget', frm.doc.custom_budget_cost, 'docstatus').then(r2 => {
+                    frappe.db.get_value('Project Estimation', frm.doc.custom_budget_cost, 'docstatus').then(r2 => {
                         estimation_submitted = (r2.message && r2.message.docstatus === 1);
                         if (estimation_submitted) {
                             render_budget_button(frm, {
@@ -366,7 +366,7 @@ function build_dashboard_html(data, frm) {
             <div class="nbc-placeholder nbc-placeholder-bordered">
                 The linked budget (<b>${data.budget_name}</b>) has not been submitted yet.
                 <br><br>
-                <a href="/app/project-cost-budget/${data.budget_name}" style="font-weight: 600;">Open Budget &rarr;</a>
+                <a href="/app/project-estimation/${data.budget_name}" style="font-weight: 600;">Open Budget &rarr;</a>
             </div>
         `;
     }
@@ -455,7 +455,7 @@ function build_category_table(data, currency) {
         <div>
             <div class="nbc-section-title-row">
                 <span class="nbc-section-title">Budget Breakdown</span>
-                <a href="/app/project-cost-budget/${data.budget_name}" style="font-size: 12px; font-weight: 600;">${data.budget_name} &rarr;</a>
+                <a href="/app/project-estimation/${data.budget_name}" style="font-size: 12px; font-weight: 600;">${data.budget_name} &rarr;</a>
             </div>
             <div class="nbc-table-wrapper">
                 <table class="nbc-table">

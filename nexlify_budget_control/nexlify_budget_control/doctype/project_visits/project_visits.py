@@ -96,7 +96,7 @@ class ProjectVisits(Document):
 		cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost")
 		if not cost_budget:
 			frappe.throw(_("Cannot add visits: no Costing (Estimation) has been created for this project yet."))
-		if frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") != 1:
+		if frappe.db.get_value("Project Estimation", cost_budget, "docstatus") != 1:
 			frappe.throw(_("Cannot add visits: the project's Costing (Estimation) must be submitted first."))
 
 	def validate_no_overlap(self):

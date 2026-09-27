@@ -7,7 +7,7 @@ from frappe.model.document import Document
 from frappe.utils import flt, getdate
 
 
-class ProjectCostBudgetDetail(Document):
+class ProjectEstimationDetail(Document):
 	def validate(self):
 		"""Validate budget detail row before saving."""
 		self._validate_date_range()

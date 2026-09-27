@@ -6,9 +6,10 @@
  "engine": "InnoDB",
  "field_order": [
   "designation",
-  "persons",
-  "monthly_cost_per_person",
-  "cost"
+  "basic_salary",
+  "factor",
+  "complete_salary",
+  "day_rate"
  ],
  "fields": [
   {
@@ -22,26 +23,33 @@
    "reqd": 1
   },
   {
-   "default": "1",
-   "fieldname": "persons",
-   "fieldtype": "Int",
+   "fieldname": "basic_salary",
+   "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Persons",
+   "label": "Basic Salary",
+   "options": "parent.currency"
+  },
+  {
+   "default": "2",
+   "fieldname": "factor",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Factor",
    "reqd": 1
   },
   {
-   "fieldname": "monthly_cost_per_person",
+   "fieldname": "complete_salary",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Monthly Cost per Person",
+   "label": "Complete Salary",
    "options": "parent.currency",
-   "read_only_depends_on": "eval:parent.accommodation_basis != 'Custom'"
+   "read_only": 1
   },
   {
-   "fieldname": "cost",
+   "fieldname": "day_rate",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Cost",
+   "label": "Salary / Day",
    "options": "parent.currency",
    "read_only": 1
   }
@@ -50,7 +58,7 @@
  "links": [],
  "modified": "2026-09-27 20:00:00.000000",
  "module": "Nexlify Budget Control",
- "name": "Project Cost Budget Accommodation",
+ "name": "Project Estimation Rate",
  "owner": "Administrator",
  "permissions": [],
  "sort_field": "modified",

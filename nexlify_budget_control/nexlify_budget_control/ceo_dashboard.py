@@ -208,11 +208,11 @@ def _filtered_projects(company, project, extra_filters):
         proj_filters["name"] = project
     valid = {
         "Project": {f.fieldname for f in frappe.get_meta("Project").fields} | {"name", "company"},
-        "Project Cost Budget": {f.fieldname for f in frappe.get_meta("Project Cost Budget").fields} | {"company", "project"},
+        "Project Estimation": {f.fieldname for f in frappe.get_meta("Project Estimation").fields} | {"company", "project"},
     }
     for f in extra_filters or []:
         field, value = f.get("target_field"), f.get("value")
-        source = f.get("source_doctype") or "Project Cost Budget"
+        source = f.get("source_doctype") or "Project Estimation"
         if not field or not value or field not in valid.get(source, ()):
             continue
         (proj_filters if source == "Project" else cb_filters)[field] = value
@@ -220,5 +220,5 @@ def _filtered_projects(company, project, extra_filters):
         return None
     names = set(frappe.get_all("Project", filters=proj_filters, pluck="name"))
     if cb_filters:
-        names &= set(frappe.get_all("Project Cost Budget", filters={**cb_filters, "docstatus": 1}, pluck="project"))
+        names &= set(frappe.get_all("Project Estimation", filters={**cb_filters, "docstatus": 1}, pluck="project"))
     return names

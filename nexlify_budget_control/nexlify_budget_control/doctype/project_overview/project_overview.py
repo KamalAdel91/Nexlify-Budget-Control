@@ -28,8 +28,8 @@ class ProjectOverview(Document):
 		from frappe.utils import flt
 		revenue = flt(self.contract_value)
 		cost = 0
-		if self.cost_budget and frappe.db.get_value("Project Cost Budget", self.cost_budget, "docstatus") == 1:
-			cost = flt(frappe.db.get_value("Project Cost Budget", self.cost_budget, "total_cost"))
+		if self.cost_budget and frappe.db.get_value("Project Estimation", self.cost_budget, "docstatus") == 1:
+			cost = flt(frappe.db.get_value("Project Estimation", self.cost_budget, "total_cost"))
 		self.planned_cost = cost
 		self.expected_profit = revenue - cost
 		self.margin_pct = flt(self.expected_profit / revenue * 100, 2) if revenue else 0
@@ -68,7 +68,7 @@ class ProjectOverview(Document):
 		if not self.revenue_budget:
 			frappe.throw(_("Cannot approve: Plan has not been created for this project yet."))
 
-		cost_status = frappe.db.get_value("Project Cost Budget", self.cost_budget, "docstatus")
+		cost_status = frappe.db.get_value("Project Estimation", self.cost_budget, "docstatus")
 		plan_status = frappe.db.get_value("Project Planning", self.revenue_budget, "docstatus")
 
 		if cost_status != 1:

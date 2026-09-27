@@ -31,12 +31,12 @@
   {
    "child": 1,
    "collapsible": 1,
-   "filters": "[[\"Project Cost Budget\", \"docstatus\", \"=\", 0, false]]",
+   "filters": "[[\"Project Estimation\", \"docstatus\", \"=\", 0, false]]",
    "icon": "file-pen-line",
    "indent": 0,
    "keep_closed": 0,
    "label": "Draft Estimations",
-   "link_to": "Project Cost Budget",
+   "link_to": "Project Estimation",
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
@@ -44,12 +44,12 @@
   {
    "child": 1,
    "collapsible": 1,
-   "filters": "[[\"Project Cost Budget\", \"docstatus\", \"=\", 1, false]]",
+   "filters": "[[\"Project Estimation\", \"docstatus\", \"=\", 1, false]]",
    "icon": "circle-check",
    "indent": 0,
    "keep_closed": 0,
    "label": "Submitted Estimations",
-   "link_to": "Project Cost Budget",
+   "link_to": "Project Estimation",
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"

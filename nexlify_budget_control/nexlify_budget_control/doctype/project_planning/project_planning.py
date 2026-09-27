@@ -61,7 +61,7 @@ class ProjectPlanning(Document):
 		flt, cint, esc = frappe.utils.flt, frappe.utils.cint, frappe.utils.escape_html
 
 		cost_budget = _planning_cost_budget(self.name)
-		if not cost_budget or frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") != 1:
+		if not cost_budget or frappe.db.get_value("Project Estimation", cost_budget, "docstatus") != 1:
 			frappe.throw(_("The project's Estimation must be submitted before submitting the plan."),
 				title=_("Estimation not submitted"))
 
@@ -151,7 +151,7 @@ class ProjectPlanning(Document):
 				frappe.throw(_("The plan has no project."))
 			if not frappe.utils.flt(frappe.db.get_value("Project", self.project, "custom_planned_revenue")):
 				frappe.throw(_("The project's Planned Revenue (Opportunity Amount) is zero. Set it before sending the plan for approval."))
-			if not (self.contract_no_prices or frappe.db.get_value("Project Cost Budget", self.estimation, "contract_no_prices")):
+			if not (self.contract_no_prices or frappe.db.get_value("Project Estimation", self.estimation, "contract_no_prices")):
 				frappe.throw(_("The plan has no Contract. Ask the Estimation team to attach it to the Estimation."))
 			self.validate_invoice_percentage_total()
 			self.validate_execution_distribution()
@@ -168,7 +168,7 @@ class ProjectPlanning(Document):
 		if self.docstatus != 0 or self.status != "Draft" or not self.estimation:
 			return
 		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _copy_contract_to_plan
-		url = frappe.db.get_value("Project Cost Budget", self.estimation, "contract_no_prices")
+		url = frappe.db.get_value("Project Estimation", self.estimation, "contract_no_prices")
 		if (url or None) != (self.contract_no_prices or None):
 			_copy_contract_to_plan(self.name, url)
 
@@ -186,5 +186,5 @@ class ProjectPlanning(Document):
 def _active_estimation(project):
 	if not project:
 		return None
-	return (frappe.db.get_value("Project Cost Budget", {"project": project, "docstatus": 1}, "name")
+	return (frappe.db.get_value("Project Estimation", {"project": project, "docstatus": 1}, "name")
 		or frappe.db.get_value("Project", project, "custom_budget_cost"))

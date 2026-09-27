@@ -36,11 +36,11 @@ doc_events = {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_submit",
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_cancel"
 	},
-	"Project Cost Budget": {
-		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_submit",
-		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_cancel",
-		"on_update": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_update",
-		"on_update_after_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_cost_budget_update"
+	"Project Estimation": {
+		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_submit",
+		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_cancel",
+		"on_update": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update",
+		"on_update_after_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update"
 	},
 	"Project Planning": {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_submit",
@@ -63,7 +63,7 @@ doctype_js = {
         "Journal Entry": "public/js/budget_check.js",
         "Expense Claim": "public/js/budget_check.js",
         "Project": "public/js/project.js",
-        "Project Cost Budget": "public/js/project_cost_budget.js",
+        "Project Estimation": "public/js/project_estimation.js",
 }
 
 fixtures = [

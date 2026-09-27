@@ -71,7 +71,7 @@
    "fieldname": "cost_budget",
    "fieldtype": "Link",
    "label": "Estimation",
-   "options": "Project Cost Budget",
+   "options": "Project Estimation",
    "read_only": 1
   },
   {
@@ -125,47 +125,47 @@
    "fieldname": "planned_cost",
    "fieldtype": "Currency",
    "label": "Planned Cost",
-   "read_only": 1,
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "fieldname": "expected_profit",
    "fieldtype": "Currency",
    "label": "Expected Profit",
-   "read_only": 1,
    "no_copy": 1,
-   "permlevel": 1
+   "permlevel": 1,
+   "read_only": 1
   },
   {
    "fieldname": "margin_pct",
    "fieldtype": "Percent",
    "label": "Expected Margin",
-   "read_only": 1,
    "no_copy": 1,
-   "permlevel": 1
+   "permlevel": 1,
+   "read_only": 1
   },
   {
+   "description": "When it entered its current approval step.",
    "fieldname": "pending_since",
    "fieldtype": "Datetime",
    "label": "Pending Since",
-   "read_only": 1,
    "no_copy": 1,
-   "description": "When it entered its current approval step."
+   "read_only": 1
   },
   {
    "fieldname": "approved_on",
    "fieldtype": "Datetime",
    "label": "Approved On",
-   "read_only": 1,
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
+   "default": "0",
    "fieldname": "return_count",
    "fieldtype": "Int",
    "label": "Times Returned",
-   "read_only": 1,
    "no_copy": 1,
-   "default": "0"
+   "read_only": 1
   },
   {
    "allow_on_submit": 1,
@@ -198,7 +198,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-25 22:18:25.834621",
+ "modified": "2026-09-27 20:50:13.060657",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Overview",
@@ -243,19 +243,19 @@
    "write": 1
   },
   {
-   "role": "System Manager",
    "permlevel": 1,
-   "read": 1
+   "read": 1,
+   "role": "System Manager"
   },
   {
-   "role": "COO",
    "permlevel": 1,
-   "read": 1
+   "read": 1,
+   "role": "COO"
   },
   {
-   "role": "CEO",
    "permlevel": 1,
-   "read": 1
+   "read": 1,
+   "role": "CEO"
   }
  ],
  "row_format": "Dynamic",

@@ -1,7 +1,7 @@
 // Copyright (c) 2026, Kamal Adel and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Project Cost Budget", {
+frappe.ui.form.on("Project Estimation", {
 	setup: function(frm) {
 		// Set default naming series based on company
 		frm.set_query("naming_series", function() {
@@ -331,7 +331,7 @@ function render_equipment_scope_summary(frm) {
 }
 
 // ---------------------------------------------------------------------------
-// Live estimation: same formulas and rounding as the server (project_cost_budget.py)
+// Live estimation: same formulas and rounding as the server (project_estimation.py)
 // ---------------------------------------------------------------------------
 
 function pes_sync_team_rates(frm) {
@@ -564,7 +564,7 @@ function pes_render_table(frm) {
 }
 
 // Live triggers
-frappe.ui.form.on('Project Cost Budget', {
+frappe.ui.form.on('Project Estimation', {
 	working_days_per_month: function(frm) { pes_recalculate(frm); },
 	margin_percentage: function(frm) { pes_recalculate(frm); },
 	fuel_maintenance_total: function(frm) { pes_recalculate(frm); },
@@ -578,20 +578,20 @@ frappe.ui.form.on('Project Cost Budget', {
 
 function pes_row_changed(frm) { pes_recalculate(frm); }
 
-frappe.ui.form.on('Project Cost Budget Rate', {
+frappe.ui.form.on('Project Estimation Rate', {
 	designation: pes_row_changed, basic_salary: pes_row_changed, factor: pes_row_changed
 });
-frappe.ui.form.on('Project Cost Budget Accommodation', {
+frappe.ui.form.on('Project Estimation Accommodation', {
 	persons: pes_row_changed, monthly_cost_per_person: pes_row_changed
 });
-frappe.ui.form.on('Project Cost Budget Test Equipment', {
+frappe.ui.form.on('Project Estimation Test Equipment', {
 	ownership: pes_row_changed, asset_value: pes_row_changed, depreciation_months: pes_row_changed, monthly_rent: pes_row_changed
 });
-frappe.ui.form.on('Project Cost Budget Transportation', {
+frappe.ui.form.on('Project Estimation Transportation', {
 	ownership: pes_row_changed, asset_value: pes_row_changed, depreciation_months: pes_row_changed,
 	monthly_rent: pes_row_changed
 });
-frappe.ui.form.on('Project Cost Budget Other Cost', {
+frappe.ui.form.on('Project Estimation Other Cost', {
 	cost: pes_row_changed, budget_category: pes_row_changed, description: pes_row_changed
 });
 
@@ -728,6 +728,6 @@ function pes_inject_total_styles() {
 	document.head.appendChild(style);
 }
 
-frappe.ui.form.on('Project Cost Budget', {
+frappe.ui.form.on('Project Estimation', {
 	refresh: function() { pes_inject_total_styles(); }
 });

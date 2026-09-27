@@ -27,7 +27,7 @@ Purchase Invoice, Journal Entry, and Expense Claim submit.
 Master on/off switch: Projects Settings > Enable Nexlify Budget Control.
 Role bypass: Projects Settings > Role Allowed to Bypass Budget.
 Date range enforcement: a document is blocked for date-range reasons
-ONLY if there is no other Project Cost Budget Detail row for the same
+ONLY if there is no other Project Estimation Detail row for the same
 (project, budget_category) whose effective period DOES include the
 document's date.
 
@@ -40,7 +40,7 @@ bypass role) - checked before any other enforcement.
 CLIENT-SIDE PREVIEW NOTE: get_budget_check_preview runs during
 before_submit, BEFORE the document is actually saved/submitted (it is
 still Draft/docstatus=0 in the DB at that point). This means the
-stored cumulative_expense_amount on each Project Cost Budget Detail
+stored cumulative_expense_amount on each Project Estimation Detail
 row does NOT yet include this document's own pending amount - unlike
 the real backend enforcement (check_cost_budget), which runs in
 on_submit AFTER docstatus has already flipped to 1 in the DB (even
@@ -54,10 +54,10 @@ The Python-side frappe.throw messages are intentionally kept brief
 (estimated/actual/deviation only, no document tables) - the rich,
 detailed preview lives in the client-side budget_check.js dialog.
 
-PROJECT SYNC NOTE: Project Cost Budget is itself submittable.
-on_project_cost_budget_submit / on_project_cost_budget_cancel keep
+PROJECT SYNC NOTE: Project Estimation is itself submittable.
+on_project_estimation_submit / on_project_estimation_cancel keep
 Project.custom_budget_cost and Project.is_active in step with the
-lifecycle of whichever Project Cost Budget is currently linked to
+lifecycle of whichever Project Estimation is currently linked to
 the project (see those two functions below for the exact rules).
 
 IMPROVEMENTS IMPLEMENTED:
@@ -146,7 +146,7 @@ def _load_rows_batch(row_names):
     rows_data = frappe.db.sql(
         """
         SELECT *
-        FROM `tabProject Cost Budget Detail`
+        FROM `tabProject Estimation Detail`
         WHERE name IN %(names)s
         """,
         {"names": unique_rows},
@@ -158,7 +158,7 @@ def _load_rows_batch(row_names):
     parents_data = frappe.db.sql(
         """
         SELECT *
-        FROM `tabProject Cost Budget`
+        FROM `tabProject Estimation`
         WHERE name IN %(names)s
         """,
         {"names": unique_parents},
@@ -343,12 +343,12 @@ def on_expense_claim_cancel(doc, method=None):
 
 
 # ---------------------------------------------------------------------------
-# Project Cost Budget lifecycle sync (submittable doc itself)
+# Project Estimation lifecycle sync (submittable doc itself)
 # ---------------------------------------------------------------------------
 
-def on_project_cost_budget_submit(doc, method=None):
+def on_project_estimation_submit(doc, method=None):
     """
-    When a Project Cost Budget is submitted, it becomes the active
+    When a Project Estimation is submitted, it becomes the active
     budget for its project: Project.custom_budget_cost is pointed at
     this document. Activating the project itself only happens via the
     "Mark as Active" button on Project, never automatically here.
@@ -405,7 +405,7 @@ def on_project_planning_submit(doc, method=None):
     """
     When a Project Planning is submitted, it becomes the active
     planning entry for its project: Project.custom_project_planning is
-    pointed at this document. Mirrors on_project_cost_budget_submit.
+    pointed at this document. Mirrors on_project_estimation_submit.
     """
     _submit_planning_scope(doc.name)
 
@@ -429,7 +429,7 @@ def on_project_planning_cancel(doc, method=None):
     inactive - but ONLY if this cancelled document is still the one
     currently linked on the project. custom_project_planning itself is
     left untouched until a new Project Planning is submitted for
-    the same project. Mirrors on_project_cost_budget_cancel.
+    the same project. Mirrors on_project_estimation_cancel.
     """
     _cancel_planning_scope(doc.name)
 
@@ -440,14 +440,14 @@ def on_project_planning_cancel(doc, method=None):
         frappe.db.set_value("Project", doc.project, "is_active", "No")
 
 
-def on_project_cost_budget_cancel(doc, method=None):
+def on_project_estimation_cancel(doc, method=None):
     """
-    When a Project Cost Budget is cancelled, the project is marked
+    When a Project Estimation is cancelled, the project is marked
     inactive - but ONLY if this cancelled document is still the one
     currently linked on the project. custom_budget_cost itself is left
     untouched (it still points at this now-cancelled document) until a
-    new Project Cost Budget is submitted for the same project, which
-    will overwrite it via on_project_cost_budget_submit above.
+    new Project Estimation is submitted for the same project, which
+    will overwrite it via on_project_estimation_submit above.
 
     All submitted Project Equipment Scope rows linked to this Cost
     Budget are auto-cancelled at the same time, unlocking them together
@@ -557,7 +557,7 @@ def _recalculate_cost_budget_total_work_days(cost_budget):
         """,
         (cost_budget,),
     )[0][0]
-    frappe.db.set_value("Project Cost Budget", cost_budget, "total_work_days", total)
+    frappe.db.set_value("Project Estimation", cost_budget, "total_work_days", total)
     return total
 
 
@@ -568,7 +568,7 @@ def get_project_equipment_scope_rows_for_planning(project_planning):
     cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
     if not cost_budget:
         return {"rows": [], "trade_columns": []}
-    status = frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus")
+    status = frappe.db.get_value("Project Estimation", cost_budget, "docstatus")
     if status != 1:
         return {"rows": [], "trade_columns": [], "estimation_status": status, "cost_budget": cost_budget}
     return get_project_equipment_scope_rows(cost_budget)
@@ -616,7 +616,7 @@ def bulk_create_project_equipment_scope(cost_budget, rows):
     if isinstance(rows, str):
         rows = frappe.parse_json(rows)
 
-    cost_budget_status = frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus")
+    cost_budget_status = frappe.db.get_value("Project Estimation", cost_budget, "docstatus")
     if cost_budget_status == 1:
         frappe.throw(_("Cannot add Equipment Scope: the Cost Budget is already submitted."))
 
@@ -717,7 +717,7 @@ def _planning_cost_budget(project_planning):
     project = frappe.db.get_value("Project Planning", project_planning, "project")
     if not project:
         return None
-    return (frappe.db.get_value("Project Cost Budget", {"project": project, "docstatus": 1}, "name")
+    return (frappe.db.get_value("Project Estimation", {"project": project, "docstatus": 1}, "name")
             or frappe.db.get_value("Project", project, "custom_budget_cost"))
 
 
@@ -726,7 +726,7 @@ def _reconcile_planning_scope(project_planning):
     if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 0:
         return None
     cost_budget = _planning_cost_budget(project_planning)
-    if not cost_budget or frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") != 1:
+    if not cost_budget or frappe.db.get_value("Project Estimation", cost_budget, "docstatus") != 1:
         return None
     est_rows = {r.name: r for r in frappe.get_all(
         "Project Equipment Scope", filters={"cost_budget": cost_budget, "docstatus": 1}, fields=["name", "equipment"])}
@@ -818,7 +818,7 @@ def _copy_planning_scope(project_planning, reset=False):
 def auto_copy_planning_scope(project_planning):
     """Called when a new Project Planning is created: copy the submitted Estimation scope."""
     cost_budget = _planning_cost_budget(project_planning)
-    if cost_budget and frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") == 1:
+    if cost_budget and frappe.db.get_value("Project Estimation", cost_budget, "docstatus") == 1:
         _copy_planning_scope(project_planning)
 
 
@@ -857,7 +857,7 @@ def copy_estimation_to_planning_scope(project_planning, reset=0):
     if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 0:
         frappe.throw(_("The plan is not in Draft."))
     cost_budget = _planning_cost_budget(project_planning)
-    if not cost_budget or frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") != 1:
+    if not cost_budget or frappe.db.get_value("Project Estimation", cost_budget, "docstatus") != 1:
         frappe.throw(_("The project's Estimation must be submitted first."))
     return _copy_planning_scope(project_planning, reset=frappe.utils.cint(reset))
 
@@ -905,7 +905,7 @@ def get_planning_scope_rows(project_planning):
             "Project Equipment Scope", filters={"cost_budget": cost_budget, "docstatus": 1},
             fields=["name", "equipment"], order_by="creation asc") if x.name not in planned]
     return {"rows": rows, "trade_columns": trades, "missing": missing,
-            "estimation_status": frappe.db.get_value("Project Cost Budget", cost_budget, "docstatus") if cost_budget else None}
+            "estimation_status": frappe.db.get_value("Project Estimation", cost_budget, "docstatus") if cost_budget else None}
 
 
 @frappe.whitelist()
@@ -1285,7 +1285,7 @@ def get_project_overview_summary(project):
 	plan_status = frappe.db.get_value("Project Planning", plan_name, "docstatus") if plan_name else None
 
 	cost_name = proj.get("custom_budget_cost")
-	cost_status = frappe.db.get_value("Project Cost Budget", cost_name, "docstatus") if cost_name else None
+	cost_status = frappe.db.get_value("Project Estimation", cost_name, "docstatus") if cost_name else None
 
 	cost_dashboard = None
 	planned_cost = 0
@@ -1330,7 +1330,7 @@ def get_project_overview_summary(project):
 EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project Planning Scope", 
 	"Project",
 	"Project Planning",
-	"Project Cost Budget",
+	"Project Estimation",
 	"Project Visits",
 	"Project Invoicing",
 	"Project Overview",
@@ -1516,7 +1516,7 @@ def _check_category_restriction(company, project, item_accounts, doctype_name, d
 
     restricted_budgets = frappe.db.sql(
         """
-        SELECT name FROM `tabProject Cost Budget`
+        SELECT name FROM `tabProject Estimation`
         WHERE name = %(budget_name)s
             AND docstatus = 1 AND restrict_to_budget_categories = 1
         """,
@@ -1533,7 +1533,7 @@ def _check_category_restriction(company, project, item_accounts, doctype_name, d
         allowed_accounts = frappe.db.sql(
             """
             SELECT DISTINCT bca.account
-            FROM `tabProject Cost Budget Detail` d
+            FROM `tabProject Estimation Detail` d
             INNER JOIN `tabBudget Category Account` bca ON bca.parent = d.budget_category
             WHERE d.parent = %(parent)s
             """,
@@ -1602,7 +1602,7 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
     detail_rows = frappe.db.sql(
         """
         SELECT name, parent, budget_category
-        FROM `tabProject Cost Budget Detail`
+        FROM `tabProject Estimation Detail`
         WHERE name IN %(names)s
         """,
         {"names": all_row_names},
@@ -1616,7 +1616,7 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
     parent_rows = frappe.db.sql(
         """
         SELECT name, project
-        FROM `tabProject Cost Budget`
+        FROM `tabProject Estimation`
         WHERE name IN %(names)s
         """,
         {"names": all_parent_names},
@@ -1727,7 +1727,7 @@ def _evaluate_budget_row(row, parent, trigger_stage, doc_date,
             "currency": currency,
         })
         notify_project_stakeholders(
-            parent.get("project"), msg, "Project Cost Budget", parent.get("name")
+            parent.get("project"), msg, "Project Estimation", parent.get("name")
         )
 
     return violations
@@ -1821,7 +1821,7 @@ def _bulk_update_rows(updates):
     name_list = ", ".join(f"%(name_{i})s" for i in range(len(names)))
 
     sql = f"""
-        UPDATE `tabProject Cost Budget Detail`
+        UPDATE `tabProject Estimation Detail`
         SET {set_clause}
         WHERE `name` IN ({name_list})
     """
@@ -2202,7 +2202,7 @@ def _get_active_budget_name(project):
     if not budget_name:
         return None
 
-    docstatus = frappe.db.get_value("Project Cost Budget", budget_name, "docstatus")
+    docstatus = frappe.db.get_value("Project Estimation", budget_name, "docstatus")
     if docstatus != 1:
         return None
 
@@ -2217,8 +2217,8 @@ def _get_affected_detail_rows(budget_name, categories, doc_date):
         """
         SELECT d.name AS row_name, d.parent AS parent_name,
             p.project
-        FROM `tabProject Cost Budget Detail` d
-        INNER JOIN `tabProject Cost Budget` p ON d.parent = p.name
+        FROM `tabProject Estimation Detail` d
+        INNER JOIN `tabProject Estimation` p ON d.parent = p.name
         WHERE p.name = %(budget_name)s
             AND p.docstatus = 1
             AND d.budget_category IN %(categories)s
@@ -2253,7 +2253,7 @@ def _get_current_doc_amount_details(row_name, doc, trigger_stage, accounts=None,
     field is "default_account" instead of "amount"/"expense_account".
     """
     if accounts is None:
-        row = frappe.get_doc("Project Cost Budget Detail", row_name)
+        row = frappe.get_doc("Project Estimation Detail", row_name)
         accounts = set(get_accounts_for_category(row.budget_category))
 
     total_amount = 0.0
@@ -2692,7 +2692,7 @@ def get_budget_check_preview(
 def get_related_documents_page(
     company, project, pages, exclude_doctype=None, exclude_name=None
 ):
-    frappe.has_permission("Project Cost Budget", "read", throw=True)
+    frappe.has_permission("Project Estimation", "read", throw=True)
     import json
 
     if isinstance(pages, str):
@@ -2711,14 +2711,14 @@ def get_project_budget_dashboard(project):
     Numbers are recalculated live (not read from the stored cache) so the
     dashboard always reflects the current state.
     """
-    if not frappe.has_permission("Project Cost Budget", "read"):
+    if not frappe.has_permission("Project Estimation", "read"):
         return {"restricted": True}
 
     budget_name = frappe.db.get_value("Project", project, "custom_budget_cost")
     if not budget_name:
         return {"has_budget": False}
 
-    parent = frappe.get_doc("Project Cost Budget", budget_name)
+    parent = frappe.get_doc("Project Estimation", budget_name)
     if parent.docstatus != 1:
         return {
             "has_budget": True,
@@ -2786,14 +2786,14 @@ def get_project_budget_dashboard(project):
 def get_all_projects_budget_summary(company=None, project=None, extra_filters=None):
     """
     Returns one row per (project, budget category) combination, across
-    every project with an active submitted Project Cost Budget. Uses a
-    single JOINed SQL query (no N+1) - joins Project Cost Budget with
+    every project with an active submitted Project Estimation. Uses a
+    single JOINed SQL query (no N+1) - joins Project Estimation with
     Project itself, so dynamically-configured filters can target fields
     living on either doctype (e.g. "customer" lives on Project, not on
-    Project Cost Budget).
+    Project Estimation).
 
     extra_filters: optional JSON list of
-        [{"target_field": ..., "source_doctype": "Project Cost Budget" | "Project", "value": ...}, ...]
+        [{"target_field": ..., "source_doctype": "Project Estimation" | "Project", "value": ...}, ...]
     Each (source_doctype, target_field) pair is validated against that
     doctype's real fields before being used in the query, to prevent
     building SQL with an arbitrary/unsafe column name.
@@ -2810,12 +2810,12 @@ def get_all_projects_budget_summary(company=None, project=None, extra_filters=No
     extra_filters = extra_filters or []
 
     valid_fields_by_doctype = {
-        "Project Cost Budget": {f.fieldname for f in frappe.get_meta("Project Cost Budget").fields}
+        "Project Estimation": {f.fieldname for f in frappe.get_meta("Project Estimation").fields}
         | {"name", "company", "project", "docstatus"},
         "Project": {f.fieldname for f in frappe.get_meta("Project").fields}
         | {"name", "company"},
     }
-    alias_by_doctype = {"Project Cost Budget": "p", "Project": "proj"}
+    alias_by_doctype = {"Project Estimation": "p", "Project": "proj"}
 
     conditions = ["p.docstatus = 1"]
     params = {}
@@ -2828,7 +2828,7 @@ def get_all_projects_budget_summary(company=None, project=None, extra_filters=No
 
     for idx, f in enumerate(extra_filters):
         fieldname = f.get("target_field")
-        source = f.get("source_doctype") or "Project Cost Budget"
+        source = f.get("source_doctype") or "Project Estimation"
         value = f.get("value")
         if not value or not fieldname:
             continue
@@ -2851,8 +2851,8 @@ def get_all_projects_budget_summary(company=None, project=None, extra_filters=No
             d.name AS row_name, d.parent AS budget_name, d.budget_category,
             d.estimated_amount,
             p.project, p.company, p.currency, p.conversion_rate
-        FROM `tabProject Cost Budget Detail` d
-        INNER JOIN `tabProject Cost Budget` p ON d.parent = p.name
+        FROM `tabProject Estimation Detail` d
+        INNER JOIN `tabProject Estimation` p ON d.parent = p.name
         INNER JOIN `tabProject` proj ON p.project = proj.name
         WHERE {where_clause}
         ORDER BY p.project ASC
@@ -2912,7 +2912,7 @@ def get_dashboard_filter_fields():
         {
             "label": row.label,
             "target_field": row.target_field,
-            "source_doctype": row.source_doctype or "Project Cost Budget",
+            "source_doctype": row.source_doctype or "Project Estimation",
             "link_doctype": row.link_doctype,
         }
         for row in settings.dashboard_filters
@@ -3069,7 +3069,7 @@ def _copy_contract_to_plan(plan, file_url):
     frappe.db.set_value("Project Planning", plan, "contract_no_prices", file_url or None, update_modified=False)
 
 
-def on_project_cost_budget_update(doc, method=None):
+def on_project_estimation_update(doc, method=None):
     """A new or replaced contract goes to the Estimation's draft plans."""
     if not doc.has_value_changed("contract_no_prices"):
         return
@@ -3159,7 +3159,7 @@ def get_overview_page(overview):
         return {}
     out = {"overview": ov}
     out["customer_name"] = frappe.db.get_value("Customer", ov.customer, "customer_name") if ov.customer else None
-    out["currency"] = (frappe.db.get_value("Project Cost Budget", ov.cost_budget, "currency") if ov.cost_budget else None) \
+    out["currency"] = (frappe.db.get_value("Project Estimation", ov.cost_budget, "currency") if ov.cost_budget else None) \
         or (frappe.get_cached_value("Company", ov.company, "default_currency") if ov.company else None)
 
     if ov.project:
@@ -3169,7 +3169,7 @@ def get_overview_page(overview):
         out["project"] = frappe.db.get_value("Project", ov.project, fields, as_dict=True)
     if ov.cost_budget:
         out["estimation"] = frappe.db.get_value(
-            "Project Cost Budget", ov.cost_budget, ["name", "total_cost", "total_price", "margin_percentage", "docstatus"], as_dict=True)
+            "Project Estimation", ov.cost_budget, ["name", "total_cost", "total_price", "margin_percentage", "docstatus"], as_dict=True)
 
     plan = ov.revenue_budget
     visits = []

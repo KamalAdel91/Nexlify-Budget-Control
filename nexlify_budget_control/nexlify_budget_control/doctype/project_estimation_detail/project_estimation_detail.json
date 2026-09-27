@@ -121,7 +121,7 @@
  "modified": "2026-06-20 19:45:30.065695",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
- "name": "Project Cost Budget Detail",
+ "name": "Project Estimation Detail",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",

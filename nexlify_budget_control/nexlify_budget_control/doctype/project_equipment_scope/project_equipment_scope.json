@@ -34,7 +34,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Cost Budget",
-   "options": "Project Cost Budget",
+   "options": "Project Estimation",
    "reqd": 1
   },
   {
@@ -133,6 +133,8 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
+ "modified": "2026-09-27 20:50:12.709210",
+ "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Equipment Scope",
  "naming_rule": "By \"Naming Series\" field",
@@ -242,6 +244,7 @@
    "role": "System Manager"
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

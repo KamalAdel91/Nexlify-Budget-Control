@@ -3,7 +3,7 @@
 
 import frappe
 
-LINKED = ("Project Cost Budget", "Project Planning", "Project Overview")
+LINKED = ("Project Estimation", "Project Planning", "Project Overview")
 
 
 def sync_linked_documents(project=None):

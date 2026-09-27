@@ -20,11 +20,11 @@ class ProjectEquipmentScope(Document):
 	def _check_cost_budget_still_draft(self):
 		if self.flags.ignore_cost_budget_lock_check:
 			return
-		cost_budget_status = frappe.db.get_value("Project Cost Budget", self.cost_budget, "docstatus")
+		cost_budget_status = frappe.db.get_value("Project Estimation", self.cost_budget, "docstatus")
 		if cost_budget_status == 1:
 			frappe.throw(
 				_(
-					"Cannot modify this Equipment Scope because its Project Cost Budget "
+					"Cannot modify this Equipment Scope because its Project Estimation "
 					"({0}) is already submitted. Cancel the Cost Budget first if changes are needed."
 				).format(self.cost_budget)
 			)

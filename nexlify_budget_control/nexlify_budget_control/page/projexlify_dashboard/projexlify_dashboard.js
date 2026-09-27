@@ -224,7 +224,7 @@ class NexlifyCeoDashboard {
 		const last = st.length - 1;
 		const rows = st.map((s, i) => {
 			const color = i === 0 ? "var(--gray-500)" : i === 1 ? "var(--blue-500)" : i === last ? "var(--green-500)" : "var(--orange-500)";
-			const attrs = i === 0 ? this.link_attrs("Project Cost Budget")
+			const attrs = i === 0 ? this.link_attrs("Project Estimation")
 				: i === 1 ? this.link_attrs("Project Planning", null, { docstatus: 0 })
 				: this.link_attrs("Project Overview", null, { workflow_state: s.stage });
 			return `<div class="nx-bar-row" ${attrs}>

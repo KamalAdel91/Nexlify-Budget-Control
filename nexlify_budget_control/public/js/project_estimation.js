@@ -1,4 +1,4 @@
-frappe.ui.form.on('Project Cost Budget', {
+frappe.ui.form.on('Project Estimation', {
     on_submit: function(frm) {
         frappe.msgprint({
             title: 'Budget Activated',

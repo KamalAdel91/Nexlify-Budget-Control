@@ -1,5 +1,5 @@
 from frappe.model.document import Document
 
 
-class ProjectCostBudgetTestEquipment(Document):
+class ProjectEstimationOtherCost(Document):
 	pass

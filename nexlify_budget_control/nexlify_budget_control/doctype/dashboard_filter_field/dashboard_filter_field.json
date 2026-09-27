@@ -25,17 +25,17 @@
    "in_list_view": 1,
    "label": "Target Fieldname",
    "reqd": 1,
-   "description": "Exact fieldname on Project Cost Budget to filter by, e.g. \"customer\" or \"company\""
+   "description": "Exact fieldname on Project Estimation to filter by, e.g. \"customer\" or \"company\""
   },
   {
    "fieldname": "source_doctype",
    "fieldtype": "Select",
    "label": "Filter On",
-   "options": "Project Cost Budget\nProject",
-   "default": "Project Cost Budget",
+   "options": "Project Estimation\nProject",
+   "default": "Project Estimation",
    "reqd": 1,
    "in_list_view": 1,
-   "description": "Where does this field actually live? Fields like \"customer\" live on Project, not Project Cost Budget."
+   "description": "Where does this field actually live? Fields like \"customer\" live on Project, not Project Estimation."
   },
   {
    "fieldname": "link_doctype",

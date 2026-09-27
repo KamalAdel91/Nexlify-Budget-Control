@@ -1220,7 +1220,7 @@
   "name": "Project-custom_budget_cost",
   "no_copy": 0,
   "non_negative": 0,
-  "options": "Project Cost Budget",
+  "options": "Project Estimation",
   "permlevel": 0,
   "placeholder": null,
   "precision": "",

@@ -143,14 +143,14 @@
    "fieldname": "details",
    "fieldtype": "Table",
    "label": "Budget Details",
-   "options": "Project Cost Budget Detail"
+   "options": "Project Estimation Detail"
   },
   {
    "fieldname": "amended_from",
    "fieldtype": "Link",
    "label": "Amended From",
    "no_copy": 1,
-   "options": "Project Cost Budget",
+   "options": "Project Estimation",
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
@@ -213,7 +213,7 @@
    "description": "Filled automatically from the roles in the Equipment Scope. Enter Basic Salary and Factor.",
    "fieldname": "team_rates",
    "fieldtype": "Table",
-   "options": "Project Cost Budget Rate"
+   "options": "Project Estimation Rate"
   },
   {
    "collapsible": 1,
@@ -224,7 +224,7 @@
   {
    "fieldname": "other_costs",
    "fieldtype": "Table",
-   "options": "Project Cost Budget Other Cost"
+   "options": "Project Estimation Other Cost"
   },
   {
    "fieldname": "pricing_section",
@@ -310,7 +310,7 @@
   {
    "fieldname": "accommodation",
    "fieldtype": "Table",
-   "options": "Project Cost Budget Accommodation"
+   "options": "Project Estimation Accommodation"
   },
   {
    "collapsible": 1,
@@ -321,7 +321,7 @@
   {
    "fieldname": "test_equipment",
    "fieldtype": "Table",
-   "options": "Project Cost Budget Test Equipment"
+   "options": "Project Estimation Test Equipment"
   },
   {
    "collapsible": 1,
@@ -332,7 +332,7 @@
   {
    "fieldname": "transportation",
    "fieldtype": "Table",
-   "options": "Project Cost Budget Transportation"
+   "options": "Project Estimation Transportation"
   },
   {
    "fieldname": "column_break_work_days",
@@ -442,10 +442,10 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-24 03:11:49.889848",
+ "modified": "2026-09-27 20:50:10.973749",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
- "name": "Project Cost Budget",
+ "name": "Project Estimation",
  "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
