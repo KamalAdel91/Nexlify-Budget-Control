@@ -731,18 +731,3 @@ function pes_inject_total_styles() {
 frappe.ui.form.on('Project Cost Budget', {
 	refresh: function() { pes_inject_total_styles(); }
 });
-
-// Test Equipment: fill defaults from the list when chosen; values stay editable per Estimation.
-frappe.ui.form.on('Project Cost Budget Test Equipment', {
-	description(frm, cdt, cdn) {
-		const row = locals[cdt][cdn];
-		if (!row.description) return;
-		const fields = ['ownership', 'asset_value', 'depreciation_months', 'monthly_rent'];
-		frappe.db.get_value('Test Equipment', row.description, fields).then(r => {
-			const v = (r && r.message) || {};
-			fields.forEach(f => {
-				if (v[f] !== undefined && v[f] !== null) frappe.model.set_value(cdt, cdn, f, v[f]);
-			});
-		});
-	},
-});
