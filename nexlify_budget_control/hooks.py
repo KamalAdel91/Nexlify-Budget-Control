@@ -112,8 +112,6 @@ fixtures = [
 					"Opportunity-custom_maintenance_nature",
 					"Opportunity-custom_maintenance_type",
 					"Opportunity-custom_project_type",
-					"Opportunity-custom_location",
-					"Project-custom_location",
 					"Opportunity-custom_project_location",
 					"Project-custom_project_location",
             "Designation-is_project_site_designation",
@@ -185,10 +183,6 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.merge_standard_into_custom_perms",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
-	"nexlify_budget_control.nexlify_budget_control.setup.seed.drop_year_from_naming_rules_once",
-	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_locations_from_data_once",
-	"nexlify_budget_control.nexlify_budget_control.setup.seed.copy_location_to_link_once",
-	"nexlify_budget_control.nexlify_budget_control.setup.seed.project_dates_from_estimation_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
 ]
 
