@@ -1,14 +1,15 @@
 import frappe
 from frappe import _
 
-DEFAULT_DESIGNATION_MAP = {"Engineer": "Engineers", "Technician": "Technicians", "Driver": "Driver"}
-
-MANPOWER_CATEGORIES = ["Engineers", "Technicians", "Safety", "Driver", "Supervisor", "Labor"]
+MANPOWER_CATEGORIES = ["Engineer", "Technician", "Safety", "Driver", "Supervisor", "Labor"]
 
 
 def seed_manpower_categories():
-    """Adds missing categories only; edits made from the UI are kept."""
+    """Runs once per site; later renames, deletes and additions from the UI are kept."""
     if not frappe.db.table_exists("Manpower Category"):
+        return
+    if frappe.db.get_default("nexlify_manpower_categories_seeded") or frappe.db.count("Manpower Category"):
+        frappe.db.set_default("nexlify_manpower_categories_seeded", 1)
         return
     for name in MANPOWER_CATEGORIES:
         if not frappe.db.exists("Manpower Category", name):
@@ -17,6 +18,7 @@ def seed_manpower_categories():
                 "category_name": name,
                 "enabled": 1,
             }).insert(ignore_permissions=True)
+    frappe.db.set_default("nexlify_manpower_categories_seeded", 1)
 
 
 def validate_designation(doc, method=None):
@@ -28,17 +30,3 @@ def validate_designation(doc, method=None):
             _("Manpower Category is required for Project / Site designations."),
             title=_("Missing Manpower Category"),
         )
-
-
-def backfill_designation_categories():
-    """ONE-TIME (remove in Cleanup deploy): fills the category on known Designations, empty fields only."""
-    if not frappe.db.has_column("Designation", "manpower_category"):
-        return
-    for designation, category in DEFAULT_DESIGNATION_MAP.items():
-        if not frappe.db.exists("Designation", designation) or not frappe.db.exists("Manpower Category", category):
-            continue
-        if frappe.db.get_value("Designation", designation, "manpower_category"):
-            continue
-        frappe.db.set_value("Designation", designation,
-                            {"is_project_site_designation": 1, "manpower_category": category})
-
