@@ -253,6 +253,18 @@
    "type": "Link"
   },
   {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "folder",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Test Equipment",
+   "link_to": "Test Equipment",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
    "child": 0,
    "collapsible": 1,
    "indent": 0,
@@ -275,7 +287,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-27 18:52:04.620110",
+ "modified": "2026-09-27 19:47:16.783489",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "CEO",

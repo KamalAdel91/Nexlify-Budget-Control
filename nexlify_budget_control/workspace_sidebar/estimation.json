@@ -113,6 +113,18 @@
    "type": "Link"
   },
   {
+   "child": 1,
+   "collapsible": 1,
+   "icon": "group",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Test Equipment",
+   "link_to": "Test Equipment",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
    "child": 0,
    "collapsible": 1,
    "icon": "folder",
@@ -125,7 +137,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-27 18:52:04.535781",
+ "modified": "2026-09-27 19:47:16.642809",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Estimation",
