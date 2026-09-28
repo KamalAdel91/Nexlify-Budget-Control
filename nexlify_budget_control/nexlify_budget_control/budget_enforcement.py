@@ -3159,7 +3159,12 @@ def get_overview_page(overview):
          "workflow_state", "docstatus", "company", "return_reason"], as_dict=True)
     if not ov:
         return {}
-    out = {"overview": ov}
+    doc = frappe.get_doc("Project Overview", overview)
+    access = {"contract": bool(doc.has_permlevel_access_to("contract_value")),
+              "profit": bool(doc.has_permlevel_access_to("expected_profit"))}
+    if not access["contract"]:
+        ov.contract_value = None
+    out = {"overview": ov, "access": access}
     out["customer_name"] = frappe.db.get_value("Customer", ov.customer, "customer_name") if ov.customer else None
     out["currency"] = (frappe.db.get_value("Project Estimation", ov.cost_budget, "currency") if ov.cost_budget else None) \
         or (frappe.get_cached_value("Company", ov.company, "default_currency") if ov.company else None)
@@ -3171,7 +3176,7 @@ def get_overview_page(overview):
         out["project"] = frappe.db.get_value("Project", ov.project, fields, as_dict=True)
     if ov.cost_budget:
         out["estimation"] = frappe.db.get_value(
-            "Project Estimation", ov.cost_budget, ["name", "total_cost", "total_price", "margin_percentage", "docstatus"], as_dict=True)
+            "Project Estimation", ov.cost_budget, ["name", "docstatus"] + (["total_cost", "total_price", "margin_percentage"] if access["profit"] else []), as_dict=True)
 
     plan = ov.revenue_budget
     visits = []
@@ -3182,7 +3187,7 @@ def get_overview_page(overview):
         out["visits"] = _enrich_overview_visits(visits)
 
         inv_meta = frappe.get_meta("Project Invoicing")
-        extra = [f for f in ("title", "invoice_title", "description", "invoice_date", "due_date", "status") if inv_meta.has_field(f)]
+        extra = [f for f in ("title", "invoice_title", "description", "invoice_date", "due_date", "expected_invoice_date", "actual_date", "status") if inv_meta.has_field(f)]
         invoices = frappe.get_all("Project Invoicing", filters={"project_planning": plan},
                                   fields=["name", "invoice_percentage"] + extra, order_by="creation asc")
         has_visit_table = any(t.options == "Project Invoicing Visit" for t in inv_meta.get_table_fields())

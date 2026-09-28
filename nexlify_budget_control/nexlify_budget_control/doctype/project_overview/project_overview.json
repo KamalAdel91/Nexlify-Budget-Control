@@ -5,40 +5,53 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "naming_series",
+  "banner_section",
+  "banner_html",
+  "project_section",
   "project",
+  "customer",
+  "company",
+  "column_break_twmw",
+  "revenue_budget",
+  "cost_budget",
+  "naming_series",
+  "deal_section",
+  "deal_html",
   "contract_value",
   "planned_cost",
   "expected_profit",
   "margin_pct",
+  "scope_section",
+  "scope_html",
+  "schedule_section",
+  "schedule_html",
+  "invoicing_section",
+  "invoicing_html",
+  "approval_section",
   "pending_since",
   "approved_on",
+  "column_break_appr",
   "return_count",
   "return_reason",
   "amended_from",
-  "column_break_twmw",
-  "company",
-  "customer",
-  "section_break_ldgx",
-  "revenue_budget",
-  "column_break_gjxd",
-  "cost_budget",
-  "overview_section",
-  "overview_html",
-  "scope_section",
-  "scope_html",
+  "history_section",
+  "history_html",
   "workflow_state"
  ],
  "fields": [
   {
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "label": "Naming Series",
-   "no_copy": 1,
-   "options": ".ABBR.-OV-.####",
-   "print_hide": 1,
-   "reqd": 1,
-   "set_only_once": 1
+   "fieldname": "banner_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "banner_html",
+   "fieldtype": "HTML",
+   "label": "Status"
+  },
+  {
+   "fieldname": "project_section",
+   "fieldtype": "Section Break",
+   "label": "Project"
   },
   {
    "fieldname": "project",
@@ -51,6 +64,14 @@
    "reqd": 1
   },
   {
+   "fetch_from": "project.customer",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
    "fetch_from": "project.company",
    "fieldname": "company",
    "fieldtype": "Link",
@@ -60,11 +81,14 @@
    "reqd": 1
   },
   {
-   "fetch_from": "project.customer",
-   "fieldname": "customer",
+   "fieldname": "column_break_twmw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "revenue_budget",
    "fieldtype": "Link",
-   "label": "Customer",
-   "options": "Customer",
+   "label": "Plan",
+   "options": "Project Planning",
    "read_only": 1
   },
   {
@@ -75,43 +99,26 @@
    "read_only": 1
   },
   {
-   "fieldname": "revenue_budget",
-   "fieldtype": "Link",
-   "label": "Plan",
-   "options": "Project Planning",
-   "read_only": 1
-  },
-  {
-   "fieldname": "amended_from",
-   "fieldtype": "Link",
-   "label": "Amended From",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
    "no_copy": 1,
-   "options": "Project Overview",
+   "options": ".ABBR.-OV-.####",
    "print_hide": 1,
-   "read_only": 1,
-   "search_index": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
-   "fieldname": "column_break_twmw",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "section_break_ldgx",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "column_break_gjxd",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "overview_section",
+   "fieldname": "deal_section",
    "fieldtype": "Section Break",
-   "label": "Overview"
+   "label": "The Deal",
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:1"
   },
   {
-   "fieldname": "overview_html",
+   "fieldname": "deal_html",
    "fieldtype": "HTML",
-   "label": "Overview"
+   "label": "The Deal"
   },
   {
    "description": "From the Project's Planned Revenue (Opportunity Amount).",
@@ -119,14 +126,16 @@
    "fieldname": "contract_value",
    "fieldtype": "Currency",
    "label": "Contract Value",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "planned_cost",
    "fieldtype": "Currency",
    "label": "Planned Cost",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "expected_profit",
@@ -134,7 +143,8 @@
    "label": "Expected Profit",
    "no_copy": 1,
    "permlevel": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "margin_pct",
@@ -142,7 +152,46 @@
    "label": "Expected Margin",
    "no_copy": 1,
    "permlevel": 1,
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Scope: Plan vs Estimation",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "scope_html",
+   "fieldtype": "HTML",
+   "label": "Scope"
+  },
+  {
+   "fieldname": "schedule_section",
+   "fieldtype": "Section Break",
+   "label": "Schedule",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "schedule_html",
+   "fieldtype": "HTML",
+   "label": "Schedule"
+  },
+  {
+   "fieldname": "invoicing_section",
+   "fieldtype": "Section Break",
+   "label": "Invoicing",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "invoicing_html",
+   "fieldtype": "HTML",
+   "label": "Invoicing"
+  },
+  {
+   "fieldname": "approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval"
   },
   {
    "description": "When it entered its current approval step.",
@@ -160,21 +209,16 @@
    "read_only": 1
   },
   {
+   "fieldname": "column_break_appr",
+   "fieldtype": "Column Break"
+  },
+  {
    "default": "0",
    "fieldname": "return_count",
    "fieldtype": "Int",
    "label": "Times Returned",
    "no_copy": 1,
    "read_only": 1
-  },
-  {
-   "allow_on_submit": 1,
-   "fieldname": "workflow_state",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "label": "Workflow State",
-   "no_copy": 1,
-   "options": "Workflow State"
   },
   {
    "depends_on": "eval:doc.docstatus == 0 && doc.return_reason",
@@ -185,20 +229,40 @@
    "read_only": 1
   },
   {
-   "fieldname": "scope_section",
-   "fieldtype": "Section Break",
-   "label": "Scope: Plan vs Estimation"
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Project Overview",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
   },
   {
-   "fieldname": "scope_html",
+   "fieldname": "history_section",
+   "fieldtype": "Section Break",
+   "label": "History",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "history_html",
    "fieldtype": "HTML",
-   "label": "Scope"
+   "label": "History"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Workflow State",
+   "no_copy": 1,
+   "options": "Workflow State"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-27 20:50:13.060657",
+ "modified": "2026-09-28 03:35:41.855142",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Overview",
