@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "category_name",
+  "sort_order",
   "enabled"
  ],
  "fields": [
@@ -24,10 +25,17 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Enabled"
+  },
+  {
+   "description": "Order of the category in the Estimation tables. Picking a number used by another category swaps the two.",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sort"
   }
  ],
  "links": [],
- "modified": "2026-09-27 20:00:00.000000",
+ "modified": "2026-09-28 17:00:00.000000",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Manpower Category",
@@ -84,7 +92,7 @@
    "role": "CEO"
   }
  ],
- "sort_field": "creation",
+ "sort_field": "sort_order",
  "sort_order": "ASC",
  "states": [],
  "title_field": "category_name",
