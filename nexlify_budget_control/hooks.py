@@ -59,6 +59,7 @@ doc_events = {
 app_include_css = ["/assets/nexlify_budget_control/css/nexlify_budget_control.css"]
 
 app_include_js = [
+	"/assets/nexlify_budget_control/js/manpower_order.js",
 	"/assets/nexlify_budget_control/js/global_project_filter.js",
 	"/assets/nexlify_budget_control/js/disable_project_cost_center_autofetch.js"]
 
@@ -210,3 +211,5 @@ after_install = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 ]
+
+boot_session = "nexlify_budget_control.nexlify_budget_control.manpower.boot_session"

@@ -1,3 +1,4 @@
+window.nexlify = window.nexlify || {}; nexlify.sort_trades = nexlify.sort_trades || ((l) => (l || []).slice()); nexlify.trade_cmp = nexlify.trade_cmp || (() => 0); nexlify.trade_color = nexlify.trade_color || (() => "#64748B");
 // Copyright (c) 2026, Kamal Adel and contributors
 // For license information, please see license.txt
 
@@ -87,7 +88,7 @@ function render_overview_summary(frm) {
 	]).then(([a, b]) => {
 		const scope = (b && b.message) || {};
 		const parts = pop_page_html(frm, (a && a.message) || {}, scope);
-		['banner', 'deal', 'schedule', 'invoicing', 'history'].forEach(k => put(k, parts[k] || ''));
+		['banner', 'deal', 'cost', 'schedule', 'invoicing', 'history'].forEach(k => put(k, parts[k] || ''));
 		pov_put_scope(frm, scope);
 		const f = frm.fields_dict.banner_html;
 		if (!f) return;
@@ -116,7 +117,7 @@ function pov_put_scope(frm, data) {
 }
 
 function pov_scope_differ(data) {
-	const trades = data.trades || [];
+	const trades = nexlify.sort_trades(data.trades || []);
 	return (data.comparison || []).filter(r => {
 		if (r.not_planned || r.not_in_estimation) return true;
 		const e = r.est || {}, p = r.plan || {};
@@ -198,7 +199,7 @@ function build_visits_section(visits) {
 		const equipment = (v.equipment || []).length
 			? (v.equipment || []).map(a => `<div>${esc(a.equipment || '')} <span class="text-muted">× ${flt(a.quantity, 2)}</span></div>`).join('')
 			: `<span class="text-muted">${__('No equipment')}</span>`;
-		const team = (v.team || []).filter(t => cint(t.headcount) > 0);
+		const team = (v.team || []).filter(t => cint(t.headcount) > 0).sort((a, b) => nexlify.trade_cmp(a.trade, b.trade));
 		const team_html = team.length
 			? `<div class="pov-crew-list">${team.map(t => `<span class="pov-crew"><span class="pov-crew-n">${cint(t.headcount)}</span><span class="pov-crew-t">${esc(t.trade || '')}</span></span>`).join('')}</div>`
 			: `<span class="text-muted">${__('No team')}</span>`;
@@ -434,92 +435,103 @@ function pov_render_scope(frm) {
 function pov_scope_html(data) {
 	pop_inject_styles();
 	const esc = frappe.utils.escape_html;
-	const trades = data.trades || [];
+	const trades = nexlify.sort_trades(data.trades || []);
 	const rows = data.comparison || [];
 	const num = v => flt(v, 2);
 	if (!rows.length) return `<div class="pop-empty">${__('The Estimation and the Plan have no equipment yet.')}</div>`;
 
-	const delta = (p, e) => {
-		const d = flt(flt(p) - flt(e), 2);
-		return d ? ` <span class="pov-delta ${d > 0 ? 'over' : 'under'}">${d > 0 ? '+' : '−'}${num(Math.abs(d))}</span>` : '';
+	const pick = (r, k) => (k === 'est' ? (r.not_in_estimation ? null : (r.est || {})) : (r.not_planned ? null : (r.plan || {})));
+	const days_of = x => x ? (x.total_days != null ? flt(x.total_days) : flt(x.quantity) * flt(x.days_per_equipment)) : 0;
+	const role = (x, t) => x ? cint((x.roles || {})[t]) : 0;
+	const sum = (k, fn) => rows.reduce((s, r) => { const x = pick(r, k); return s + (x ? flt(fn(x)) : 0); }, 0);
+	const same = (a, b) => flt(a, 2) === flt(b, 2);
+	const arrow = (p, e) => (flt(p, 2) > flt(e, 2) ? ' ↑' : flt(p, 2) < flt(e, 2) ? ' ↓' : '');
+	const diff = (p, e, pct) => {
+		const d = flt(p - e, 2);
+		if (!d) return `<span class="psc-same">${__('no change')}</span>`;
+		const sg = d > 0 ? '+' : '−';
+		return `<span class="psc-d">${sg}${num(Math.abs(d))}${pct && e ? ` (${sg}${Math.abs(Math.round(d / e * 100))}%)` : ''}</span>`;
 	};
-	const chip = (text, k) => `<span class="pov-chip ${k}">${text}</span>`;
 	const status = r => {
-		if (r.not_planned) return chip(__('Not planned'), 'under');
-		if (r.not_in_estimation) return chip(__('Not in the Estimation'), 'over');
-		const e = r.est, p = r.plan, out = [];
+		if (r.not_planned) return [__('Not planned')];
+		if (r.not_in_estimation) return [__('Not in the Estimation')];
+		const e = r.est || {}, p = r.plan || {}, out = [];
 		const move = (pv, ev, less, more) => {
-			if (flt(pv) < flt(ev)) out.push(chip(less, 'under'));
-			else if (flt(pv) > flt(ev)) out.push(chip(more, 'over'));
+			if (flt(pv) < flt(ev)) out.push(less);
+			else if (flt(pv) > flt(ev)) out.push(more);
 		};
 		move(p.quantity, e.quantity, __('Fewer units'), __('More units'));
 		move(p.days_per_equipment, e.days_per_equipment, __('Fewer days per unit'), __('More days per unit'));
 		trades.forEach(t => {
-			const pc = cint((p.roles || {})[t]), ec = cint((e.roles || {})[t]);
-			if (ec && !pc) out.push(chip(__('{0} removed', [esc(t)]), 'under'));
-			else if (!ec && pc) out.push(chip(__('{0} added', [esc(t)]), 'over'));
-			else move(pc, ec, __('Fewer {0}', [esc(t)]), __('More {0}', [esc(t)]));
+			const pc = role(p, t), ec = role(e, t);
+			if (ec && !pc) out.push(__('{0} removed', [esc(t)]));
+			else if (!ec && pc) out.push(__('{0} added', [esc(t)]));
 		});
-		return out.join(' ');
+		return out;
+	};
+	const pair = (r, f) => {
+		const e = pick(r, 'est'), p = pick(r, 'plan');
+		const ev = e ? (f === 'total_days' ? days_of(e) : flt(e[f])) : null;
+		const pv = p ? (f === 'total_days' ? days_of(p) : flt(p[f])) : null;
+		const est = `<td class="e">${ev === null ? '—' : num(ev)}</td>`;
+		if (pv === null) return est + `<td class="x">—</td>`;
+		if (ev === null || !same(ev, pv)) return est + `<td class="x">${num(pv)}${ev === null ? '' : arrow(pv, ev)}</td>`;
+		return est + `<td class="p">${num(pv)}</td>`;
+	};
+	const crew = r => {
+		const e = pick(r, 'est'), p = pick(r, 'plan');
+		const items = trades.map(t => {
+			const ec = role(e, t), pc = role(p, t);
+			if (!ec && !pc) return '';
+			const dot = `<i style="background:${nexlify.trade_color(t)}"></i>`;
+			return ec === pc ? `<span>${dot}${pc} ${esc(t)}</span>` : `<span class="ch">${dot}${esc(t)} ${ec} → ${pc}</span>`;
+		}).filter(Boolean);
+		return items.length ? `<div class="psc-crew">${items.join('')}</div>` : `<span class="e">${__('No crew')}</span>`;
 	};
 
-	let differ = 0;
-	const table = mode => {
-		const list = mode === 'est' ? rows.filter(r => !r.not_in_estimation) : mode === 'plan' ? rows.filter(r => !r.not_planned) : rows;
-		const side = (r, which) => (which === 'est' ? r.est : r.plan) || {};
-		const cell = (p, e) => {
-			if (mode !== 'cmp') return `<td class="num">${num(mode === 'est' ? e : p)}</td>`;
-			return `<td class="num${flt(p, 2) !== flt(e, 2) ? ' diff' : ''}">${num(p)}${delta(p, e)}</td>`;
-		};
-		const crew = r => {
-			const parts = trades.map(t => {
-				const p = cint((side(r, 'plan').roles || {})[t]), e = cint((side(r, 'est').roles || {})[t]);
-				if (mode === 'est') return e ? `${e} ${esc(t)}` : '';
-				if (mode === 'plan') return p ? `${p} ${esc(t)}` : '';
-				if (!p && !e) return '';
-				if (!p) return `<span class="pop-strike">${e} ${esc(t)}</span>`;
-				return `${p} ${esc(t)}${delta(p, e)}`;
-			}).filter(Boolean);
-			return parts.length ? parts.map(x => `<span class="pop-c">${x}</span>`).join('') : __('No crew');
-		};
-		const body = list.map(r => {
-			const st = mode === 'cmp' ? status(r) : '';
-			if (st) differ++;
-			const g = (fn) => cell(fn(side(r, 'plan')), fn(side(r, 'est')));
-			return `<tr>
-				<td><div class="b">${esc(r.equipment || '')}</div>${st ? `<div class="pop-chips">${st}</div>` : ''}</td>
-				${g(x => x.quantity)}${g(x => x.days_per_equipment)}${g(x => x.total_days)}
-				<td class="sub">${crew(r)}</td>
-			</tr>`;
-		}).join('');
-		const sum = (which, fn) => list.reduce((s, r) => s + flt(fn(side(r, which))), 0);
-		const tcell = fn => cell(sum('plan', fn), sum('est', fn));
-		const pd = trades.map(t => {
-			const f = x => flt(x.total_days) * flt((x.roles || {})[t]);
-			const v = sum(mode === 'est' ? 'est' : 'plan', f);
-			const d = mode === 'cmp' ? delta(v, sum('est', f)) : '';
-			return (v || d) ? `${num(v)} ${esc(t)}${d}` : '';
-		}).filter(Boolean).join(' · ');
-		const foot = `<tr class="tot"><td>${__('Total')}</td>${tcell(x => x.quantity)}<td></td>${tcell(x => x.total_days)}
-			<td class="sub">${pd ? __('{0} person-days', [pd]) : ''}</td></tr>`;
-		return pop_table([__('Equipment'), [__('Units'), 'num'], [__('Days per unit'), 'num'], [__('Total days'), 'num'], __('Crew')], body + foot);
+	const body = rows.map(r => {
+		const st = status(r);
+		return `<tr>
+			<td class="l"><div class="nm">${esc(r.equipment || '')}</div>${st.length ? `<div class="tag">${st.join(' · ')}</div>` : ''}</td>
+			${pair(r, 'quantity')}${pair(r, 'days_per_equipment')}${pair(r, 'total_days')}
+			<td class="l">${crew(r)}</td>
+		</tr>`;
+	}).join('');
+	const eu = sum('est', x => x.quantity), pu = sum('plan', x => x.quantity);
+	const ed = sum('est', days_of), pdays = sum('plan', days_of);
+	const foot = `<tr class="t"><td class="l">${__('Total')}</td>
+		<td class="e">${num(eu)}</td><td class="${same(eu, pu) ? '' : 'x'}">${num(pu)}</td><td></td><td></td>
+		<td class="e">${num(ed)}</td><td class="${same(ed, pdays) ? '' : 'x'}">${num(pdays)}</td><td></td></tr>`;
+
+	const pd = trades.map(t => ({ t, e: sum('est', x => days_of(x) * role(x, t)), p: sum('plan', x => days_of(x) * role(x, t)) }))
+		.filter(x => x.e || x.p);
+	const pe = pd.reduce((s, x) => s + x.e, 0), pp = pd.reduce((s, x) => s + x.p, 0);
+	const differ = pov_scope_differ(data);
+	const cell = (l, v, of, sub, extra) => `<div><div class="l">${l}</div><div class="v">${v}<span>${of}</span></div>${sub ? `<div class="s">${sub}</div>` : ''}${extra || ''}</div>`;
+	const trend = (p, e) => {
+		const d = flt(p - e, 2);
+		if (!d) return `<span class="psc-same">${__('Same as the Estimation')}</span>`;
+		return `<span class="psc-d">${d < 0 ? '↓' : '↑'} ${num(Math.abs(d))} ${d < 0 ? __('less') : __('more')}${e ? ` · ${Math.abs(Math.round(d / e * 100))}%` : ''}</span>`;
 	};
-
-	const panels = ['cmp', 'est', 'plan'].map((m, i) => `<div class="pov-panel ${i ? '' : 'active'}" data-panel="${m}">${table(m)}</div>`).join('');
-	const pill = differ
-		? `<span class="pop-pill warn">${__('{0} equipment differ from the Estimation', [differ])}</span>`
-		: `<span class="pop-pill ok">${__('All {0} equipment match the Estimation', [rows.length])}</span>`;
-
-	return `<div class="pov-card">
-		<div class="pov-bar">
-			<div class="pov-tabs">
-				<button class="pov-tab active" data-tab="cmp">${__('Comparison')}</button>
-				<button class="pov-tab" data-tab="est">${__('Estimation')}</button>
-				<button class="pov-tab" data-tab="plan">${__('Plan')}</button>
-			</div>
-			${pill}
-		</div>
-		${panels}
+	const meter = (p, e) => `<div class="m"><span style="width:${e ? Math.min(100, p / e * 100) : 0}%"></span></div>`;
+	const dots = `<div class="dots">${rows.map(r => `<i class="${status(r).length ? 'c' : ''}" title="${esc(r.equipment || '')}"></i>`).join('')}</div>`;
+	const matching = rows.length - differ;
+	const summary = `<div class="psc-box"><div class="psc-sum">
+		${cell(__('Total work days'), num(pdays), __('of {0}', [num(ed)]), trend(pdays, ed), meter(pdays, ed))}
+		${pd.length ? cell(__('Person-days'), num(pp), __('of {0}', [num(pe)]), trend(pp, pe), meter(pp, pe)) : ''}
+		${cell(__('Equipment changed'), differ, __('of {0}', [rows.length]),
+			differ ? `<span class="psc-d">${matching === 1 ? __('1 matches the Estimation') : __('{0} match the Estimation', [matching])}</span>`
+				: `<span class="psc-same">${__('All match the Estimation')}</span>`, dots)}
+	</div></div>`;
+	const pd_line = pd.length ? `<div class="psc-pd"><span class="lb">${__('Person-days')}</span>${pd.map(x => `
+		<span><i style="background:${nexlify.trade_color(x.t)}"></i>${esc(x.t)} <b class="${same(x.p, x.e) ? '' : 'x'}">${num(x.p)}</b> <span class="e">${__('of {0}', [num(x.e)])}</span></span>`).join('')}</div>` : '';
+	const head = `<thead>
+		<tr class="grp"><th></th><th colspan="2">${__('Units')}</th><th colspan="2">${__('Days per unit')}</th><th colspan="2">${__('Total days')}</th><th></th></tr>
+		<tr><th class="l">${__('Equipment')}</th><th>${__('Est.')}</th><th>${__('Plan')}</th><th>${__('Est.')}</th><th>${__('Plan')}</th>
+			<th>${__('Est.')}</th><th>${__('Plan')}</th><th class="l">${__('Crew')}</th></tr>
+	</thead>`;
+	return `<div class="psc">${summary}
+		<div class="psc-box"><div class="psc-tw"><table class="psc-table">${head}<tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div>${pd_line}</div>
 	</div>`;
 }
 
@@ -760,6 +772,7 @@ function pop_inject_styles() {
 	}
 
 	/* section-spacing */
+	.page-container[data-page-route="Project Overview"] .frappe-control[data-fieldtype="HTML"] { padding-bottom: 24px; }
 	.page-container[data-page-route="Project Overview"] .frappe-control[data-fieldname="banner_html"],
 	.page-container[data-page-route="Project Overview"] .frappe-control[data-fieldname="deal_html"],
 	.page-container[data-page-route="Project Overview"] .frappe-control[data-fieldname="scope_html"],
@@ -786,6 +799,93 @@ function pop_inject_styles() {
 	.pop-hero .stats { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); }
 	.pop-tiles { grid-template-columns: repeat(var(--t, 4), minmax(0, 1fr)); }
 	@media (max-width: 720px) { .pop-hero .stats, .pop-tiles { grid-template-columns: 1fr 1fr; } }
+
+	/* team-chips */
+	.pop-tm { display: inline-flex; align-items: center; gap: 5px; margin: 2px 12px 2px 0; font-size: 12.5px; white-space: nowrap; color: var(--text-color); }
+	.pop-tm i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+	.pop-tm b { font-weight: 600; }
+	.pop-tm-total { display: inline-block; font-size: 12.5px; font-weight: 600; margin-right: 12px; color: var(--text-color); }
+	/* visit-days */
+	.pop-table .pop-wd { font-weight: 600; color: var(--text-color); }
+	.pop-table td.sub > div + div { margin-top: 3px; }
+
+	/* scope-v2 */
+	.psc, .psc span, .psc b, .psc div { font-family: inherit; }
+	.psc-box { border: 1px solid var(--border-color); border-radius: 12px; background: var(--card-bg, var(--fg-color)); overflow: hidden; }
+	.psc-box + .psc-box { margin-top: 12px; }
+	.psc-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+	.psc-sum > div { padding: 12px 16px; border-left: 1px solid var(--border-color); }
+	.psc-sum > div:first-child { border-left: 0; }
+	.psc-sum .l { font-size: 12px; color: var(--text-muted); }
+	.psc-sum .v { font-size: 18px; font-weight: 600; color: var(--text-color); margin-top: 2px; font-variant-numeric: tabular-nums; }
+	.psc-sum .v > span { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+	.psc-sum .v > span.psc-d { font-size: 12px; font-weight: 500; color: #9a5b0b; margin-left: 6px; }
+	.psc-sum .v > span.psc-same { font-size: 12px; margin-left: 6px; }
+	.psc-tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+	.psc-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 13px; color: var(--text-color); }
+	.psc-table th { font-size: 12px; font-weight: 400; color: var(--text-muted); padding: 8px 14px; text-align: right; border-bottom: 1px solid var(--border-color); white-space: nowrap; background: none; }
+	.psc-table thead th { background: color-mix(in srgb, var(--subtle-fg) 65%, var(--card-bg, var(--fg-color))); }
+	.psc-table tr.grp th { text-align: center; color: var(--text-color); font-weight: 500; padding: 10px 14px 0; border-bottom: 0; }
+	.psc-table td { padding: 11px 14px; border-bottom: 1px solid var(--border-color); text-align: right; font-variant-numeric: tabular-nums; vertical-align: middle; }
+	.psc-table .l { text-align: left; }
+	.psc-table .e { color: var(--text-muted); }
+	.psc-table .p { font-weight: 500; }
+	.psc-table .x { color: #9a5b0b; font-weight: 600; }
+	.psc-table .nm { font-weight: 600; }
+	.psc-table .tag { font-size: 11.5px; color: #9a5b0b; margin-top: 3px; }
+	.psc-table tr.t td { border-bottom: 0; font-weight: 600; }
+	.psc-table tr.t td.e { font-weight: 400; }
+	.psc-crew { font-size: 12px; color: var(--text-muted); }
+	.psc-crew span { display: inline-flex; align-items: center; margin: 2px 12px 2px 0; white-space: nowrap; }
+	.psc-crew span.ch { color: #9a5b0b; font-weight: 600; }
+	.psc i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; flex: none; }
+	.psc-pd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; padding: 11px 16px; border-top: 1px solid var(--border-color);
+		background: var(--subtle-fg); font-size: 12.5px; color: var(--text-color); }
+	.psc-pd .lb, .psc-pd .e { color: var(--text-muted); }
+	.psc-pd b { font-weight: 600; }
+	.psc-pd b.x { color: #9a5b0b; }
+	.psc-table tr.t td { background: color-mix(in srgb, var(--subtle-fg) 65%, var(--card-bg, var(--fg-color))); font-weight: 700; }
+	.psc-table tr.t td.e { font-weight: 600; }
+	.psc-table thead th, .psc-table thead tr.grp th { font-weight: 600; }
+	[data-theme="dark"] .psc-sum .v > span.psc-d, [data-theme="dark"] .psc-table .x, [data-theme="dark"] .psc-table .tag,
+	[data-theme="dark"] .psc-crew span.ch, [data-theme="dark"] .psc-pd b.x { color: #fcd34d; }
+
+	/* cost-breakdown */
+	.pcb { border: 1px solid var(--border-color); border-radius: 12px; background: var(--card-bg, var(--fg-color)); overflow-x: auto; }
+	.pcb-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 13px; color: var(--text-color); }
+	.pcb-table th { font-size: 12px; font-weight: 600; color: var(--text-muted); padding: 10px 16px; text-align: right; border-bottom: 1px solid var(--border-color);
+		background: color-mix(in srgb, var(--subtle-fg) 65%, var(--card-bg, var(--fg-color))); white-space: nowrap; }
+	.pcb-table td { padding: 11px 16px; border-bottom: 1px solid var(--border-color); text-align: right; font-variant-numeric: tabular-nums; vertical-align: middle; }
+	.pcb-table .l { text-align: left; }
+	.pcb-table .nm { font-weight: 600; }
+	.pcb-table td.sh { width: 42%; }
+	.pcb-table .sh .w { display: flex; align-items: center; gap: 12px; }
+	.pcb-table .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--subtle-fg); overflow: hidden; }
+	.pcb-table .bar span { display: block; height: 100%; border-radius: 3px; background: #2490EF; }
+	.pcb-table .sh b { min-width: 48px; font-weight: 600; }
+	.pcb-table tr.t td { border-bottom: 0; font-weight: 700; background: color-mix(in srgb, var(--subtle-fg) 65%, var(--card-bg, var(--fg-color))); }
+	.pcb-table .warn { font-size: 12px; font-weight: 600; color: #9a5b0b; }
+	[data-theme="dark"] .pcb-table .warn { color: #fcd34d; }
+	/* scope-cards */
+	.psc-sum > div { padding: 14px 18px 16px; }
+	.psc-sum .l { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+	.psc-sum .v { font-size: 22px; font-weight: 700; margin-top: 4px; line-height: 1.2; color: var(--text-color); font-variant-numeric: tabular-nums; }
+	.psc-sum .v > span { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-left: 6px; }
+	.psc-sum .s { margin-top: 4px; font-size: 12px; }
+	.psc-sum .s .psc-d { color: #9a5b0b; font-weight: 600; }
+	.psc-sum .s .psc-same { color: #2f7d4a; font-weight: 500; }
+	.psc-sum .m { height: 4px; border-radius: 2px; background: var(--subtle-fg); margin-top: 12px; overflow: hidden; }
+	.psc-sum .m span { display: block; height: 100%; border-radius: 2px; background: #2490EF; }
+	.psc-sum .dots { display: flex; gap: 4px; margin-top: 12px; }
+	.psc-sum .dots i { display: block; flex: 1; max-width: 28px; height: 4px; margin: 0; border-radius: 2px; background: var(--subtle-fg); }
+	.psc-sum .dots i.c { background: #F59E0B; }
+	.psc-box:has(> .psc-sum) { border: 0; background: none; border-radius: 0; overflow: visible; }
+	.psc-sum { gap: 12px; }
+	.psc-sum > div, .psc-sum > div:first-child { border: 1px solid var(--border-color); border-radius: 12px; background: var(--card-bg, var(--fg-color)); }
+	[data-theme="dark"] .psc-sum .s .psc-d { color: #fcd34d; }
+	[data-theme="dark"] .psc-sum .s .psc-same { color: #8ce99a; }
+	/* invoice-desc */
+	.pop-table td.pop-desc { white-space: normal; min-width: 180px; max-width: 420px; line-height: 1.45; }
 	`;
 	$('<style id="pop-styles">').text(css).appendTo('head');
 }
@@ -986,7 +1086,7 @@ function pop_page_html(frm, d, scope) {
 				(at ? placed : unplaced).push([i, k, at]);
 			});
 			const marks = placed.map(([i, k, at]) => `<span class="im ${is_done(i) ? 'done' : ''}" style="left:${pos(at)}%"
-				title="${esc(inv_name(i, k + 1))} · ${flt(i.invoice_percentage, 2)}% · ${frappe.datetime.obj_to_user(new Date(at))}"></span><span class="iml" style="left:calc(${pos(at)}% + 10px)">${esc(inv_name(i, k + 1))} · ${flt(i.invoice_percentage, 2)}%</span>`).join('');
+				title="${esc(inv_name(i, k + 1))} · ${flt(i.invoice_percentage, 2)}% · ${frappe.datetime.obj_to_user(new Date(at))}"></span><span class="iml" style="${pos(at) > 75 ? `right:calc(${100 - pos(at)}% + 10px)` : `left:calc(${pos(at)}% + 10px)`}">${esc(inv_name(i, k + 1))} · ${flt(i.invoice_percentage, 2)}%</span>`).join('');
 			const un = unplaced.length
 				? `<span class="un ${placed.length ? 'end' : ''}">${__('No expected date: {0}', [unplaced.map(([i, k]) => `${esc(inv_name(i, k + 1))} · ${flt(i.invoice_percentage, 2)}%`).join(', ')])}</span>`
 				: '';
@@ -995,18 +1095,25 @@ function pop_page_html(frm, d, scope) {
 		}
 		gantt = `<div class="pop-gantt"><div></div><div class="axis">${axis}</div><div></div>${lanes}${billing}</div>`;
 	}
+	const torder = nexlify.sort_trades(scope.trades || []);
+	const trank = t => { const i = torder.indexOf(t); return i < 0 ? 999 : i; };
+	const tpal = ['#2490EF', '#20A39E', '#F59E0B', '#8B5CF6', '#EC4899', '#64748B'];
+	const tcolor = t => nexlify.trade_color(t);
 	const vrows = visits.map(v => {
-		const eq = (v.equipment || []).map(a => `${esc(a.equipment || '')} × ${flt(a.quantity, 2)}`);
-		const team = (v.team || []).filter(t => cint(t.headcount) > 0).map(t => `${cint(t.headcount)} ${esc(t.trade || '')}`);
+		const eq = (v.equipment || []).map(a => `<div>${esc(a.equipment || '')} × ${flt(a.quantity, 2)}${a.work_days != null ? ` · <b class="pop-wd">${flt(a.work_days, 2)} ${__('days')}</b>` : ''}</div>`);
+		const cal = to_ms(v.start_date) && to_ms(v.end_date) ? Math.round((to_ms(v.end_date) - to_ms(v.start_date)) / DAY) + 1 : null;
+		const team = (v.team || []).filter(t => cint(t.headcount) > 0).sort((a, b) => trank(a.trade) - trank(b.trade));
+		const people = team.reduce((n, t) => n + cint(t.headcount), 0);
 		return `<tr>
 			<td class="nowrap"><a href="/app/project-visits/${v.name}">${esc(v.visit_label || v.name)}</a></td>
 			<td class="nowrap">${date(v.start_date)} → ${date(v.end_date)}</td>
-			<td class="sub">${eq.length ? eq.join(' · ') : __('No equipment')}</td>
-			<td class="sub">${team.length ? team.join(' · ') : __('No team')}</td>
+			<td class="num"><b>${flt(v.working_days, 2)}</b>${cal ? `<div class="sub">${__('over {0} calendar days', [cal])}</div>` : ''}</td>
+			<td class="sub">${eq.length ? eq.join('') : __('No equipment')}</td>
+			<td>${team.length ? `<span class="pop-tm-total">${people === 1 ? __('1 person') : __('{0} people', [people])}</span>` + team.map(t => `<span class="pop-tm"><i style="background:${tcolor(t.trade)}"></i><b>${cint(t.headcount)}</b> ${esc(t.trade || '')}</span>`).join('') : `<span class="sub">${__('No team')}</span>`}</td>
 		</tr>`;
 	}).join('');
 	const schedule = visits.length
-		? `<div class="pop-meta-line">${sched_meta}</div>${gantt}${pop_table([__('Visit'), __('Dates'), __('Equipment'), __('Team')], vrows)}`
+		? `<div class="pop-meta-line">${sched_meta}</div>${gantt}${pop_table([__('Visit'), __('Dates'), [__('Work days'), 'num'], __('Equipment'), __('Team')], vrows)}`
 		: empty(__('No visits yet.'));
 
 	// ---- invoicing ----
@@ -1015,7 +1122,8 @@ function pop_page_html(frm, d, scope) {
 	const irows = invoices.map((i, k) => {
 		const when = inv_date(i) ? date(inv_date(i)) : '-';
 		return `<tr>
-			<td><a href="/app/project-invoicing/${i.name}">${esc(inv_name(i, k + 1))}</a>${i.description && !i.title ? `<div class="sub">${esc(i.description)}</div>` : ''}</td>
+			<td class="nowrap"><a href="/app/project-invoicing/${i.name}">${esc(inv_name(i, k + 1))}</a></td>
+			<td class="sub pop-desc">${i.description ? esc(i.description) : '—'}</td>
 			<td class="num">${flt(i.invoice_percentage, 2)}%</td>
 			<td class="num">${acc.contract ? money(contract * flt(i.invoice_percentage) / 100) : '-'}</td>
 			<td>${when}</td>
@@ -1024,7 +1132,7 @@ function pop_page_html(frm, d, scope) {
 	}).join('');
 	const invoicing = invoices.length
 		? `<div class="pop-meta-line">${(acc.contract ? __('{0} of {1} invoiced', [money(done_amt), money(contract)]) : __('{0}% invoiced', [flt(invoices.filter(is_done).reduce((t, i) => t + flt(i.invoice_percentage), 0), 2)]))}</div><div class="pop-segs">${segs}</div>`
-			+ pop_table([__('Invoice'), [__('Share'), 'num'], [__('Amount'), 'num'], __('Expected date'), __('Status')], irows)
+			+ pop_table([__('Invoice'), __('Description'), [__('Share'), 'num'], [__('Amount'), 'num'], __('Expected date'), __('Status')], irows)
 		: empty(__('No invoices planned yet.'));
 
 	// ---- history ----
@@ -1035,6 +1143,20 @@ function pop_page_html(frm, d, scope) {
 	</tr>`).join('');
 	const history_sec = history.length ? pop_table([__('Date'), __('Event'), __('By')], hrows) : empty(__('No history yet.'));
 
+	const cb = d.cost_breakdown || [];
+	const cb_total = cb.reduce((n, r) => n + flt(r.estimated_amount), 0);
+	const cb_max = Math.max(1, ...cb.map(r => flt(r.estimated_amount)));
+	const cost_html = !cb.length ? empty(__('The Estimation has no budget details yet.')) : `<div class="pcb"><table class="pcb-table">
+		<thead><tr><th class="l">${__('Budget category')}</th><th>${__('Amount')}</th><th class="l">${__('Share of cost')}</th></tr></thead>
+		<tbody>${cb.map(r => {
+			const a = flt(r.estimated_amount), sh = cb_total ? a / cb_total * 100 : 0;
+			return `<tr><td class="l nm">${esc(r.budget_category || __('(No Category)'))}</td><td>${money(a)}</td>
+				<td class="sh"><div class="w"><div class="bar"><span style="width:${a / cb_max * 100}%"></span></div><b>${flt(sh, 1)}%</b></div></td></tr>`;
+		}).join('')}</tbody>
+		<tfoot><tr class="t"><td class="l">${__('Total')}</td><td>${money(cb_total)}</td>
+			<td class="l">${cost && flt(cb_total, 0) !== flt(cost, 0) ? `<span class="warn">${__('Estimated cost is {0}', [money(cost)])}</span>` : '100%'}</td></tr></tfoot>
+	</table></div>`;
+	frm.toggle_display('cost_section', !!acc.profit);
 	frm.toggle_display('deal_section', !!(acc.profit && acc.contract));
-	return { banner, deal, schedule, invoicing, history: history_sec };
+	return { banner, deal, cost: cost_html, schedule, invoicing, history: history_sec };
 }

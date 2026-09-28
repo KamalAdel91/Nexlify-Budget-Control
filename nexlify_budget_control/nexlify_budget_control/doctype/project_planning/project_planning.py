@@ -167,16 +167,11 @@ class ProjectPlanning(Document):
 	def _pull_contract(self):
 		if self.docstatus != 0 or self.status != "Draft" or not self.estimation:
 			return
-		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _copy_contract_to_plan
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _copy_contract_to_plan, _run_as_administrator
 		url = frappe.db.get_value("Project Estimation", self.estimation, "contract_no_prices")
 		if (url or None) != (self.contract_no_prices or None):
 			# The copy is made by the system: the plan's user may not read the Estimation the file is attached to
-			user = frappe.session.user
-			frappe.set_user("Administrator")
-			try:
-				_copy_contract_to_plan(self.name, url)
-			finally:
-				frappe.set_user(user)
+			_run_as_administrator(_copy_contract_to_plan, self.name, url)
 
 	def _is_being_sent_for_approval(self):
 		return (self.docstatus == 0 and not self.is_new() and self.status == "Pending Approval"

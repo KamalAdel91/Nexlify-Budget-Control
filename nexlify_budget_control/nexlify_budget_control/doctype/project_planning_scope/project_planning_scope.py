@@ -8,6 +8,11 @@ from frappe.utils import cint, flt
 
 
 class ProjectPlanningScope(Document):
+	def on_update(self):
+		if self.has_value_changed("days_per_equipment"):
+			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import sync_visit_days_from_scope
+			sync_visit_days_from_scope(self.name, self.days_per_equipment)
+
 	def before_insert(self):
 		self._fill_from_planning()
 

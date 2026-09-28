@@ -3053,6 +3053,26 @@ def link_project_document(project, fieldname, docname):
     _sync_project_overview(project)
 
 
+def _run_as_administrator(fn, *args, **kwargs):
+    """Run one system step with Administrator rights, without frappe.set_user.
+
+    frappe.set_user inside a web request replaces the session id with the user name, so the browser
+    gets a broken sid cookie and every next request runs as Guest. This only swaps the user on the
+    current session and puts it back.
+    """
+    session = frappe.local.session
+    user = session.user
+    session.user = "Administrator"
+    frappe.local.role_permissions = {}
+    frappe.local.user_perms = None
+    try:
+        return fn(*args, **kwargs)
+    finally:
+        session.user = user
+        frappe.local.role_permissions = {}
+        frappe.local.user_perms = None
+
+
 def _copy_contract_to_plan(plan, file_url):
     """Planning cannot read the Estimation, so the contract gets its own File attached to the plan."""
     if file_url and not frappe.db.exists(
@@ -3137,7 +3157,7 @@ def _enrich_overview_visits(visits):
         v.working_days = frappe.db.get_value("Project Visits", v.name, "working_days")
         equipment = []
         for a in frappe.get_all("Project Visit Allocation", filters={"parent": v.name, "parenttype": "Project Visits"},
-                                fields=["planning_scope", "quantity"], order_by="idx asc"):
+                                fields=["planning_scope", "quantity", "days_per_equipment", "work_days"], order_by="idx asc"):
             equipment.append({
                 "equipment": frappe.db.get_value("Project Planning Scope", a.planning_scope, "equipment") or a.planning_scope,
                 "quantity": frappe.utils.flt(a.quantity),
@@ -3178,6 +3198,11 @@ def get_overview_page(overview):
         out["estimation"] = frappe.db.get_value(
             "Project Estimation", ov.cost_budget, ["name", "docstatus"] + (["total_cost", "total_price", "margin_percentage"] if access["profit"] else []), as_dict=True)
 
+    if access["profit"] and ov.cost_budget:
+        out["cost_breakdown"] = frappe.get_all("Project Estimation Detail",
+            filters={"parent": ov.cost_budget, "parenttype": "Project Estimation", "parentfield": "details"},
+            fields=["budget_category", "estimated_amount"], order_by="estimated_amount desc")
+
     plan = ov.revenue_budget
     visits = []
     if plan:
@@ -3188,12 +3213,18 @@ def get_overview_page(overview):
 
         inv_meta = frappe.get_meta("Project Invoicing")
         extra = [f for f in ("title", "invoice_title", "description", "invoice_date", "due_date", "expected_invoice_date", "actual_date", "status") if inv_meta.has_field(f)]
+        desc_field = next((f.fieldname for f in inv_meta.fields
+            if f.fieldtype in ("Small Text", "Text", "Long Text", "Text Editor", "Data")
+            and ("desc" in f.fieldname or "description" in (f.label or "").lower() or f.fieldname in ("notes", "remarks"))), None)
+        if desc_field and desc_field not in extra:
+            extra.append(desc_field)
         invoices = frappe.get_all("Project Invoicing", filters={"project_planning": plan},
                                   fields=["name", "invoice_percentage"] + extra, order_by="creation asc")
         has_visit_table = any(t.options == "Project Invoicing Visit" for t in inv_meta.get_table_fields())
         labels = {v.name: (v.visit_label or v.name) for v in visits}
         for inv in invoices:
             inv["after_visits"] = []
+            inv["description"] = frappe.utils.strip_html(inv.get(desc_field) or "").strip() if desc_field else None
             if has_visit_table:
                 for row in frappe.get_all("Project Invoicing Visit", filters={"parent": inv.name, "parenttype": "Project Invoicing"},
                                           fields=["project_visit"], order_by="idx asc"):
@@ -3227,3 +3258,24 @@ def validate_project_dates(doc, method=None):
     """An Active project must have its planned period (the approved plan sets it before activating the project)."""
     if doc.is_active == "Yes" and not (doc.expected_start_date and doc.expected_end_date):
         frappe.throw(_("A project can be Active only with its planned period (Expected Start and End Date, set by the approved plan)."))
+
+
+def sync_visit_days_from_scope(planning_scope, days_per_equipment):
+    """Planning Scope days changed: keep the open visits that use it in step (row days, work days, visit working days)."""
+    rows = frappe.get_all("Project Visit Allocation",
+        filters={"parenttype": "Project Visits", "planning_scope": planning_scope},
+        fields=["name", "parent", "quantity"])
+    if not rows:
+        return 0
+    open_visits = set(frappe.get_all("Project Visits",
+        filters={"name": ["in", list({r.parent for r in rows})], "docstatus": 0}, pluck="name"))
+    days = flt(days_per_equipment)
+    for r in rows:
+        if r.parent in open_visits:
+            frappe.db.set_value("Project Visit Allocation", r.name,
+                {"days_per_equipment": days, "work_days": flt(flt(r.quantity) * days, 4)}, update_modified=False)
+    for v in open_visits:
+        total = frappe.db.sql("""select sum(work_days) from `tabProject Visit Allocation`
+            where parent = %s and parenttype = 'Project Visits'""", v)[0][0]
+        frappe.db.set_value("Project Visits", v, "working_days", flt(total, 2), update_modified=False)
+    return len(open_visits)

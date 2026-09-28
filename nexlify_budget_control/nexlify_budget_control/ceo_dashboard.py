@@ -7,7 +7,7 @@ from collections import Counter
 import frappe
 from frappe import _
 from frappe.model.workflow import get_workflow_name
-from frappe.utils import cint, date_diff, flt, getdate, today
+from frappe.utils import add_days, cint, date_diff, flt, getdate, today
 
 OV = "Project Overview"
 OPEN_VIOLATIONS_CARD = "Open Budget Violations"
@@ -138,7 +138,7 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
     for o in active:
         if o.waiting_days is not None and o.workflow_state in pending and o.waiting_days > aging:
             attention.append(_item("overdue", "danger", o.project, o.project_name, o.name,
-                _("Waiting in {0}").format(_(o.workflow_state)), _("{0} days").format(o.waiting_days)))
+                _("Waiting in {0}").format(_(o.workflow_state)), (_("{0} day") if o.waiting_days == 1 else _("{0} days")).format(o.waiting_days)))
         if o.docstatus == 0 and o.workflow_state in pending and cint(o.return_count):
             attention.append(_item("returned", "warning", o.project, o.project_name, o.name,
                 _("Returned before approval"), f"{cint(o.return_count)}x"))
@@ -147,12 +147,17 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
                 _("Margin below {0}%").format(f"{low:g}"), f"{flt(o.margin_pct, 1):g}%"))
     attention.sort(key=lambda a: a["severity"] != "danger")
 
+    qcust = dict(frappe.get_all("Customer", filters={"name": ["in", list({o.customer for o in queue if o.customer}) or [""]]},
+        fields=["name", "customer_name"], as_list=True))
     queue_out = [{
         "name": o.name, "project": o.project, "project_name": o.project_name, "customer": o.customer,
+        "customer_name": qcust.get(o.customer) or o.customer,
         "state": o.workflow_state, "contract_value": o.contract_value, "margin_pct": o.margin_pct,
         "waiting_days": o.waiting_days, "overdue": (o.waiting_days or 0) > aging,
         "return_count": cint(o.return_count),
     } for o in queue]
+
+    vm = _visits_and_manpower(active, titles, s)
 
     if not can_see_price:
         for k in ("contract_value", "expected_profit", "margin_pct"):
@@ -173,6 +178,8 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         "budget": budget,
         "violations": violations,
         "attention": attention,
+        "visits": vm["visits"],
+        "manpower": vm["manpower"],
     }
 
 
@@ -222,3 +229,77 @@ def _filtered_projects(company, project, extra_filters):
     if cb_filters:
         names &= set(frappe.get_all("Project Estimation", filters={**cb_filters, "docstatus": 1}, pluck="project"))
     return names
+
+def _visits_and_manpower(active, titles, s):
+    """Visits in progress / coming up, and the headcount they need (approved projects only)."""
+    upcoming_days = cint(s.get("upcoming_visit_days")) or 14
+    weeks = cint(s.get("manpower_weeks")) or 8
+    t = getdate(today())
+    start = getdate(add_days(t, -((t.weekday() + 1) % 7)))  # week starts on Sunday
+    end = getdate(add_days(start, weeks * 7 - 1))
+    soon = getdate(add_days(t, upcoming_days))
+
+    trades = [{"name": x.name, "label": x.category_name or x.name} for x in frappe.get_all(
+        "Manpower Category", filters={"enabled": 1}, fields=["name", "category_name"], order_by="sort_order asc, name asc")]
+    plans = [o.revenue_budget for o in active if o.docstatus == 1 and o.revenue_budget]
+    visits = frappe.get_all("Project Visits",
+        filters=[["project_planning", "in", plans or [""]], ["start_date", "<=", max(end, soon)], ["end_date", ">=", start]],
+        fields=["name", "visit_label", "project", "customer", "start_date", "end_date", "working_days"],
+        order_by="start_date asc, creation asc")
+    team = {}
+    for r in frappe.get_all("Project Visit Team",
+            filters={"parenttype": "Project Visits", "parent": ["in", [v.name for v in visits] or [""]]},
+            fields=["parent", "trade", "headcount"]):
+        if r.trade and cint(r.headcount) > 0:
+            by = team.setdefault(r.parent, {})
+            by[r.trade] = by.get(r.trade, 0) + cint(r.headcount)
+    known = {x["name"] for x in trades}
+    for by in team.values():
+        for tr in by:
+            if tr not in known:
+                known.add(tr)
+                trades.append({"name": tr, "label": tr})
+    for v in visits:
+        v.start_date, v.end_date = getdate(v.start_date), getdate(v.end_date)
+
+    cust = dict(frappe.get_all("Customer", filters={"name": ["in", list({v.customer for v in visits if v.customer}) or [""]]},
+        fields=["name", "customer_name"], as_list=True))
+
+    def row(v):
+        by = team.get(v.name, {})
+        return {"name": v.name, "label": v.visit_label or v.name, "project": v.project,
+                "project_name": titles.get(v.project, v.project), "customer": v.customer, "customer_name": cust.get(v.customer) or v.customer,
+                "start_date": str(v.start_date), "end_date": str(v.end_date),
+                "day": date_diff(t, v.start_date) + 1, "days": date_diff(v.end_date, v.start_date) + 1,
+                "starts_in": date_diff(v.start_date, t), "team": by, "people": sum(by.values()),
+                "working_days": flt(v.working_days, 2)}
+
+    current = [row(v) for v in visits if v.start_date <= t <= v.end_date]
+    upcoming = [row(v) for v in visits if t < v.start_date <= soon]
+    now = {}
+    for x in current:
+        for tr, n in x["team"].items():
+            now[tr] = now.get(tr, 0) + n
+
+    out_weeks = []
+    for w in range(weeks):
+        ws = getdate(add_days(start, w * 7))
+        best = {"total": 0, "by": {}, "day": None}
+        for d in range(7):
+            day = getdate(add_days(ws, d))
+            if day < t:
+                continue
+            by = {}
+            for v in visits:
+                if v.start_date <= day <= v.end_date:
+                    for tr, n in team.get(v.name, {}).items():
+                        by[tr] = by.get(tr, 0) + n
+            total = sum(by.values())
+            if total > best["total"]:
+                best = {"total": total, "by": by, "day": str(day)}
+        out_weeks.append({"week": str(ws), **best})
+
+    return {
+        "visits": {"current": current, "upcoming": upcoming, "upcoming_days": upcoming_days},
+        "manpower": {"trades": trades, "today": now, "weeks": out_weeks},
+    }

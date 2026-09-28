@@ -21,6 +21,8 @@
   "planned_cost",
   "expected_profit",
   "margin_pct",
+  "cost_section",
+  "cost_html",
   "scope_section",
   "scope_html",
   "schedule_section",
@@ -156,6 +158,18 @@
    "hidden": 1
   },
   {
+   "fieldname": "cost_section",
+   "fieldtype": "Section Break",
+   "label": "Cost Breakdown",
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:1"
+  },
+  {
+   "fieldname": "cost_html",
+   "fieldtype": "HTML",
+   "label": "Cost Breakdown"
+  },
+  {
    "fieldname": "scope_section",
    "fieldtype": "Section Break",
    "label": "Scope: Plan vs Estimation",
@@ -262,7 +276,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-28 03:35:41.855142",
+ "modified": "2026-09-28 15:41:28.796170",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Overview",

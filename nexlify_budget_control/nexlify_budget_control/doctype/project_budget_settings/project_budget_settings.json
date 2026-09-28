@@ -11,8 +11,6 @@
   "column_break_estimation_categories",
   "test_equipment_budget_category",
   "transportation_budget_category",
-  "section_break_estimation_project",
-  "show_create_estimation_on_project",
   "tab_budget_control",
   "section_break_enforcement",
   "budget_bypass_role",
@@ -31,8 +29,12 @@
   "low_margin_threshold",
   "column_break_dashboard_kpis",
   "approval_aging_warning_days",
+  "upcoming_visit_days",
+  "manpower_weeks",
   "section_break_dashboard_filters",
-  "dashboard_filters"
+  "dashboard_filters",
+  "section_break_estimation_project",
+  "show_create_estimation_on_project"
  ],
  "fields": [
   {
@@ -174,6 +176,20 @@
    "label": "Approval Aging Warning (Days)"
   },
   {
+   "fieldname": "upcoming_visit_days",
+   "fieldtype": "Int",
+   "label": "Upcoming Visits Window (days)",
+   "default": "14",
+   "description": "Visits starting within this many days show under Visits now on the Dashboard."
+  },
+  {
+   "fieldname": "manpower_weeks",
+   "fieldtype": "Int",
+   "label": "Manpower Forecast (weeks)",
+   "default": "8",
+   "description": "How many weeks ahead the Dashboard shows the manpower needed."
+  },
+  {
    "fieldname": "section_break_dashboard_filters",
    "fieldtype": "Section Break"
   },
@@ -198,7 +214,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 15:00:00.000000",
+ "modified": "2026-09-28 14:22:35.737166",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

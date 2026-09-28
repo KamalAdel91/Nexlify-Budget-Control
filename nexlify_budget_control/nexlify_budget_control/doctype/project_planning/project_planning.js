@@ -1,3 +1,4 @@
+window.nexlify = window.nexlify || {}; nexlify.sort_trades = nexlify.sort_trades || ((l) => (l || []).slice()); nexlify.trade_cmp = nexlify.trade_cmp || (() => 0); nexlify.trade_color = nexlify.trade_color || (() => "#64748B");
 let _visit_visible_columns = null;
 let _invoice_visible_columns = null;
 // Copyright (c) 2026, Kamal Adel and contributors
@@ -1341,7 +1342,7 @@ function ps_build_html(frm, data) {
 		sum_plan += flt(row.total_days);
 		sum_est += flt(e.total_days);
 
-		let trade_cells = trades.map(t => {
+		let trade_cells = nexlify.sort_trades(trades).map(t => {
 			let p = flt((row.role_counts || {})[t]);
 			let ec = flt((e.role_counts || {})[t]);
 			if (!p && !ec) return `<td><span class="nrb-muted">-</span></td>`;
@@ -1385,7 +1386,7 @@ function ps_build_html(frm, data) {
 			<table class="nrb-table" style="min-width:${min_width}px;">
 				<thead><tr>
 					<th>${__('Equipment')}</th><th>${__('Qty')}</th><th>${__('Days/Unit')}</th>
-					${trades.map(t => `<th>${esc(t)}</th>`).join('')}
+					${nexlify.sort_trades(trades).map(t => `<th>${esc(t)}</th>`).join('')}
 					<th>${__('Total Days')}</th><th>${__('Status')}</th><th>${__('Actions')}</th>
 				</tr></thead>
 				<tbody>${body}</tbody>
@@ -1423,7 +1424,7 @@ window.ps_edit = function(name) {
 	if (!row) return;
 	let e = row.est || {};
 	let est_roles = e.role_counts || {};
-	let est_trades = Object.keys(est_roles);
+	let est_trades = nexlify.sort_trades(Object.keys(est_roles));
 	let initial = Object.keys(row.role_counts || {}).map(t => ({ trade: t, count: row.role_counts[t] }));
 	var d;
 	let ready = false;
@@ -1604,7 +1605,7 @@ function vd_wire_allocations(d, plan_name, visit_name) {
 
 		// ---- Visit Team: suggestion above the table, control table below ----
 		let suggested = suggested_team(alloc, scope_map);
-		let trades = Object.keys(suggested);
+		let trades = nexlify.sort_trades(Object.keys(suggested));
 		let team = current_team();
 		let team_map = {};
 		team.forEach(x => { team_map[x.trade] = (team_map[x.trade] || 0) + cint(x.headcount); });
@@ -1729,6 +1730,7 @@ function vd_wire_allocations(d, plan_name, visit_name) {
 		let source = picked.length ? scope.filter(s => picked.includes(s.name)) : scope;
 		let trades = [];
 		source.forEach(s => Object.keys(s.roles || {}).forEach(t => { if (!trades.includes(t)) trades.push(t); }));
+		trades.sort(nexlify.trade_cmp);
 		return trades.length ? trades : ['__none__'];
 	}
 	let team_grid = d.fields_dict.team && d.fields_dict.team.grid;

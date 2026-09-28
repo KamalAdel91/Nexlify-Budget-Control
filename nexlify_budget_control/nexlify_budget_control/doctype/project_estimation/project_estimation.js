@@ -1,3 +1,4 @@
+window.nexlify = window.nexlify || {}; nexlify.sort_trades = nexlify.sort_trades || ((l) => (l || []).slice()); nexlify.trade_cmp = nexlify.trade_cmp || (() => 0); nexlify.trade_color = nexlify.trade_color || (() => "#64748B");
 // Copyright (c) 2026, Kamal Adel and contributors
 // For license information, please see license.txt
 
@@ -346,7 +347,7 @@ function pes_sync_team_rates(frm) {
 			changed = true;
 		}
 	});
-	trades.forEach(t => {
+	nexlify.sort_trades(trades).forEach(t => {
 		if (!(frm.doc.team_rates || []).some(r => r.designation === t)) {
 			frm.add_child('team_rates', { designation: t, factor: 2 });
 			changed = true;
@@ -358,14 +359,16 @@ function pes_sync_team_rates(frm) {
 			changed = true;
 		}
 	});
-	trades.forEach(t => {
+	nexlify.sort_trades(trades).forEach(t => {
 		if (!(frm.doc.accommodation || []).some(a => a.designation === t)) {
 			frm.add_child('accommodation', { designation: t, persons: 1 });
 			changed = true;
 		}
 	});
 	if (changed) {
+		nx_sort_trade_rows(frm, 'team_rates');
 		frm.refresh_field('team_rates');
+		nx_sort_trade_rows(frm, 'accommodation');
 		frm.refresh_field('accommodation');
 		frm.dirty();
 	}
@@ -504,7 +507,7 @@ function pes_render_table(frm) {
 		sum_cost += cost;
 		sum_price += row_price;
 
-		let trade_cells = trades.map(t => `<td class="nx-c">${rc[t] ? `<span class="nx-role">${rc[t]}</span>` : '<span class="nx-dash">—</span>'}</td>`).join('');
+		let trade_cells = nexlify.sort_trades(trades).map(t => `<td class="nx-c">${rc[t] ? `<span class="nx-role">${rc[t]}</span>` : '<span class="nx-dash">—</span>'}</td>`).join('');
 		let cost_cell = missing.length
 			? `<span class="nx-norate" title="${esc(missing.join(', '))}">${__('No rate')}</span>`
 			: money(cost);
@@ -536,7 +539,7 @@ function pes_render_table(frm) {
 			<table class="nx-scope-table">
 				<thead><tr>
 					<th>${__('Equipment')}</th><th class="nx-num">${__('Qty')}</th><th class="nx-num">${__('Days/Unit')}</th>
-					${trades.map(t => `<th class="nx-c">${esc(t)}</th>`).join('')}
+					${nexlify.sort_trades(trades).map(t => `<th class="nx-c">${esc(t)}</th>`).join('')}
 					<th class="nx-num">${__('Total Days')}</th><th class="nx-num">${__('Total Cost')}</th>
 					${price_heads}
 					<th class="nx-c">${__('Status')}</th><th></th>
@@ -961,4 +964,11 @@ function wizard_days_screen(frm, steps) {
 		},
 	});
 	d.show();
+}
+
+function nx_sort_trade_rows(frm, table) {
+	const rows = frm.doc[table] || [];
+	const sorted = nexlify.sort_trades(rows, 'designation');
+	sorted.forEach((r, i) => { r.idx = i + 1; });
+	frm.doc[table] = sorted;
 }
