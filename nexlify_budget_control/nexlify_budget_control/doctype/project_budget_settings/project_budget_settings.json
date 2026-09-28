@@ -11,6 +11,8 @@
   "column_break_estimation_categories",
   "test_equipment_budget_category",
   "transportation_budget_category",
+  "section_break_estimation_project",
+  "show_create_estimation_on_project",
   "tab_budget_control",
   "section_break_enforcement",
   "budget_bypass_role",
@@ -117,25 +119,25 @@
    "fieldtype": "Section Break"
   },
   {
+   "description": "Leave empty to show the button to everyone.",
    "fieldname": "plan_button_roles",
    "fieldtype": "Table MultiSelect",
    "label": "Plan Button - Allowed Roles",
-   "options": "Has Role",
-   "description": "Leave empty to show the button to everyone."
+   "options": "Has Role"
   },
   {
+   "description": "Leave empty to show the button to everyone.",
    "fieldname": "estimation_button_roles",
    "fieldtype": "Table MultiSelect",
    "label": "Estimation Button - Allowed Roles",
-   "options": "Has Role",
-   "description": "Leave empty to show the button to everyone."
+   "options": "Has Role"
   },
   {
+   "description": "Leave empty to show the button to everyone.",
    "fieldname": "overview_button_roles",
    "fieldtype": "Table MultiSelect",
    "label": "Overview Button - Allowed Roles",
-   "options": "Has Role",
-   "description": "Leave empty to show the button to everyone."
+   "options": "Has Role"
   },
   {
    "fieldname": "tab_dashboard",
@@ -147,29 +149,29 @@
    "fieldtype": "Section Break"
   },
   {
+   "default": "30",
+   "description": "Company margin target shown on the CEO dashboard.",
    "fieldname": "target_margin_pct",
    "fieldtype": "Percent",
-   "label": "Target Margin",
-   "default": "30",
-   "description": "Company margin target shown on the CEO dashboard."
+   "label": "Target Margin"
   },
   {
+   "default": "25",
+   "description": "Projects below this margin appear in Needs Attention.",
    "fieldname": "low_margin_threshold",
    "fieldtype": "Percent",
-   "label": "Low Margin Threshold",
-   "default": "25",
-   "description": "Projects below this margin appear in Needs Attention."
+   "label": "Low Margin Threshold"
   },
   {
    "fieldname": "column_break_dashboard_kpis",
    "fieldtype": "Column Break"
   },
   {
+   "default": "3",
+   "description": "Approvals waiting longer than this are highlighted.",
    "fieldname": "approval_aging_warning_days",
    "fieldtype": "Int",
-   "label": "Approval Aging Warning (Days)",
-   "default": "3",
-   "description": "Approvals waiting longer than this are highlighted."
+   "label": "Approval Aging Warning (Days)"
   },
   {
    "fieldname": "section_break_dashboard_filters",
@@ -180,11 +182,23 @@
    "fieldtype": "Table",
    "label": "Dashboard Filters",
    "options": "Dashboard Filter Field"
+  },
+  {
+   "fieldname": "section_break_estimation_project",
+   "fieldtype": "Section Break",
+   "label": "Project"
+  },
+  {
+   "default": "1",
+   "description": "Estimations now start from the Opportunity (Send To Estimation). Keep this on while older projects still need an Estimation made from the Project.",
+   "fieldname": "show_create_estimation_on_project",
+   "fieldtype": "Check",
+   "label": "Show Create Estimation on Project"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-09-25 22:14:46.460870",
+ "modified": "2026-09-28 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

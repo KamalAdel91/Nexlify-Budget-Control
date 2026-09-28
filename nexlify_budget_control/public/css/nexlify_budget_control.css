@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+/* Nexlify: section titles on the app's forms */
+.page-container[data-page-route="Project Estimation"] .form-section .section-head,
+.page-container[data-page-route="Project Planning"] .form-section .section-head,
+.page-container[data-page-route="Project Overview"] .form-section .section-head,
+.page-container[data-page-route="Project Equipment Scope"] .form-section .section-head,
+.page-container[data-page-route="Project Visits"] .form-section .section-head,
+.page-container[data-page-route="Project Invoicing"] .form-section .section-head,
+.page-container[data-page-route="Project Budget Settings"] .form-section .section-head,
+.page-container[data-page-route="Opportunity"] .form-section .section-head,
+.nx-section-title {
+	display: flex !important;
+	align-items: center;
+	gap: 10px;
+	font-family: 'Plus Jakarta Sans', var(--font-stack, Inter, system-ui, sans-serif) !important;
+	font-size: 18px !important;
+	font-weight: 700 !important;
+	letter-spacing: -0.2px;
+	line-height: 1.3;
+	color: var(--heading-color, var(--text-color)) !important;
+}
+
+/* Small accent bar before each title */
+.page-container[data-page-route="Project Estimation"] .form-section .section-head::before,
+.page-container[data-page-route="Project Planning"] .form-section .section-head::before,
+.page-container[data-page-route="Project Overview"] .form-section .section-head::before,
+.page-container[data-page-route="Project Equipment Scope"] .form-section .section-head::before,
+.page-container[data-page-route="Project Visits"] .form-section .section-head::before,
+.page-container[data-page-route="Project Invoicing"] .form-section .section-head::before,
+.page-container[data-page-route="Project Budget Settings"] .form-section .section-head::before,
+.page-container[data-page-route="Opportunity"] .form-section .section-head::before,
+.nx-section-title::before {
+	content: '';
+	width: 4px;
+	height: 18px;
+	border-radius: 2px;
+	background: var(--primary, #2563eb);
+	flex-shrink: 0;
+}
+
+/* Space after the RFQ table in the Estimation */
+.page-container[data-page-route="Project Estimation"] .nx-rfq-card {
+	margin-bottom: 24px;
+}
+
+/* Equipment Scope table in the Estimation */
+.nx-scope-card { border:1px solid var(--border-color); border-radius:12px; overflow:hidden; margin-top:8px;
+	background:var(--card-bg, var(--fg-color)); box-shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.03); }
+.nx-scope-scroll { overflow-x:auto; }
+.nx-scope-table { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+.nx-scope-table thead th { background:var(--control-bg); padding:11px 14px; font-size:10.5px; font-weight:700; text-transform:uppercase;
+	letter-spacing:.5px; color:var(--text-muted); border-bottom:1px solid var(--border-color); white-space:nowrap; text-align:left; }
+.nx-scope-table td { padding:12px 14px; border-bottom:1px solid var(--border-color); white-space:nowrap; vertical-align:middle; color:var(--text-color); }
+.nx-scope-table tbody tr:nth-child(even) td { background:rgba(0,0,0,.015); }
+.nx-scope-table tbody tr:hover td { background:rgba(37,99,235,.05); }
+.nx-scope-table .nx-num { text-align:right; font-variant-numeric:tabular-nums; }
+.nx-scope-table .nx-c { text-align:center; }
+.nx-scope-table .nx-eq { font-weight:600; }
+.nx-scope-table .nx-price { font-weight:600; }
+.nx-role { display:inline-flex; min-width:26px; height:22px; padding:0 8px; align-items:center; justify-content:center; border-radius:999px;
+	background:rgba(37,99,235,.10); color:var(--primary, #2563eb); font-weight:700; font-size:12px; }
+.nx-dash { color:var(--text-muted); opacity:.6; }
+.nx-status { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:600; }
+.nx-status.draft { background:var(--control-bg); color:var(--text-muted); border:1px solid var(--border-color); }
+.nx-status.submitted { background:rgba(22,163,74,.12); color:#15803d; }
+.nx-norate { display:inline-block; padding:2px 8px; border-radius:999px; background:rgba(220,38,38,.10); color:#dc2626; font-weight:600; font-size:11.5px; }
+.nx-actions { display:flex; gap:6px; justify-content:flex-end; }
+.nx-scope-table tfoot td { background:var(--control-bg); font-weight:700; border-top:1px solid var(--border-color); border-bottom:none; padding:12px 14px; }
+[data-theme="dark"] .nx-scope-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.02); }
+[data-theme="dark"] .nx-scope-table tbody tr:hover td { background:rgba(96,165,250,.08); }
+[data-theme="dark"] .nx-role { background:rgba(96,165,250,.15); color:#93c5fd; }
+[data-theme="dark"] .nx-status.submitted { color:#4ade80; }
+[data-theme="dark"] .nx-norate { color:#f87171; }
+
+/* Cost & Price Summary in the Estimation */
+.nx-sum-card { border:1px solid var(--border-color); border-radius:12px; overflow:hidden; margin-top:12px;
+	background:var(--card-bg, var(--fg-color)); box-shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.03); }
+.nx-sum-head { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--border-color); }
+.nx-sum-title { font-size:13px; font-weight:700; color:var(--heading-color, var(--text-color)); }
+.nx-sum-total { font-size:18px; font-weight:800; color:#ea580c; font-variant-numeric:tabular-nums; }
+.nx-sum-table { width:100%; border-collapse:collapse; font-size:13px; }
+.nx-sum-table th { padding:9px 16px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted);
+	background:var(--control-bg); text-align:left; }
+.nx-sum-table td { padding:11px 16px; border-top:1px solid var(--border-color); color:var(--text-color); vertical-align:middle; }
+.nx-sum-table .nx-num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.nx-sum-table tr.is-group td { font-weight:600; }
+.nx-sum-table tr.is-sub td { color:var(--text-muted); font-size:12.5px; padding-top:8px; padding-bottom:8px; }
+.nx-sum-table tr.is-sub td:first-child { padding-left:38px; }
+.nx-sum-table tfoot td { background:var(--control-bg); font-weight:800; border-top:1px solid var(--border-color); }
+.nx-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:10px; vertical-align:middle; }
+.nx-dot.manpower { background:#2563eb; }
+.nx-dot.other { background:#f59e0b; }
+.nx-dot.cost { background:#f97316; }
+.nx-dot.margin { background:#3b82f6; }
+.nx-pct { display:flex; align-items:center; gap:10px; justify-content:flex-end; font-size:12px; color:var(--text-muted); }
+.nx-pct span { min-width:42px; text-align:right; }
+.nx-bar { width:90px; height:7px; border-radius:999px; background:var(--control-bg); overflow:hidden; }
+.nx-bar-fill { height:100%; border-radius:999px; }
+.nx-bar-fill.manpower { background:linear-gradient(90deg, #60a5fa, #2563eb); }
+.nx-bar-fill.other { background:linear-gradient(90deg, #fcd34d, #f59e0b); }
+.nx-bar-fill.sub { background:var(--gray-400, #adb5bd); }
+
+.nx-sum-right { display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+.nx-hero { padding:18px 20px; border-radius:14px; border:1px solid rgba(22,163,74,.25);
+	background:linear-gradient(135deg, rgba(22,163,74,.13), rgba(22,163,74,.03)); }
+.nx-hero-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:#15803d; }
+.nx-hero-value { font-size:30px; font-weight:800; color:#15803d; letter-spacing:-.5px; font-variant-numeric:tabular-nums; margin-top:4px; line-height:1.15; }
+.nx-hero-sub { font-size:12px; color:var(--text-muted); margin-top:4px; }
+.nx-split { display:flex; height:9px; border-radius:999px; overflow:hidden; margin-top:14px; background:var(--control-bg); }
+.nx-split-cost { background:linear-gradient(90deg, #fdba74, #f97316); }
+.nx-split-margin { background:linear-gradient(90deg, #93c5fd, #3b82f6); }
+.nx-split-legend { display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-top:6px; }
+.nx-split-legend .nx-dot { width:8px; height:8px; margin-right:6px; }
+.nx-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; }
+.nx-kpi { position:relative; padding:14px 16px 12px; border-radius:12px; border:1px solid var(--border-color); overflow:hidden;
+	background:var(--card-bg, var(--fg-color)); }
+.nx-kpi::before { content:''; position:absolute; left:0; right:0; top:0; height:3px; }
+.nx-kpi.is-cost::before { background:#f97316; }
+.nx-kpi.is-margin::before { background:#3b82f6; }
+.nx-kpi.is-time::before { background:var(--gray-500, #868e96); }
+.nx-kpi-label { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); }
+.nx-kpi-value { font-size:19px; font-weight:800; margin-top:5px; font-variant-numeric:tabular-nums; letter-spacing:-.2px; color:var(--heading-color, var(--text-color)); }
+.nx-kpi.is-cost .nx-kpi-value { color:#ea580c; }
+.nx-kpi.is-margin .nx-kpi-value { color:#2563eb; }
+.nx-kpi-sub { font-size:11.5px; color:var(--text-muted); margin-top:3px; }
+[data-theme="dark"] .nx-hero { background:linear-gradient(135deg, rgba(74,222,128,.12), rgba(74,222,128,.03)); border-color:rgba(74,222,128,.25); }
+[data-theme="dark"] .nx-hero-label, [data-theme="dark"] .nx-hero-value { color:#4ade80; }
+[data-theme="dark"] .nx-sum-total, [data-theme="dark"] .nx-kpi.is-cost .nx-kpi-value { color:#fb923c; }
+[data-theme="dark"] .nx-kpi.is-margin .nx-kpi-value { color:#60a5fa; }
+
+/* Space under the Cost & Price Summary */
+.nx-sum-card, .nx-sum-right { margin-bottom: 28px; }
+
+/* Planning tables (Estimation Overview, Planning Scope, Visits, Invoicing) */
+.page-container[data-page-route="Project Planning"] .nrb-table-wrapper {
+	border: 1px solid var(--border-color); border-radius: 12px; margin-top: 8px;
+	background: var(--card-bg, var(--fg-color)); box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.03);
+}
+.page-container[data-page-route="Project Planning"] .nrb-table,
+.page-container[data-page-route="Project Planning"] .pes-summary-table { font-size: 13px; border-collapse: separate; border-spacing: 0; }
+.page-container[data-page-route="Project Planning"] .nrb-table thead tr { background: transparent; border: 0; }
+.page-container[data-page-route="Project Planning"] .nrb-table th,
+.page-container[data-page-route="Project Planning"] .pes-summary-table th {
+	background: var(--control-bg); padding: 11px 14px; font-size: 10.5px; font-weight: 700;
+	letter-spacing: .5px; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-color);
+}
+.page-container[data-page-route="Project Planning"] .nrb-table td,
+.page-container[data-page-route="Project Planning"] .pes-summary-table td {
+	padding: 12px 14px; border-bottom: 1px solid var(--border-color); color: var(--text-color); font-variant-numeric: tabular-nums;
+}
+.page-container[data-page-route="Project Planning"] .nrb-table td:first-child,
+.page-container[data-page-route="Project Planning"] .pes-summary-table td:first-child { font-weight: 600; }
+.page-container[data-page-route="Project Planning"] .nrb-table tbody tr:nth-child(even) td,
+.page-container[data-page-route="Project Planning"] .pes-summary-table tbody tr:nth-child(even) td { background: rgba(0,0,0,.015); }
+.page-container[data-page-route="Project Planning"] .nrb-table tbody tr:hover td,
+.page-container[data-page-route="Project Planning"] .pes-summary-table tbody tr:hover td { background: rgba(37,99,235,.05); }
+.page-container[data-page-route="Project Planning"] .nrb-table tfoot td,
+.page-container[data-page-route="Project Planning"] .pes-summary-table tfoot td {
+	background: var(--control-bg); font-weight: 700; border-top: 1px solid var(--border-color); border-bottom: 0;
+}
+.page-container[data-page-route="Project Planning"] .nrb-table tfoot tr.nrb-estimated-row td {
+	color: #16a34a !important; font-style: normal !important; font-weight: 600 !important;
+}
+
+/* Edit / Details as small buttons, without the "|" between them */
+.page-container[data-page-route="Project Planning"] .nrb-table td:has(> .nrb-link) { font-size: 0; white-space: nowrap; }
+.page-container[data-page-route="Project Planning"] .nrb-link {
+	display: inline-flex; align-items: center; font-size: 12px; font-weight: 500; padding: 3px 10px; margin: 0 3px;
+	border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg, var(--fg-color));
+	color: var(--text-color); text-decoration: none !important;
+}
+.page-container[data-page-route="Project Planning"] .nrb-link:hover { background: var(--control-bg); }
+
+.page-container[data-page-route="Project Planning"] .nrb-badge { padding: 3px 10px; border-radius: 999px; font-size: 11.5px; }
+.page-container[data-page-route="Project Planning"] .nrb-badge-invoiced { background: rgba(22,163,74,.12); color: #15803d; }
+.page-container[data-page-route="Project Planning"] .nrb-empty {
+	padding: 32px 16px; border-radius: 12px; border: 1px dashed var(--border-color); background: var(--control-bg); font-size: 13px;
+}
+
+[data-theme="dark"] .page-container[data-page-route="Project Planning"] .nrb-table tbody tr:nth-child(even) td,
+[data-theme="dark"] .page-container[data-page-route="Project Planning"] .pes-summary-table tbody tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+[data-theme="dark"] .page-container[data-page-route="Project Planning"] .nrb-table tbody tr:hover td,
+[data-theme="dark"] .page-container[data-page-route="Project Planning"] .pes-summary-table tbody tr:hover td { background: rgba(96,165,250,.08); }
+[data-theme="dark"] .page-container[data-page-route="Project Planning"] .nrb-badge-invoiced { color: #4ade80; }
+[data-theme="dark"] .page-container[data-page-route="Project Planning"] .nrb-table tfoot tr.nrb-estimated-row td { color: #4ade80 !important; }

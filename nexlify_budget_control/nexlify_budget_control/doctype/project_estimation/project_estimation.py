@@ -7,17 +7,36 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate
 
 
+
+def _manpower_order():
+	"""Manpower Category name -> position, by the Sort set on the category."""
+	return {name: i for i, name in enumerate(frappe.get_all("Manpower Category", pluck="name", order_by="sort_order asc, creation asc"))}
+
+
 class ProjectEstimation(Document):
 	def on_trash(self):
 		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import cascade_delete_estimation
-		cascade_delete_estimation(self)
+		from nexlify_budget_control.nexlify_budget_control.opportunity_rfq import release_opportunity
+		frappe.flags.nexlify_rfq_scope_sync = True
+		try:
+			release_opportunity(self)
+			cascade_delete_estimation(self)
+		finally:
+			frappe.flags.nexlify_rfq_scope_sync = False
 
 	def after_insert(self):
 		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import link_project_document
 		link_project_document(self.project, "custom_budget_cost", self.name)
 		if self.amended_from:
 			from nexlify_budget_control.nexlify_budget_control.budget_enforcement import carry_over_amended_cost_budget
-			carry_over_amended_cost_budget(self.amended_from, self.name)
+			frappe.flags.nexlify_rfq_scope_sync = True
+			try:
+				carry_over_amended_cost_budget(self.amended_from, self.name)
+			finally:
+				frappe.flags.nexlify_rfq_scope_sync = False
+
+		from nexlify_budget_control.nexlify_budget_control.opportunity_rfq import on_estimation_amended
+		on_estimation_amended(self)
 
 	def validate(self):
 		"""Validate budget document before saving."""
@@ -29,6 +48,7 @@ class ProjectEstimation(Document):
 		self._calculate_estimation()
 
 	def before_submit(self):
+		self._validate_equipment_ready()
 		if not self.contract_no_prices:
 			frappe.throw(_("Attach the Contract (No Prices) before submitting the Estimation."))
 		missing = self._missing_rate_trades()
@@ -85,7 +105,10 @@ class ProjectEstimation(Document):
 		for t in trades:
 			if t not in existing:
 				self.append("team_rates", {"designation": t, "factor": 2})
-		self.team_rates.sort(key=lambda r: trades.index(r.designation))
+		order = _manpower_order()
+		self.team_rates.sort(key=lambda r: (order.get(r.designation, 999), r.designation or ''))
+		for i, row in enumerate(self.team_rates, 1):
+			row.idx = i
 		for i, r in enumerate(self.team_rates, 1):
 			r.idx = i
 
@@ -97,7 +120,10 @@ class ProjectEstimation(Document):
 		for t in trades:
 			if t not in existing:
 				self.append("accommodation", {"designation": t, "persons": 1})
-		self.accommodation.sort(key=lambda a: trades.index(a.designation))
+		order = _manpower_order()
+		self.accommodation.sort(key=lambda a: (order.get(a.designation, 999), a.designation or ''))
+		for i, row in enumerate(self.accommodation, 1):
+			row.idx = i
 		for i, a in enumerate(self.accommodation, 1):
 			a.idx = i
 
@@ -278,18 +304,38 @@ class ProjectEstimation(Document):
 		)[0][0]
 
 	def before_cancel(self):
-		plan = frappe.db.get_value("Project Planning", {"project": self.project, "docstatus": 1}, "name")
+		plan = self.project and frappe.db.get_value("Project Planning", {"project": self.project, "docstatus": 1}, "name")
 		if plan:
 			frappe.throw(_("Cancel the Project Planning ({0}) first: it is built on this Estimation.").format(plan))
 
 	def _validate_single_active_estimation(self):
+		if not self.project and not self.get("opportunity"):
+			frappe.throw(_("An Estimation needs a Project or an Opportunity."))
+		key = "project" if self.project else "opportunity"
 		other = frappe.db.get_value(
 			"Project Estimation",
-			{"project": self.project, "docstatus": ["<", 2], "name": ["!=", self.name or ""]},
+			{key: self.get(key), "docstatus": ["<", 2], "name": ["!=", self.name or ""]},
 			"name",
 		)
 		if other:
-			frappe.throw(_("This project already has an Estimation ({0}). Open it instead of creating a new one.").format(other))
+			frappe.throw(_("This {0} already has an Estimation ({1}). Open it instead of creating a new one.").format(
+				_("project") if key == "project" else _("opportunity"), other))
+
+	def _validate_equipment_ready(self):
+		"""Every equipment needs days and at least one role before the Estimation is submitted."""
+		missing = []
+		for s in frappe.get_all("Project Equipment Scope", filters={"cost_budget": self.name, "docstatus": ["<", 2]},
+				fields=["name", "equipment", "days_per_equipment"], order_by="creation"):
+			problems = []
+			if flt(s.days_per_equipment) <= 0:
+				problems.append(_("days"))
+			if not frappe.db.exists("Project Equipment Scope Role", {"parent": s.name, "count": [">", 0]}):
+				problems.append(_("manpower"))
+			if problems:
+				missing.append(f"{s.equipment}: {', '.join(problems)}")
+		if missing:
+			frappe.throw(_("Complete the Equipment Scope before submitting:") + "<br>" + "<br>".join(missing),
+				title=_("Equipment Scope incomplete"))
 
 	def _validate_conversion_rate(self):
 		"""Ensure conversion_rate is positive."""

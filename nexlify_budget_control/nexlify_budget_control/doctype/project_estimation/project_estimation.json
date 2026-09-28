@@ -17,12 +17,14 @@
   "contract_no_prices",
   "column_break_xcgk",
   "project",
+  "opportunity",
   "section_break_rtyw",
   "column_break_ikkr",
   "section_break_kwgb",
   "currency",
   "column_break_obvk",
   "conversion_rate",
+  "estimation_date",
   "details_section",
   "details",
   "section_break_budget_totals",
@@ -36,6 +38,8 @@
   "working_days_per_month",
   "column_break_duration",
   "duration_months",
+  "rfq_section",
+  "rfq_html",
   "section_break_equipment_scope",
   "equipment_scope_summary_html",
   "section_break_rates_table",
@@ -56,9 +60,10 @@
   "other_costs",
   "other_costs_table_total",
   "pricing_section",
+  "margin_percentage",
+  "pricing_details_section",
   "cost_summary_html",
   "column_break_pricing",
-  "margin_percentage",
   "pricing_kpis_html",
   "total_cost",
   "margin_amount",
@@ -108,8 +113,7 @@
    "in_standard_filter": 1,
    "label": "Project",
    "options": "Project",
-   "read_only": 1,
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fetch_from": "project.customer",
@@ -242,7 +246,7 @@
    "bold": 1,
    "fieldname": "manpower_cost",
    "fieldtype": "Currency",
-   "label": "Manpower Cost",
+   "label": "Total Manpower Cost",
    "options": "currency",
    "read_only": 1
   },
@@ -346,7 +350,7 @@
    "bold": 1,
    "fieldname": "accommodation_total",
    "fieldtype": "Currency",
-   "label": "Accommodation Total",
+   "label": "Total Accommodation",
    "options": "currency",
    "read_only": 1
   },
@@ -354,7 +358,7 @@
    "bold": 1,
    "fieldname": "test_equipment_total",
    "fieldtype": "Currency",
-   "label": "Test Equipment Total",
+   "label": "Total Test Equipment",
    "options": "currency",
    "read_only": 1
   },
@@ -362,7 +366,7 @@
    "bold": 1,
    "fieldname": "transportation_total",
    "fieldtype": "Currency",
-   "label": "Car & Fuels Total",
+   "label": "Total Car & Fuels",
    "options": "currency",
    "read_only": 1
   },
@@ -370,7 +374,7 @@
    "bold": 1,
    "fieldname": "other_costs_table_total",
    "fieldtype": "Currency",
-   "label": "Other Costs Total",
+   "label": "Total Other Costs",
    "options": "currency",
    "read_only": 1
   },
@@ -437,12 +441,41 @@
    "fieldname": "contract_no_prices",
    "fieldtype": "Attach",
    "label": "Contract (No Prices)"
+  },
+  {
+   "fieldname": "opportunity",
+   "fieldtype": "Link",
+   "label": "Opportunity",
+   "options": "Opportunity",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "depends_on": "eval:doc.opportunity",
+   "fieldname": "rfq_section",
+   "fieldtype": "Section Break",
+   "label": "RFQ"
+  },
+  {
+   "description": "The exchange rate is taken for this date.",
+   "fieldname": "estimation_date",
+   "fieldtype": "Date",
+   "label": "Estimation Date"
+  },
+  {
+   "fieldname": "rfq_html",
+   "fieldtype": "HTML",
+   "label": "RFQ"
+  },
+  {
+   "fieldname": "pricing_details_section",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-27 20:50:10.973749",
+ "modified": "2026-09-28 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

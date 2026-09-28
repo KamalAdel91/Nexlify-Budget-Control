@@ -12,7 +12,9 @@
   "replace_if_hash": [
    "253503e8c974900857f6ee929f360328",
    "f1706409f3a675a76cc5fa3f78e46545",
-   "7158b16210ae29cc04bb3db5fa33ff04"
+   "7158b16210ae29cc04bb3db5fa33ff04",
+   "13847783d2400b9aa7f21bb9f4152fc3",
+   "a6c27063c7b4aa7a9c920a83926d76dc"
   ]
  },
  {
@@ -25,7 +27,13 @@
    "enabled": 1
   },
   "replace_if_hash": [
-   "6e0962bf28ef2d0475010b2fb42d07b6"
+   "6e0962bf28ef2d0475010b2fb42d07b6",
+   "dabaca30bff92286901050d5b16349d4",
+   "8d84da386987cc2d44693c5a5a1b4742",
+   "c33e12acef28a7e5027e9ad276c9759b",
+   "53bedee68fc439f1a4755669a5181e7e",
+   "63e4e13cf09f6d22736f2d0af2dba8dd",
+   "2ed734224da351659bdb045322e43b6d"
   ]
  }
 ]

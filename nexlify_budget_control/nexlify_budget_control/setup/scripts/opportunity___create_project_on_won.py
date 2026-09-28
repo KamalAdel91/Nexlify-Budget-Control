@@ -1,5 +1,9 @@
 # Check if the stage is updated to 'Closed Won'
 if doc.sales_stage == "Closed Won":
+
+    # Closed Won needs a submitted Estimation (checked only when the stage changes to Closed Won)
+    if doc.has_value_changed("sales_stage") and doc.custom_estimation_status != "Estimated":
+        frappe.throw("The Opportunity can be Closed Won only after its Estimation is submitted.")
     
     # 1. Backend Validation: Secure database against empty values
     if not doc.custom_closing_date:
@@ -40,6 +44,19 @@ if doc.sales_stage == "Closed Won":
         # only updates the in-memory object, it does NOT persist to the database.
         frappe.db.set_value(doc.doctype, doc.name, "custom_project", project.name)
         doc.custom_project = project.name  # keep in-memory doc in sync too
+
+        # 6. Open the Plan for the Planning team, as the Create Plan button would.
+        # Only when the project took the Opportunity's Estimation and has no plan yet.
+        # The dates stay empty: the planner sets them when saving the plan.
+        plan_name = None
+        if frappe.db.get_value("Project", project.name, "custom_budget_cost") and not frappe.db.exists(
+                "Project Planning", {"project": project.name, "docstatus": ["<", 2]}):
+            plan = frappe.get_doc({"doctype": "Project Planning", "project": project.name, "company": doc.company})
+            plan.insert(ignore_permissions=True, ignore_mandatory=True)
+            plan_name = plan.name
         
-        # 6. Inform user of execution completion
-        frappe.msgprint(f"Success: A new project has been created: <b>{project.project_name}</b>")
+        # 7. Inform user of execution completion
+        if plan_name:
+            frappe.msgprint(f"Success: A new project has been created: <b>{project.project_name}</b>, with its Plan <b>{plan_name}</b> for the Planning team.")
+        else:
+            frappe.msgprint(f"Success: A new project has been created: <b>{project.project_name}</b>")

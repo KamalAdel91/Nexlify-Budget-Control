@@ -253,7 +253,7 @@ function render_add_visits_dialog(frm, visit_count, existing_count, field_defs) 
 				fields: grid_fields
 			}
 		],
-		primary_action_label: __('OK'),
+		primary_action_label: __('Next'),
 		primary_action: function() {
 			let rows = d.get_value('visits') || [];
 			if (!rows.length) {
@@ -270,6 +270,7 @@ function render_add_visits_dialog(frm, visit_count, existing_count, field_defs) 
 					d.hide();
 					frappe.show_alert({ message: __('{0} visits created.', [(r.message || []).length]), indicator: 'green' });
 					render_visits_table(frm);
+					start_visits_wizard(frm, r.message || []);
 				}
 			});
 		}
@@ -353,7 +354,8 @@ function vd_layout_visit_fields(fields) {
 	return out;
 }
 
-window.open_visit_quick_edit = function(visit_name) {
+window.open_visit_quick_edit = function(visit_name, opts) {
+	opts = opts || null;
 	if (_revenue_budget_frm && (_revenue_budget_frm.doc.docstatus !== 0 || _revenue_budget_frm.doc.status === 'Pending Approval')) {
 		frappe.msgprint(_revenue_budget_frm.doc.docstatus !== 0
 			? __('The plan is submitted. Cancel and Amend it to change the visits.')
@@ -433,10 +435,10 @@ window.open_visit_quick_edit = function(visit_name) {
 							});
 
 							let d = new frappe.ui.Dialog({
-								title: visit.visit_label || visit.name,
+								title: (visit.visit_label || visit.name) + (opts && opts.title_suffix ? opts.title_suffix : ''),
 								size: 'large',
 								fields: vd_layout_visit_fields(dialog_fields),
-								primary_action_label: __('Save'),
+								primary_action_label: (opts && opts.primary_label) || __('Save'),
 								primary_action: function(values) {
 									let row = Object.assign({ visit_name: visit.name }, values);
 									if (d.fields_dict.allocations) row.allocations = (d.get_value('allocations') || []).filter(x => x.planning_scope).map(x => ({ planning_scope: x.planning_scope, quantity: flt(x.quantity) }));
@@ -448,6 +450,7 @@ window.open_visit_quick_edit = function(visit_name) {
 										freeze: true,
 										callback: function() {
 											d.hide();
+											if (opts && opts.on_saved) { opts.on_saved(); return; }
 											frappe.show_alert({ message: __('Visit updated.'), indicator: 'green' });
 											render_visits_table(_revenue_budget_frm);
 											render_estimation_overview(_revenue_budget_frm);
@@ -473,6 +476,11 @@ window.open_visit_quick_edit = function(visit_name) {
 							});
 							d.show();
 							vd_wire_allocations(d, plan_name, visit.name);
+							if (opts) {
+								const back = d.get_secondary_btn();
+								if (opts.on_back) back.html(__('Back')).off('click').on('click', function() { d.hide(); opts.on_back(); });
+								else back.addClass('hidden');
+							}
 
 							let set_working_days_promise = Promise.resolve();
 							if (full_doc.working_days !== undefined && full_doc.working_days !== null) {
@@ -1810,3 +1818,35 @@ frappe.ui.form.on('Project Planning', {
 		}
 	}
 });
+
+// Add Visits wizard: after the visits are made, the Visit dialog opens for each one (Next ... Finish)
+function start_visits_wizard(frm, names) {
+	if (!names || !names.length) return;
+	frappe.call({
+		method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_project_visits',
+		args: { project_planning: frm.doc.name },
+		callback: function(r) {
+			_cached_visits = r.message || [];
+			const list = names.filter(n => _cached_visits.some(v => v.name === n));
+			if (list.length) wizard_visit_step(frm, list, 0);
+		}
+	});
+}
+
+function wizard_visit_step(frm, names, index) {
+	const last = index === names.length - 1;
+	open_visit_quick_edit(names[index], {
+		title_suffix: ` (${index + 1} ${__('of')} ${names.length})`,
+		primary_label: last ? __('Finish') : __('Next'),
+		on_saved: function() {
+			if (!last) {
+				wizard_visit_step(frm, names, index + 1);
+				return;
+			}
+			frappe.show_alert({ message: __('{0} visits are ready.', [names.length]), indicator: 'green' });
+			render_visits_table(frm);
+			render_estimation_overview(frm);
+		},
+		on_back: index > 0 ? function() { wizard_visit_step(frm, names, index - 1); } : null,
+	});
+}

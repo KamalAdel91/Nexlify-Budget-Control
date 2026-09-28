@@ -10,6 +10,9 @@ app_license = "mit"
 # ---------------------------------------------------------------------------
 
 doc_events = {
+    "Opportunity": {
+        "validate": "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_rfq_lock",
+    },
     "Designation": {
         "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
     },
@@ -37,8 +40,8 @@ doc_events = {
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_cancel"
 	},
 	"Project Estimation": {
-		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_submit",
-		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_cancel",
+		"on_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_submit", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_submit"],
+		"on_cancel": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_cancel", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancel"],
 		"on_update": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update",
 		"on_update_after_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update"
 	},
@@ -47,16 +50,20 @@ doc_events = {
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
 	},
 	"Project": {
+		"after_insert": "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.link_estimation_to_new_project",
 		"validate": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.validate_project_dates",
 		"on_update": "nexlify_budget_control.nexlify_budget_control.project_sync.on_project_update"
 	}
 }
+
+app_include_css = ["/assets/nexlify_budget_control/css/nexlify_budget_control.css"]
 
 app_include_js = [
 	"/assets/nexlify_budget_control/js/global_project_filter.js",
 	"/assets/nexlify_budget_control/js/disable_project_cost_center_autofetch.js"]
 
 doctype_js = {
+        "Opportunity": "public/js/opportunity_rfq.js",
         "Material Request": "public/js/budget_check.js",
         "Purchase Order": "public/js/budget_check.js",
         "Purchase Invoice": "public/js/budget_check.js",
@@ -116,6 +123,13 @@ fixtures = [
 					"Project-custom_project_location",
             "Designation-is_project_site_designation",
             "Designation-manpower_category",
+            "Opportunity-custom_rfq_tab",
+            "Opportunity-custom_estimation_status",
+            "Opportunity-custom_estimation",
+            "Opportunity-custom_rfq_actions_html",
+            "Opportunity-custom_rfq_items",
+            "Opportunity-custom_estimation_section",
+            "Opportunity-custom_estimation_html",
         ]
 			]
 		]

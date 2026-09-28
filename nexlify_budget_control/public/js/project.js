@@ -26,11 +26,17 @@ function render_budget_creation_buttons(frm) {
             }
 
             if (role_allows(settings.estimation_button_roles)) {
-                render_budget_button(frm, {
-                    create_label: 'Create Estimation',
-                    open_label: 'Open Estimation',
-                    linked_field: 'custom_budget_cost',
-                    doctype: 'Project Estimation'
+                frappe.call({
+                    method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.show_create_estimation_on_project',
+                    callback: function(r3) {
+                        render_budget_button(frm, {
+                            create_label: 'Create Estimation',
+                            open_label: 'Open Estimation',
+                            linked_field: 'custom_budget_cost',
+                            doctype: 'Project Estimation',
+                            allow_create: !!r3.message
+                        });
+                    }
                 });
             }
 
@@ -38,8 +44,9 @@ function render_budget_creation_buttons(frm) {
                 let estimation_submitted = false;
                 if (frm.doc.custom_budget_cost) {
                     // نتأكد من حالة الـ Cost Budget قبل ما نعرض زرار Plan
-                    frappe.db.get_value('Project Estimation', frm.doc.custom_budget_cost, 'docstatus').then(r2 => {
-                        estimation_submitted = (r2.message && r2.message.docstatus === 1);
+                    frappe.xcall('nexlify_budget_control.nexlify_budget_control.opportunity_rfq.get_project_estimation_status',
+                        { project: frm.doc.name }).then(status => {
+                        estimation_submitted = (status === 1);
                         if (estimation_submitted) {
                             render_budget_button(frm, {
                                 create_label: 'Create Plan',
@@ -70,6 +77,7 @@ function render_budget_button(frm, opts) {
         limit: 1
     }).then(rows => {
         let existing = (rows && rows.length) ? rows[0].name : null;
+        if (!existing && opts.allow_create === false) return;
         frm.add_custom_button(existing ? opts.open_label : opts.create_label, function() {
             if (existing) {
                 frappe.set_route('Form', opts.doctype, existing);

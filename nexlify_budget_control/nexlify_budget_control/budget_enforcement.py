@@ -593,6 +593,8 @@ def get_project_equipment_scope_rows(cost_budget):
             if x.trade not in all_trades:
                 all_trades.append(x.trade)
 
+    order = {n: i for i, n in enumerate(frappe.get_all("Manpower Category", pluck="name", order_by="sort_order asc, creation asc"))}
+    all_trades.sort(key=lambda t: (order.get(t, 999), t or ""))
     return {"rows": rows, "trade_columns": all_trades}
 
 

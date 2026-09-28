@@ -86,8 +86,8 @@ function build_add_equipment_scope_dialog(frm, row_count) {
 				data: initial_rows,
 				get_data: function() { return initial_rows; },
 				fields: [
-					{ fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1, in_list_view: 1 },
-					{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, in_list_view: 1 },
+					{ fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1, read_only: (cur_frm && cur_frm.doc.opportunity) ? 1 : 0, in_list_view: 1 },
+					{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, read_only: (cur_frm && cur_frm.doc.opportunity) ? 1 : 0, in_list_view: 1 },
 					{ fieldname: 'days_per_equipment', fieldtype: 'Float', label: __('Days per Equipment'), reqd: 1, in_list_view: 1 }
 				]
 			}
@@ -181,14 +181,14 @@ function build_edit_equipment_scope_dialog(frm, rows) {
 				fieldname: 'rows',
 				fieldtype: 'Table',
 				label: __('Equipment'),
-				cannot_add_rows: true,
+				cannot_add_rows: true, cannot_delete_rows: !!(cur_frm && cur_frm.doc.opportunity),
 				in_place_edit: false,
 				data: initial_rows,
 				get_data: function() { return initial_rows; },
 				fields: [
 					{ fieldname: 'name', fieldtype: 'Data', hidden: 1 },
-					{ fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1, in_list_view: 1 },
-					{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, in_list_view: 1 },
+					{ fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1, read_only: (cur_frm && cur_frm.doc.opportunity) ? 1 : 0, in_list_view: 1 },
+					{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, read_only: (cur_frm && cur_frm.doc.opportunity) ? 1 : 0, in_list_view: 1 },
 					{ fieldname: 'days_per_equipment', fieldtype: 'Float', label: __('Days per Equipment'), reqd: 1, in_list_view: 1 }
 				]
 			}
@@ -227,8 +227,8 @@ window.open_equipment_scope_edit_single = function(name) {
 				title: __('Edit Equipment'),
 				size: 'large',
 				fields: [
-					{ fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1, default: full_doc.equipment },
-					{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, default: full_doc.quantity },
+					{ fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1, read_only: (cur_frm && cur_frm.doc.opportunity) ? 1 : 0, default: full_doc.equipment },
+					{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, read_only: (cur_frm && cur_frm.doc.opportunity) ? 1 : 0, default: full_doc.quantity },
 					{ fieldname: 'days_per_equipment', fieldtype: 'Float', label: __('Days per Equipment'), reqd: 1, default: full_doc.days_per_equipment },
 					{
 						fieldname: 'roles',
@@ -282,19 +282,21 @@ function pes_can_edit(frm) {
 function pes_toolbar_html(frm) {
 	let right = pes_can_edit(frm)
 		? `<div>
-			<button class="btn btn-xs btn-default" onclick="pes_open_edit(); return false;">${__('Edit Equipment')}</button>
-			<button class="btn btn-xs btn-primary" style="margin-left:6px;" onclick="pes_open_add(); return false;">${__('Add Equipment')}</button>
+			${frm.doc.opportunity
+                                ? `<button class="btn btn-xs btn-primary" onclick="pes_open_days_wizard(); return false;">${__('Edit Days & Manpower')}</button>`
+                                : `<button class="btn btn-xs btn-default" onclick="pes_open_edit(); return false;">${__('Edit Equipment')}</button>`}
+			${frm.doc.opportunity ? '' : `<button class="btn btn-xs btn-primary" style="margin-left:6px;" onclick="pes_open_add(); return false;">${__('Add Equipment')}</button>`}
 		</div>`
 		: `<span class="text-muted" style="font-size:12px;">${__('Estimation is submitted. Cancel and Amend it to change equipment.')}</span>`;
 	return `<div style="display:flex; justify-content:space-between; align-items:center; margin:4px 0 8px;">
-		<b>${__('Equipment Scope')}</b>
+		<span class="nx-section-title">${__('Equipment Scope')}</span>
 		${right}
 	</div>`;
 }
 
 function pes_empty_html(frm) {
 	let btn = pes_can_edit(frm)
-		? `<div style="margin-top:10px;"><button class="btn btn-sm btn-primary" onclick="pes_open_add(); return false;">${__('Add Equipment')}</button></div>`
+		? `<div style="margin-top:10px;">${frm.doc.opportunity ? '' : `<button class="btn btn-sm btn-primary" onclick="pes_open_add(); return false;">${__('Add Equipment')}</button>`}</div>`
 		: '';
 	return `<div class="text-muted" style="padding:16px; text-align:center; border:1px dashed var(--border-color, #e9ecef); border-radius:10px;">${__('No equipment added yet.')}${btn}</div>`;
 }
@@ -502,60 +504,53 @@ function pes_render_table(frm) {
 		sum_cost += cost;
 		sum_price += row_price;
 
-		let trade_cells = trades.map(t => `<td>${rc[t] ? rc[t] : '<span class="text-muted">-</span>'}</td>`).join('');
+		let trade_cells = trades.map(t => `<td class="nx-c">${rc[t] ? `<span class="nx-role">${rc[t]}</span>` : '<span class="nx-dash">—</span>'}</td>`).join('');
 		let cost_cell = missing.length
-			? `<span style="color: var(--red-500, #e03131); font-weight:600;" title="${esc(missing.join(', '))}">${__('No rate')}</span>`
+			? `<span class="nx-norate" title="${esc(missing.join(', '))}">${__('No rate')}</span>`
 			: money(cost);
 		let status = row.docstatus === 1
-			? `<span style="color: var(--green-600, #2b8a3e); font-weight:600;">${__('Submitted')}</span>`
-			: `<span class="text-muted">${__('Draft')}</span>`;
-		let edit_link = row.docstatus === 0
-			? `<a href="#" onclick="open_equipment_scope_edit_single('${row.name}'); return false;">${__('Edit')}</a> | `
+			? `<span class="nx-status submitted">${__('Submitted')}</span>`
+			: `<span class="nx-status draft">${__('Draft')}</span>`;
+		let edit_btn = row.docstatus === 0
+			? `<button class="btn btn-xs btn-default" onclick="open_equipment_scope_edit_single('${row.name}'); return false;">${__('Edit')}</button>`
 			: '';
 
 		return `<tr>
-			<td>${esc(row.equipment)}</td>
-			<td>${flt(row.quantity)}</td>
-			<td>${flt(row.days_per_equipment)}</td>
+			<td class="nx-eq">${esc(row.equipment)}</td>
+			<td class="nx-num">${format_number(row.quantity)}</td>
+			<td class="nx-num">${format_number(row.days_per_equipment)}</td>
 			${trade_cells}
-			<td>${flt(row.total_days, 2)}</td>
-			<td>${cost_cell}</td>
-			${show_price ? `<td>${money(unit)}</td><td>${money(row_price)}</td>` : ''}
-			<td>${status}</td>
-			<td>${edit_link}<a href="/app/project-equipment-scope/${row.name}" target="_blank">${__('Details')}</a></td>
+			<td class="nx-num">${format_number(flt(row.total_days, 2))}</td>
+			<td class="nx-num">${cost_cell}</td>
+			${show_price ? `<td class="nx-num">${money(unit)}</td><td class="nx-num nx-price">${money(row_price)}</td>` : ''}
+			<td class="nx-c">${status}</td>
+			<td><div class="nx-actions">${edit_btn}<a class="btn btn-xs btn-default" href="/app/project-equipment-scope/${row.name}" target="_blank">${__('Details')}</a></div></td>
 		</tr>`;
 	}).join('');
 
-	let price_heads = show_price ? `<th>${__('Unit Price')}</th><th>${__('Total Price')}</th>` : '';
-	let price_foot = show_price ? `<td></td><td>${money(sum_price)}</td>` : '';
+	let price_heads = show_price ? `<th class="nx-num">${__('Unit Price')}</th><th class="nx-num">${__('Total Price')}</th>` : '';
+	let price_foot = show_price ? `<td></td><td class="nx-num">${money(sum_price)}</td>` : '';
 
 	let html = `
-		<style>
-			.pes-summary-table { width:100%; border-collapse:collapse; font-size:12.5px; }
-			.pes-summary-table th { background:var(--control-bg, #f8f9fb); text-align:left; padding:8px 10px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px; color:var(--text-muted, #6c757d); border-bottom:1px solid var(--border-color, #e9ecef); white-space:nowrap; }
-			.pes-summary-table td { padding:8px 10px; border-bottom:1px solid var(--border-color, #e9ecef); vertical-align:middle; white-space:nowrap; }
-			.pes-summary-table tbody tr:hover { background:var(--control-bg, #f8f9fb); }
-			.pes-summary-table tfoot td { background:var(--control-bg, #f8f9fb); font-weight:600; }
-		</style>
-		<div style="border:1px solid var(--border-color, #e9ecef); border-radius:10px; overflow-x:auto; margin-top:8px;">
-			<table class="pes-summary-table">
+		<div class="nx-scope-card"><div class="nx-scope-scroll">
+			<table class="nx-scope-table">
 				<thead><tr>
-					<th>${__('Equipment')}</th><th>${__('Qty')}</th><th>${__('Days/Unit')}</th>
-					${trades.map(t => `<th>${esc(t)}</th>`).join('')}
-					<th>${__('Total Days')}</th><th>${__('Total Cost')}</th>
+					<th>${__('Equipment')}</th><th class="nx-num">${__('Qty')}</th><th class="nx-num">${__('Days/Unit')}</th>
+					${trades.map(t => `<th class="nx-c">${esc(t)}</th>`).join('')}
+					<th class="nx-num">${__('Total Days')}</th><th class="nx-num">${__('Total Cost')}</th>
 					${price_heads}
-					<th>${__('Status')}</th><th>${__('Actions')}</th>
+					<th class="nx-c">${__('Status')}</th><th></th>
 				</tr></thead>
 				<tbody>${rows_html}</tbody>
 				<tfoot><tr>
-					<td colspan="${3 + trades.length}" style="text-align:right;">${__('Total')}</td>
-					<td>${flt(sum_days, 2)}</td>
-					<td>${money(sum_cost)}</td>
+					<td colspan="${3 + trades.length}" class="nx-num">${__('Total')}</td>
+					<td class="nx-num">${format_number(flt(sum_days, 2))}</td>
+					<td class="nx-num">${money(sum_cost)}</td>
 					${price_foot}
 					<td colspan="2"></td>
 				</tr></tfoot>
 			</table>
-		</div>
+		</div></div>
 	`;
 
 	frm.set_df_property('equipment_scope_summary_html', 'options', pes_toolbar_html(frm) + html + spacer);
@@ -615,52 +610,40 @@ function pes_render_summary(frm) {
 	let total = flt(d.total_cost);
 	let days = flt(d.total_work_days);
 	let show_price = pes_can_see_price(frm);
-	let muted = 'var(--text-muted, #6c757d)';
+	let pct = v => total ? flt(flt(v) / total * 100, 1) : 0;
 
-	// ---- KPI cards (left) ----
-	let card = (label, value, sub, color) => `
-		<div style="flex:1 1 calc(50% - 8px); min-width:150px; border:1px solid var(--border-color, #e9ecef); border-radius:10px; padding:10px 12px;">
-			<div style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px; color:${muted};">${label}</div>
-			<div style="font-size:17px; font-weight:700; color:${color}; margin-top:3px;">${value}</div>
-			${sub ? `<div style="font-size:11.5px; color:${muted}; margin-top:2px;">${sub}</div>` : ''}
-		</div>`;
-
-	let cards = [
-		card(__('Total Cost'), money(total), days ? `${money(total / days)} ${__('per team day')}` : '', 'var(--orange-600, #e8590c)')
-	];
+	// ---- Price and KPIs (right) ----
+	let hero = '';
 	if (show_price) {
-		cards.push(card(__('Margin'), money(d.margin_amount), `${flt(d.margin_percentage, 2)}% ${__('of cost')}`, 'var(--blue-600, #1c7ed6)'));
-		cards.push(card(__('Total Price'), money(d.total_price), `${money(d.price_per_day)} ${__('per team day')}`, 'var(--green-600, #2b8a3e)'));
-	}
-	cards.push(card(__('Duration'), `${flt(days, 2)} ${__('days')}`, `${flt(d.duration_months, 2)} ${__('months')}`, 'var(--text-color, #1f272e)'));
-
-	kpi.$wrapper.html(`<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;">${cards.join('')}</div>`);
-
-	// ---- Cost breakdown (right) ----
-	let pct_cell = v => {
-		if (!total) return '';
-		let p = flt(flt(v) / total * 100, 1);
-		return `<div style="display:flex; align-items:center; gap:8px; justify-content:flex-end;">
-			<span style="min-width:40px; text-align:right;">${p}%</span>
-			<div style="width:70px; height:6px; border-radius:3px; background:var(--control-bg, #f1f3f5); overflow:hidden;">
-				<div style="width:${Math.min(100, Math.max(0, p))}%; height:100%; background:var(--blue-400, #4dabf7);"></div>
-			</div>
+		let price = flt(d.total_price);
+		let cost_share = price ? Math.min(100, Math.max(0, total / price * 100)) : 0;
+		hero = `<div class="nx-hero">
+			<div class="nx-hero-label">${__('Total Price')}</div>
+			<div class="nx-hero-value">${money(price)}</div>
+			<div class="nx-hero-sub">${money(d.price_per_day)} ${__('per team day')}</div>
+			${price ? `<div class="nx-split">
+					<div class="nx-split-cost" style="width:${cost_share}%"></div>
+					<div class="nx-split-margin" style="width:${100 - cost_share}%"></div>
+				</div>
+				<div class="nx-split-legend">
+					<span><i class="nx-dot cost"></i>${__('Cost')} ${flt(cost_share, 1)}%</span>
+					<span><i class="nx-dot margin"></i>${__('Margin')} ${flt(100 - cost_share, 1)}%</span>
+				</div>` : ''}
 		</div>`;
-	};
-	let td = 'padding:8px 12px; border-top:1px solid var(--border-color, #e9ecef);';
-	let line = (label, value, opts) => {
-		opts = opts || {};
-		let w = opts.bold ? 'font-weight:700;' : '';
-		let bg = opts.bg ? `background:${opts.bg};` : '';
-		let pad = opts.indent ? 'padding-left:28px;' : '';
-		let lbl = opts.indent ? `<span style="color:${muted};">${label}</span>` : label;
-		return `<tr style="${bg}">
-			<td style="${td}${w}${pad}">${lbl}</td>
-			<td style="${td}${w} text-align:right;">${money(value)}</td>
-			<td style="${td} font-size:11.5px; color:${muted};">${pct_cell(value)}</td>
-		</tr>`;
-	};
+	}
+	let tile = (cls, label, value, sub) => `<div class="nx-kpi ${cls}">
+		<div class="nx-kpi-label">${label}</div>
+		<div class="nx-kpi-value">${value}</div>
+		${sub ? `<div class="nx-kpi-sub">${sub}</div>` : ''}
+	</div>`;
+	let tiles = [tile('is-cost', __('Total Cost'), money(total), days ? `${money(total / days)} ${__('per team day')}` : '')];
+	if (show_price) {
+		tiles.push(tile('is-margin', __('Margin'), money(d.margin_amount), `${flt(d.margin_percentage, 2)}% ${__('of cost')}`));
+	}
+	tiles.push(tile('is-time', __('Duration'), `${flt(days, 2)} ${__('days')}`, `${flt(d.duration_months, 2)} ${__('months')}`));
+	kpi.$wrapper.html(`<div class="nx-sum-right">${hero}<div class="nx-kpi-grid">${tiles.join('')}</div></div>`);
 
+	// ---- Cost breakdown (left) ----
 	let items = [
 		[__('Accommodation'), d.accommodation_total],
 		[__('Test Equipment'), d.test_equipment_total],
@@ -675,25 +658,30 @@ function pes_render_summary(frm) {
 	});
 	cat_order.forEach(k => items.push([esc(k), by_cat[k]]));
 
-	let rows = [];
-	rows.push(line(__('Manpower Cost'), d.manpower_cost, { bold: 1 }));
-	rows.push(line(__('Other Costs'), d.other_cost_total, { bold: 1 }));
-	items.filter(x => flt(x[1])).forEach(x => rows.push(line(x[0], x[1], { indent: 1 })));
-	rows.push(line(__('Total Cost'), total, { bold: 1, bg: 'var(--control-bg, #f8f9fb)' }));
+	let bar = (v, cls) => `<div class="nx-pct"><span>${pct(v)}%</span>
+		<div class="nx-bar"><div class="nx-bar-fill ${cls}" style="width:${Math.min(100, Math.max(0, pct(v)))}%"></div></div></div>`;
+	let line = (label, value, dot, row_cls) => `<tr class="${row_cls}">
+		<td>${dot ? `<i class="nx-dot ${dot}"></i>` : ''}${label}</td>
+		<td class="nx-num">${money(value)}</td>
+		<td class="nx-num">${bar(value, dot || 'sub')}</td>
+	</tr>`;
 
-	let th = `padding:8px 12px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px; color:${muted};`;
-	box.$wrapper.html(`
-		<div style="border:1px solid var(--border-color, #e9ecef); border-radius:10px; overflow:hidden; margin-top:12px;">
-			<table style="width:100%; border-collapse:collapse; font-size:13px;">
-				<thead><tr style="background:var(--control-bg, #f8f9fb);">
-					<th style="${th} text-align:left;">${__('Cost Breakdown')}</th>
-					<th style="${th} text-align:right;">${__('Amount')}</th>
-					<th style="${th} text-align:right;">${__('% of Cost')}</th>
-				</tr></thead>
-				<tbody>${rows.join('')}</tbody>
-			</table>
+	let rows = [];
+	rows.push(line(__('Manpower Cost'), d.manpower_cost, 'manpower', 'is-group'));
+	rows.push(line(__('Other Costs'), d.other_cost_total, 'other', 'is-group'));
+	items.filter(x => flt(x[1])).forEach(x => rows.push(line(x[0], x[1], '', 'is-sub')));
+
+	box.$wrapper.html(`<div class="nx-sum-card">
+		<div class="nx-sum-head">
+			<div class="nx-sum-title">${__('Cost Breakdown')}</div>
+			<div class="nx-sum-total">${money(total)}</div>
 		</div>
-	`);
+		<table class="nx-sum-table">
+			<thead><tr><th>${__('Item')}</th><th class="nx-num">${__('Amount')}</th><th class="nx-num">${__('% of Cost')}</th></tr></thead>
+			<tbody>${rows.join('')}</tbody>
+			<tfoot><tr><td>${__('Total Cost')}</td><td class="nx-num">${money(total)}</td><td class="nx-num">100%</td></tr></tfoot>
+		</table>
+	</div>`);
 }
 
 // Totals under each Execution Estimation table: half width, in the second column
@@ -731,3 +719,246 @@ function pes_inject_total_styles() {
 frappe.ui.form.on('Project Estimation', {
 	refresh: function() { pes_inject_total_styles(); }
 });
+
+// Estimation Date / Currency: take the exchange rate again (draft only)
+frappe.ui.form.on('Project Estimation', {
+	estimation_date(frm) { nexlify_refresh_estimation_rate(frm); },
+	currency(frm) { nexlify_refresh_estimation_rate(frm); },
+});
+
+function nexlify_refresh_estimation_rate(frm) {
+	if (frm.doc.docstatus !== 0 || !frm.doc.company || !frm.doc.currency) return;
+	frappe.call({
+		method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.get_estimation_rate',
+		args: { company: frm.doc.company, currency: frm.doc.currency,
+			date: frm.doc.estimation_date, opportunity: frm.doc.opportunity },
+		callback(r) { if (r.message) frm.set_value('conversion_rate', r.message); },
+	});
+}
+
+// RFQ section: the Opportunity's RFQ Items, read from the Opportunity
+frappe.ui.form.on('Project Estimation', {
+	refresh(frm) { nexlify_render_rfq_view(frm); },
+});
+
+function nexlify_render_rfq_view(frm) {
+	const field = frm.get_field('rfq_html');
+	if (!field || !frm.doc.opportunity || frm.is_new()) return;
+	nexlify_rfq_styles();
+	const esc = frappe.utils.escape_html;
+	frappe.call({
+		method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.get_rfq_for_estimation',
+		args: { estimation: frm.doc.name },
+		callback(r) {
+			const d = r.message || {};
+			const rows = d.rows || [];
+			const sub = [d.customer, d.opportunity_name].filter(Boolean).map(esc).join(' · ');
+			const items = d.meta || [];
+			const meta = items.length ? `<div class="nx-rfq-meta">${items.map(m => `<div>
+				<div class="nx-meta-label">${esc(m[0])}</div><div class="nx-meta-value">${m[1] ? esc(m[1]) : '—'}</div></div>`).join('')}</div>` : '';
+			const body = rows.map((x, i) => `<tr>
+				<td class="nx-idx">${i + 1}</td>
+				<td>${esc(x.equipment || '')}</td>
+				<td class="nx-num">${format_number(x.quantity)}</td>
+				<td class="nx-desc">${esc(x.description || '')}</td></tr>`).join('');
+			field.$wrapper.html(`<div class="nx-rfq-card nx-accent">
+				<div class="nx-rfq-head">
+					<div><div class="nx-rfq-title">${__('RFQ from Opportunity {0}', [esc(d.opportunity || '')])}</div>
+						<div class="nx-rfq-sub">${sub}</div></div>
+					${meta}
+					<div class="nx-rfq-right"><span class="nx-pill blue">${__('{0} items', [rows.length])}</span></div>
+				</div>
+				${rows.length ? `<div class="nx-rfq-scroll"><table class="nx-rfq-table">
+					<thead><tr><th class="nx-idx">#</th><th>${__('Equipment Scope')}</th><th class="nx-num">${__('Qty')}</th><th>${__('Description')}</th></tr></thead>
+					<tbody>${body}</tbody></table></div>`
+					: `<div class="nx-empty"><b>${__('No RFQ Items')}</b></div>`}
+			</div>`);
+		},
+	});
+}
+
+function nexlify_rfq_styles() {
+	if (document.getElementById('nx-rfq-styles')) return;
+	const s = document.createElement('style');
+	s.id = 'nx-rfq-styles';
+	s.innerHTML = `
+		.nx-rfq-card { border:1px solid var(--border-color); border-radius:10px; overflow:hidden; background:var(--card-bg, var(--fg-color)); margin-top:6px; }
+		.nx-rfq-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+			padding:12px 16px; border-bottom:1px solid var(--border-color); background:var(--control-bg); }
+		.nx-rfq-title { font-weight:600; font-size:13px; color:var(--text-color); }
+		.nx-rfq-sub { font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+		.nx-rfq-right { display:flex; align-items:center; gap:12px; }
+		.nx-pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; }
+		.nx-pill.green { background:var(--green-100, #e6f4ea); color:var(--green-700, #1e7e34); }
+		.nx-pill.orange { background:var(--orange-100, #fff4e5); color:var(--orange-700, #b25e09); }
+		.nx-pill.gray { background:var(--gray-100, #f1f3f5); color:var(--gray-700, #495057); }
+		.nx-total { font-size:18px; font-weight:700; color:var(--text-color); font-variant-numeric:tabular-nums; }
+		.nx-rfq-scroll { overflow-x:auto; }
+		.nx-rfq-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+		.nx-rfq-table th { text-align:left; padding:8px 16px; font-size:10.5px; text-transform:uppercase; letter-spacing:.3px;
+			color:var(--text-muted); border-bottom:1px solid var(--border-color); white-space:nowrap; font-weight:600; }
+		.nx-rfq-table td { padding:10px 16px; border-bottom:1px solid var(--border-color); vertical-align:top; color:var(--text-color); }
+		.nx-rfq-table tbody tr:last-child td { border-bottom:none; }
+		.nx-rfq-table tbody tr:hover td { background:var(--control-bg); }
+		.nx-rfq-table tfoot td { background:var(--control-bg); font-weight:700; border-top:1px solid var(--border-color); border-bottom:none; }
+		.nx-num { text-align:right !important; white-space:nowrap; font-variant-numeric:tabular-nums; }
+		.nx-idx { color:var(--text-muted); width:40px; }
+		.nx-desc { color:var(--text-muted); white-space:pre-wrap; min-width:180px; }
+		.nx-empty { padding:28px 16px; text-align:center; color:var(--text-muted); font-size:12.5px; }
+		.nx-empty b { display:block; color:var(--text-color); font-size:13px; margin-bottom:4px; }
+		.nx-rfq-meta { display:flex; gap:32px; flex-wrap:wrap; flex:1; justify-content:center; }
+		.nx-meta-label { font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-muted); }
+		.nx-meta-value { font-size:12.5px; font-weight:600; color:var(--text-color); margin-top:1px; }
+		.nx-rfq-card.nx-accent { border-left:3px solid var(--blue-500, #3b82f6); }
+		.nx-rfq-card.nx-accent .nx-rfq-head { background:rgba(59, 130, 246, 0.08); border-bottom-color:rgba(59, 130, 246, 0.25); }
+		.nx-rfq-card.nx-accent .nx-rfq-title { color:var(--blue-600, #2563eb); }
+		.nx-rfq-card.nx-accent .nx-rfq-table th { color:var(--blue-600, #2563eb); opacity:.8; }
+		.nx-pill.blue { background:rgba(59, 130, 246, 0.14); color:var(--blue-700, #1d4ed8); }
+		[data-theme="dark"] .nx-rfq-card.nx-accent .nx-rfq-head { background:rgba(96, 165, 250, 0.12); }
+		[data-theme="dark"] .nx-rfq-card.nx-accent .nx-rfq-title,
+		[data-theme="dark"] .nx-rfq-card.nx-accent .nx-rfq-table th,
+		[data-theme="dark"] .nx-pill.blue { color:#93c5fd; }
+	`;
+	document.head.appendChild(s);
+}
+
+// Days & Manpower wizard (Estimations from an Opportunity): the Edit Equipment dialog, one equipment after the other
+window.pes_open_days_wizard = function() {
+	open_days_manpower_wizard(_cost_budget_frm || cur_frm);
+};
+
+function open_days_manpower_wizard(frm) {
+	const M = 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.';
+	frappe.xcall(M + 'get_project_equipment_scope_rows', { cost_budget: frm.doc.name }).then(r => {
+		const names = ((r && r.rows) || []).filter(x => x.docstatus === 0).map(x => x.name);
+		if (!names.length) {
+			frappe.msgprint(__('There is no draft equipment to update.'));
+			return;
+		}
+		Promise.all(names.map(n => frappe.xcall(M + 'get_project_equipment_scope_full', { name: n }))).then(docs => {
+			const steps = docs.map((doc, i) => ({
+				name: names[i],
+				values: {
+					equipment: doc.equipment,
+					quantity: doc.quantity,
+					days_per_equipment: doc.days_per_equipment,
+					roles: (doc.roles || []).map(x => ({ trade: x.trade, count: x.count })),
+				},
+			}));
+			wizard_days_screen(frm, steps);
+		});
+	});
+}
+
+function wizard_edit_step(frm, steps, index) {
+	const step = steps[index];
+	const v = step.values;
+	const last = index === steps.length - 1;
+	const roles = (v.roles || []).map(x => Object.assign({}, x));
+	const read = (dlg) => {
+		const vals = dlg.get_values(true) || {};
+		return Object.assign({}, v, vals, {
+			equipment: v.equipment,
+			quantity: v.quantity,
+			roles: (dlg.get_value('roles') || []).filter(x => x.trade).map(x => ({ trade: x.trade, count: cint(x.count) })),
+		});
+	};
+
+	const d = new frappe.ui.Dialog({
+		title: __('Edit Equipment') + ` (${index + 1} ${__('of')} ${steps.length})`,
+		size: 'large',
+		fields: [
+			{ fieldname: 'equipment', fieldtype: 'Link', options: 'Equipment Type', label: __('Equipment'), reqd: 1, read_only: 1, default: v.equipment },
+			{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), reqd: 1, read_only: 1, default: v.quantity },
+			{ fieldname: 'days_per_equipment', fieldtype: 'Float', label: __('Days per Equipment'), reqd: 1, default: v.days_per_equipment },
+			{
+				fieldname: 'roles',
+				fieldtype: 'Table',
+				label: __('Roles'),
+				cannot_add_rows: false,
+				in_place_edit: false,
+				data: roles,
+				get_data: function() { return roles; },
+				fields: build_roles_fields_grid()
+			}
+		],
+		primary_action_label: last ? __('Save') : __('Next'),
+		primary_action: function() {
+			const vals = read(d);
+			if (!(flt(vals.days_per_equipment) > 0)) {
+				frappe.msgprint({ title: __('Days required'), indicator: 'red',
+					message: __('Set the Days per Equipment above zero for {0}.', [v.equipment]) });
+				return;
+			}
+			if (!vals.roles.some(x => x.count > 0)) {
+				frappe.msgprint({ title: __('Roles required'), indicator: 'red',
+					message: __('Add at least one role with a count for {0}.', [v.equipment]) });
+				return;
+			}
+			step.values = vals;
+			d.hide();
+			if (last) wizard_save(frm, steps);
+			else wizard_edit_step(frm, steps, index + 1);
+		},
+		secondary_action_label: __('Back'),
+		secondary_action: function() {
+			step.values = read(d);
+			d.hide();
+			if (index === 0) wizard_days_screen(frm, steps);
+			else wizard_edit_step(frm, steps, index - 1);
+		}
+	});
+	d.show();
+}
+
+async function wizard_save(frm, steps) {
+	frappe.dom.freeze(__('Saving...'));
+	try {
+		for (const step of steps) {
+			await frappe.xcall('nexlify_budget_control.nexlify_budget_control.budget_enforcement.update_project_equipment_scope',
+				{ name: step.name, values: step.values });
+		}
+		frappe.show_alert({ message: __('{0} equipment updated.', [steps.length]), indicator: 'green' });
+	} finally {
+		frappe.dom.unfreeze();
+		frm.reload_doc();
+	}
+}
+
+function wizard_days_screen(frm, steps) {
+	const data = steps.map((s, i) => ({ step: i, equipment: s.values.equipment, quantity: s.values.quantity,
+		days_per_equipment: s.values.days_per_equipment }));
+	const d = new frappe.ui.Dialog({
+		title: __('Days per Equipment'),
+		size: 'large',
+		fields: [
+			{
+				fieldname: 'rows', fieldtype: 'Table', label: __('Equipment'),
+				cannot_add_rows: true, cannot_delete_rows: true, in_place_edit: true,
+				data: data, get_data: () => data,
+				fields: [
+					{ fieldname: 'step', fieldtype: 'Int', hidden: 1 },
+					{ fieldname: 'equipment', fieldtype: 'Data', label: __('Equipment'), read_only: 1, in_list_view: 1, columns: 5 },
+					{ fieldname: 'quantity', fieldtype: 'Float', label: __('Quantity'), read_only: 1, in_list_view: 1, columns: 2 },
+					{ fieldname: 'days_per_equipment', fieldtype: 'Float', label: __('Days per Equipment'), reqd: 1, in_list_view: 1, columns: 3 },
+				],
+			},
+		],
+		primary_action_label: __('Next'),
+		primary_action: function() {
+			const rows = d.get_value('rows') || [];
+			const missing = rows.filter(x => !(flt(x.days_per_equipment) > 0)).map(x => x.equipment);
+			if (missing.length) {
+				frappe.msgprint({ title: __('Days required'), indicator: 'red',
+					message: __('Set the Days per Equipment above zero for: {0}', [missing.join(', ')]) });
+				return;
+			}
+			rows.forEach(x => {
+				if (steps[x.step]) steps[x.step].values.days_per_equipment = flt(x.days_per_equipment);
+			});
+			d.hide();
+			wizard_edit_step(frm, steps, 0);
+		},
+	});
+	d.show();
+}
