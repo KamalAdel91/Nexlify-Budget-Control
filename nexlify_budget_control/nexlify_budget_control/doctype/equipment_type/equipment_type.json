@@ -21,7 +21,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-21 19:42:00.223680",
+ "modified": "2026-09-28 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Equipment Type",
@@ -73,6 +73,16 @@
   {
    "read": 1,
    "role": "CEO"
+  },
+  {
+   "read": 1,
+   "role": "Sales User",
+   "select": 1
+  },
+  {
+   "read": 1,
+   "role": "Sales Manager",
+   "select": 1
   }
  ],
  "row_format": "Dynamic",

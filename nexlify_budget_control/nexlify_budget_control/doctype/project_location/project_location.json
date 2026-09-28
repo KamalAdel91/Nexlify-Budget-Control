@@ -40,7 +40,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-25 16:42:41.716649",
+ "modified": "2026-09-28 16:30:00.000000",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Location",
@@ -84,6 +84,16 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Sales User",
+   "select": 1
+  },
+  {
+   "read": 1,
+   "role": "Sales Manager",
+   "select": 1
   }
  ],
  "row_format": "Dynamic",
