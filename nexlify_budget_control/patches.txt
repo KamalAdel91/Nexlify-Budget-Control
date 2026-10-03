@@ -18,3 +18,4 @@ nexlify_budget_control.patches.rename_estimations_cb_to_est
 nexlify_budget_control.patches.show_create_estimation_default
 nexlify_budget_control.patches.manpower_category_sort_order
 nexlify_budget_control.patches.service_project_types  # one-time, remove in final Cleanup
+nexlify_budget_control.patches.title_case_regions  # one-time, remove in final Cleanup

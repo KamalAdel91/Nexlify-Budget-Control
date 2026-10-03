@@ -225,24 +225,24 @@
  ],
  "Region": [
   {
-   "name": "CENTRAL",
-   "region_name": "CENTRAL"
+   "name": "Central",
+   "region_name": "Central"
   },
   {
-   "name": "EASTERN",
-   "region_name": "EASTERN"
+   "name": "Eastern",
+   "region_name": "Eastern"
   },
   {
-   "name": "WESTERN",
-   "region_name": "WESTERN"
+   "name": "Western",
+   "region_name": "Western"
   },
   {
-   "name": "NORTHERN",
-   "region_name": "NORTHERN"
+   "name": "Northern",
+   "region_name": "Northern"
   },
   {
-   "name": "SOUTHERN",
-   "region_name": "SOUTHERN"
+   "name": "Southern",
+   "region_name": "Southern"
   }
  ]
 }
