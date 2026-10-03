@@ -11,6 +11,11 @@ def _reopen(doctype, name):
 def execute():
     """ONE-TIME, remove in the final Cleanup. Existing Estimations get their Workflow state. Priced ones whose
     Opportunity is not won yet go back to Sent to Sales (draft again, with their Equipment Scope rows)."""
+    # The fixtures sync after the patches: the Opportunity fields this reads (custom_estimation, ...) and the
+    # Workflow may not exist yet on a site that gets several deploys at once.
+    from frappe.utils.fixtures import sync_fixtures
+    sync_fixtures("nexlify_budget_control")
+    frappe.clear_cache()
     for name, docstatus, opp in frappe.db.sql("select name, docstatus, opportunity from `tabProject Estimation`"):
         won = bool(opp) and frappe.db.get_value("Opportunity", opp, "sales_stage") == "Closed Won"
         if docstatus == 2:
