@@ -78,9 +78,7 @@ frappe.ui.form.on('Opportunity', {
 function should_show_closing_dialog(frm) {
     if (!frm.doc.custom_closing_date) return true;
     if (!frm.doc.opportunity_amount || frm.doc.opportunity_amount <= 0) return true;
-    if (!frm.doc.custom_maintenance_nature) return true;
     if (!frm.doc.custom_region) return true;
-    if (!frm.doc.custom_project_type) return true;
     return false;
 }
 
@@ -109,18 +107,6 @@ function show_closing_date_dialog(frm) {
         description: __('The opportunity amount must be strictly greater than zero.')
     });
 
-    // 3. Mandatory Maintenance Nature field assignment (mirrors the actual
-    //    fieldtype/options from the real field, so it stays in sync
-    //    automatically if that field is ever reconfigured)
-    let nature_docfield = frm.get_docfield('custom_maintenance_nature');
-    dialog_fields.push({
-        label: nature_docfield?.label || __('Maintenance Nature'),
-        fieldname: 'custom_maintenance_nature',
-        fieldtype: nature_docfield?.fieldtype || 'Link',
-        options: nature_docfield?.options,
-        reqd: 1,
-        default: frm.doc.custom_maintenance_nature
-    });
 
     // 4. Mandatory Region field assignment
     let region_docfield = frm.get_docfield('custom_region');
@@ -133,16 +119,6 @@ function show_closing_date_dialog(frm) {
         default: frm.doc.custom_region
     });
 
-    // 5. Mandatory Project Type field assignment
-    let type_docfield = frm.get_docfield('custom_project_type');
-    dialog_fields.push({
-        label: type_docfield?.label || __('Project Type'),
-        fieldname: 'custom_project_type',
-        fieldtype: type_docfield?.fieldtype || 'Link',
-        options: type_docfield?.options,
-        reqd: 1,
-        default: frm.doc.custom_project_type
-    });
 
     let d = new frappe.ui.Dialog({
         title: __('Required Information for Closed Won'),
@@ -167,9 +143,7 @@ function show_closing_date_dialog(frm) {
             frm.set_value('sales_stage', 'Closed Won');
             frm.set_value('custom_closing_date', values.custom_closing_date);
             frm.set_value('opportunity_amount', values.opportunity_amount);
-            frm.set_value('custom_maintenance_nature', values.custom_maintenance_nature);
             frm.set_value('custom_region', values.custom_region);
-            frm.set_value('custom_project_type', values.custom_project_type);
 
             // Bypass the 'status' trigger the same way as the Lost flow,
             // purely for consistency/safety - avoids any core script bound
@@ -413,8 +387,8 @@ function render_dynamic_stage_bar(frm) {
         const chips = [
             chip('pin', __('Location'), d.custom_project_location),
             chip('globe', __('Region'), d.custom_region),
-            chip('tool', __('Maintenance Nature'), d.custom_maintenance_nature),
             chip('tag', __('Project Type'), d.custom_project_type),
+            d.custom_maintenance_type ? chip('tool', __('Maintenance Type'), d.custom_maintenance_type) : '',
             chip('cal', __('Closing Date'), d.custom_closing_date ? frappe.datetime.str_to_user(d.custom_closing_date) : '')
         ].join('');
 

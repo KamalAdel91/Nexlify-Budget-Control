@@ -9,14 +9,14 @@ if doc.sales_stage == "Closed Won":
     if not doc.custom_closing_date:
         frappe.throw("Please enter the <b>Closing Date</b> before setting the stage to Closed Won.")
 
-    if not doc.custom_maintenance_nature:
-        frappe.throw("Please select the <b>Maintenance Nature</b> before setting the stage to Closed Won.")
-
     if not doc.custom_region:
         frappe.throw("Please select the <b>Region</b> before setting the stage to Closed Won.")
 
     if not doc.custom_project_type:
         frappe.throw("Please select the <b>Project Type</b> before setting the stage to Closed Won.")
+
+    if doc.custom_project_type == "Maintenance" and not doc.custom_maintenance_type:
+        frappe.throw("Please select the <b>Maintenance Type</b> before setting the stage to Closed Won.")
 
     if not doc.opportunity_amount or doc.opportunity_amount <= 0:
         frappe.throw("Please enter an <b>Opportunity Amount</b> greater than zero before setting the stage to Closed Won.")

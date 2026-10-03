@@ -93,25 +93,36 @@
    "name": "PM For MV Outgoing SWGRS"
   }
  ],
- "Maintenance Nature": [
+ "Maintenance Type": [
   {
-   "name": "PREVENTIVE",
-   "nature_name": "PREVENTIVE"
+   "name": "Monthly",
+   "type_name": "Monthly"
   },
   {
-   "name": "CORRECTIVE",
-   "nature_name": "CORRECTIVE"
+   "name": "Quarterly",
+   "type_name": "Quarterly"
   },
   {
-   "name": "EMERGENCY",
-   "nature_name": "EMERGENCY"
+   "name": "Semi Annual",
+   "type_name": "Semi Annual"
   },
   {
-   "name": "INSPECTION",
-   "nature_name": "INSPECTION"
+   "name": "Annual",
+   "type_name": "Annual"
+  },
+  {
+   "name": "One Time",
+   "type_name": "One Time"
+  },
+  {
+   "name": "On Call",
+   "type_name": "On Call"
+  },
+  {
+   "name": "Unit Price",
+   "type_name": "Unit Price"
   }
  ],
- "Maintenance Type": [],
  "Project Location": [
   {
    "location_name": "Riyadh",
@@ -192,36 +203,24 @@
  ],
  "Project Type": [
   {
-   "name": "External",
-   "project_type": "External"
+   "name": "Maintenance",
+   "project_type": "Maintenance"
   },
   {
-   "name": "MONTHLY",
-   "project_type": "MONTHLY"
+   "name": "Installation",
+   "project_type": "Installation"
   },
   {
-   "name": "QUARTERLY",
-   "project_type": "QUARTERLY"
+   "name": "Testing & Commissioning",
+   "project_type": "Testing & Commissioning"
   },
   {
-   "name": "SEMI_ANNUAL",
-   "project_type": "SEMI_ANNUAL"
+   "name": "O&M / FM",
+   "project_type": "O&M / FM"
   },
   {
-   "name": "ANNUAL",
-   "project_type": "ANNUAL"
-  },
-  {
-   "name": "ONE_TIME",
-   "project_type": "ONE_TIME"
-  },
-  {
-   "name": "ON_CALL",
-   "project_type": "ON_CALL"
-  },
-  {
-   "name": "UNIT_PRICE",
-   "project_type": "UNIT_PRICE"
+   "name": "Power Study",
+   "project_type": "Power Study"
   }
  ],
  "Region": [

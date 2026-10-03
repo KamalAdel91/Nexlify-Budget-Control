@@ -195,18 +195,6 @@
   {
    "child": 1,
    "collapsible": 1,
-   "icon": "settings-2",
-   "indent": 0,
-   "keep_closed": 0,
-   "label": "Maintenance Natures",
-   "link_to": "Maintenance Nature",
-   "link_type": "DocType",
-   "show_arrow": 0,
-   "type": "Link"
-  },
-  {
-   "child": 1,
-   "collapsible": 1,
    "icon": "map",
    "indent": 0,
    "keep_closed": 0,
@@ -299,7 +287,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-27 19:57:10.472161",
+ "modified": "2026-10-03 22:32:13.765605",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "CEO",

@@ -25,6 +25,21 @@ def _rfq_rows(doc):
 	return [(r.equipment, flt(r.quantity), (r.description or "").strip()) for r in (doc.get("custom_rfq_items") or [])]
 
 
+MAINTENANCE_PROJECT_TYPE = "Maintenance"
+
+
+def validate_project_type(doc, method=None):
+	"""Maintenance Type belongs to Maintenance projects only, and both are fixed once sent to Estimation."""
+	if doc.get("custom_project_type") != MAINTENANCE_PROJECT_TYPE and doc.get("custom_maintenance_type"):
+		doc.custom_maintenance_type = None
+	before = doc.get_doc_before_save()
+	if not before or (before.get("custom_estimation_status") or "Not Sent") not in LOCKED_STATUSES:
+		return
+	for f in ("custom_project_type", "custom_maintenance_type"):
+		if (doc.get(f) or "") != (before.get(f) or ""):
+			frappe.throw(_("{0} was sent to Estimation {1} and cannot be changed.").format(_(doc.meta.get_label(f)), before.custom_estimation))
+
+
 def validate_rfq_lock(doc, method=None):
 	"""Once sent to Estimation, the RFQ Items cannot change."""
 	before = doc.get_doc_before_save()
@@ -49,6 +64,11 @@ def send_to_estimation(opportunity):
 	for r in rows:
 		if not r.equipment or flt(r.quantity) <= 0:
 			frappe.throw(_("Row {0}: Equipment Scope and a Quantity above zero are required.").format(r.idx))
+
+	if not opp.get("custom_project_type"):
+		frappe.throw(_("Select the Project Type before sending to Estimation."))
+	if opp.custom_project_type == MAINTENANCE_PROJECT_TYPE and not opp.get("custom_maintenance_type"):
+		frappe.throw(_("Select the Maintenance Type before sending to Estimation."))
 
 	currency = opp.get("currency") or frappe.get_cached_value("Company", opp.company, "default_currency")
 	estimation_date = nowdate()
@@ -98,13 +118,13 @@ def get_rfq_for_estimation(estimation):
 	if not opp:
 		return {"opportunity": None, "rows": []}
 	o = frappe.db.get_value("Opportunity", opp, ["customer_name", "party_name", "custom_opportunity_name", "custom_project_location",
-		"custom_maintenance_nature", "custom_project_type"], as_dict=True) or {}
+		"custom_project_type", "custom_maintenance_type"], as_dict=True) or {}
 	rows = frappe.get_all("Opportunity RFQ Item", filters={"parent": opp, "parenttype": "Opportunity"},
 		fields=["equipment", "quantity", "description"], order_by="idx")
 	return {"opportunity": opp, "customer": o.get("customer_name") or o.get("party_name"),
 		"opportunity_name": o.get("custom_opportunity_name"), "rows": rows,
-		"meta": [[_("Location"), o.get("custom_project_location")], [_("Maintenance Nature"), o.get("custom_maintenance_nature")],
-			[_("Project Type"), o.get("custom_project_type")]]}
+		"meta": [[_("Location"), o.get("custom_project_location")], [_("Project Type"), o.get("custom_project_type")],
+			[_("Maintenance Type"), o.get("custom_maintenance_type")]]}
 
 
 @frappe.whitelist()

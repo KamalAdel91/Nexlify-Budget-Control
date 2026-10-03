@@ -3192,7 +3192,7 @@ def get_overview_page(overview):
     if ov.project:
         pm = frappe.get_meta("Project")
         fields = ["project_name"] + [f for f in ("expected_start_date", "expected_end_date", "custom_region",
-                                                  "custom_maintenance_nature", "is_active") if pm.has_field(f)]
+                                                  "is_active") if pm.has_field(f)]
         out["project"] = frappe.db.get_value("Project", ov.project, fields, as_dict=True)
     if ov.cost_budget:
         out["estimation"] = frappe.db.get_value(

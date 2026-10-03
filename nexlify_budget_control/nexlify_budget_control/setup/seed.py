@@ -5,7 +5,7 @@ import frappe
 
 
 def seed_master_data():
-	"""Adds the master data shipped in seed_data.json (regions, maintenance natures and types, project
+	"""Adds the master data shipped in seed_data.json (regions, maintenance types, project
 	types, equipment types) once per site. Existing records are never changed, and a record removed in
 	the UI later is not added again: after the first time, the UI owns this data."""
 	path = os.path.join(os.path.dirname(__file__), "seed_data.json")

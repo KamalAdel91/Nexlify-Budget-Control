@@ -11,7 +11,10 @@ app_license = "mit"
 
 doc_events = {
     "Opportunity": {
-        "validate": "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_rfq_lock",
+        "validate": [
+            "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_project_type",
+            "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_rfq_lock",
+        ],
     },
     "Designation": {
         "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
@@ -111,13 +114,11 @@ fixtures = [
 					"Project-custom_project_planning",
 					"Project-custom_project_overview",
 					"Project-custom_region",
-					"Project-custom_maintenance_nature",
 					"Project-custom_section_break_muryd",
 					"Project-custom_column_break_59yog",
 					"Project-custom_column_break_dyzps",
 					"Project-custom_column_break_vbwaw",
 					"Opportunity-custom_region",
-					"Opportunity-custom_maintenance_nature",
 					"Opportunity-custom_maintenance_type",
 					"Opportunity-custom_project_type",
 					"Opportunity-custom_project_location",
