@@ -48,6 +48,11 @@ frappe.pages["projexlify-dashboard"].on_page_show = function (wrapper) {
 			.nx-bar-row { grid-template-columns: 110px 1fr 50px; }
 		}
 		/* nx-ops */
+		.nx-inv-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+		.nx-inv-cards .nx-kpi::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kc); }
+		.nx-inv-row { grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, 1fr) 70px minmax(0, 1fr); }
+		@media (max-width: 640px) { .nx-inv-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .nx-inv-row.nx-head { display: none; } }
+		.nx-box > .nx-row.nx-head:first-child { margin: -8px -16px 0; padding: 10px 20px; font-weight: 600; background: color-mix(in srgb, var(--subtle-fg) 65%, var(--card-bg)); border-bottom: 1px solid var(--border-color); border-radius: calc(var(--border-radius-lg, 12px) - 1px) calc(var(--border-radius-lg, 12px) - 1px) 0 0; }
 		.nx-wd { font-weight: 600; color: var(--text-color); }
 		.nx-queue-wrap.has-items .nx-box { background: #fffaf0; border-color: #f5d49a; box-shadow: inset 4px 0 0 #F59E0B; }
 		.nx-queue-wrap.has-items .nx-row { border-bottom-color: #f3e2c0; }
@@ -86,7 +91,9 @@ frappe.pages["projexlify-dashboard"].on_page_show = function (wrapper) {
 		@media (max-width: 640px) { .nx-bud-bar { gap: 6px; } }
 		.nx-wrap { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
 		.nx-code { display: inline-block; font-family: var(--font-family-mono, ui-monospace, monospace); font-size: 11.5px; font-weight: 600; padding: 1px 8px; margin-bottom: 3px; border-radius: 6px; background: var(--control-bg); color: var(--heading-color); letter-spacing: .02em; }
-		.nx-visit-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.3fr) 90px minmax(0, 1.7fr); }
+		.nx-visit-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1.2fr) 80px minmax(0, 1.5fr); }
+		.nx-center { text-align: center; }
+		.nx-eq { font-size: var(--text-xs); line-height: 1.5; min-width: 0; }
 		.nx-vgroup { font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); padding: 12px 4px 2px; }
 		.nx-vgroup span { font-weight: 400; margin-left: 6px; }
 		.nx-tm { display: inline-flex; align-items: center; gap: 5px; font-size: var(--text-xs); margin: 2px 12px 2px 0; white-space: nowrap; color: var(--text-color); }
@@ -226,6 +233,7 @@ class NexlifyCeoDashboard {
 			</div>
 			${this.render_visits()}
 			${this.render_manpower()}
+			${this.render_invoicing()}
 		`);
 		this.render_chart();
 		this.render_manpower_chart();
@@ -332,6 +340,9 @@ class NexlifyCeoDashboard {
 		const v = this.data.visits || {}, cur = v.current || [], up = v.upcoming || [];
 		const trades = (this.data.manpower || {}).trades || [], color = this.trade_colors();
 		const date = (d) => frappe.datetime.str_to_user(d);
+		const eq = (x) => (x.equipment || []).length
+			? x.equipment.map((a) => `<div>${this.esc(a.equipment)} <span class="nx-muted">× ${a.quantity}</span></div>`).join("")
+			: `<span class="nx-muted">${__("No equipment")}</span>`;
 		const team = (x) => {
 			const items = trades.filter((t) => x.team[t.name])
 				.map((t) => `<span class="nx-tm"><i style="background:${color[t.name]}"></i>${x.team[t.name]} ${this.esc(t.label)}</span>`).join("");
@@ -341,12 +352,13 @@ class NexlifyCeoDashboard {
 			<div class="nx-row nx-visit-row" ${this.link_attrs("Project Visits", x.name)}>
 				<span class="nx-wrap"><b>${this.esc(x.project)}</b> · ${this.esc(x.label)}<div class="nx-muted">${this.esc(x.project_name)}</div></span>
 				<span class="nx-wrap nx-hide-sm">${x.customer ? `<span class="nx-code">${this.esc(x.customer)}</span>` : ""}${x.customer_name && x.customer_name !== x.customer ? `<div class="nx-muted">${this.esc(x.customer_name)}</div>` : ""}</span>
+				<span class="nx-eq">${eq(x)}</span>
 				<span>${now
 					? `<div class="nx-muted">${__("Day {0} of {1}", [x.day, x.days])}</div>
 						<div class="nx-track" style="margin-top:5px"><div class="nx-fill" style="width:${Math.min(100, x.day / x.days * 100)}%; background: #2490EF"></div></div>`
 					: `<span class="indicator-pill blue">${x.starts_in === 1 ? __("Starts tomorrow") : __("Starts in {0} days", [x.starts_in])}</span>`}
 					<div class="nx-muted" style="margin-top:4px">${date(x.start_date)} → ${date(x.end_date)}</div></span>
-				<span class="nx-right"><b class="nx-wd">${x.working_days ? flt(x.working_days, 2) : "—"}</b></span>
+				<span class="nx-center"><b class="nx-wd">${x.working_days ? flt(x.working_days, 2) : "—"}</b></span>
 				<span>${team(x)}</span>
 			</div>`;
 		const people = cur.reduce((s, x) => s + x.people, 0);
@@ -354,7 +366,7 @@ class NexlifyCeoDashboard {
 		if (!cur.length && !up.length) {
 			return this.section(__("Visits now"), note, `<div class="nx-box"><div class="nx-empty">${__("No visits in progress or coming up.")}</div></div>`);
 		}
-		const head = `<div class="nx-row nx-visit-row nx-head"><span>${__("Project · Visit")}</span><span class="nx-hide-sm">${__("Customer")}</span><span>${__("Progress")}</span><span class="nx-right">${__("Work days")}</span><span>${__("Team")}</span></div>`;
+		const head = `<div class="nx-row nx-visit-row nx-head"><span>${__("Project · Visit")}</span><span class="nx-hide-sm">${__("Customer")}</span><span>${__("Equipment")}</span><span>${__("Progress")}</span><span class="nx-center">${__("Work days")}</span><span>${__("Team")}</span></div>`;
 		const group = (label, list, now) => list.length
 			? `<div class="nx-vgroup">${label}<span>${list.length}</span></div>${list.map((x) => row(x, now)).join("")}` : "";
 		return this.section(__("Visits now"), note, `<div class="nx-box">${head}
@@ -406,6 +418,45 @@ class NexlifyCeoDashboard {
 			tooltipOptions: { formatTooltipY: (v) => __("{0} people", [v]) },
 		});
 	}
+	render_invoicing() {
+		const v = this.data.invoicing || {}, tt = v.totals || {};
+		const over = v.overdue || [], due = v.due || [];
+		const date = (d) => frappe.datetime.str_to_user(d);
+		const inv = (n) => this.n_(n || 0, "{0} invoice", "{0} invoices");
+		const card = (label, value, sub, color) => `<div class="nx-kpi" style="--kc:${color}">
+			<div class="nx-kpi-label">${label}</div><div class="nx-kpi-value">${value}</div><div class="nx-kpi-sub">${sub || "&nbsp;"}</div></div>`;
+		const money_or = (amount, fallback) => (amount == null ? fallback : this.money(amount));
+		const cards = `<div class="nx-inv-cards">
+			${card(__("Overdue"), money_or(tt.overdue_amount, inv(tt.overdue_count)), tt.overdue_amount == null ? "" : inv(tt.overdue_count), "#E5484D")}
+			${card(__("Due in the next {0} days", [v.window]), money_or(tt.due_amount, inv(tt.due_count)), tt.due_amount == null ? "" : inv(tt.due_count), "#F59E0B")}
+			${card(__("Invoiced"), money_or(tt.invoiced_amount, __("{0} of {1}", [tt.invoiced_count || 0, tt.total_count || 0])),
+				tt.contract ? __("{0}% of contract value", [Math.round(tt.invoiced_amount / tt.contract * 1000) / 10]) : "", "#20A39E")}
+			${card(__("Left to invoice"), money_or(tt.remaining_amount, inv((tt.total_count || 0) - (tt.invoiced_count || 0))), __("approved projects"), "#2490EF")}
+		</div>`;
+		const when = (x) => x.days < 0
+			? `<span class="indicator-pill red">${this.n_(-x.days, "{0} day late", "{0} days late")}</span>`
+			: `<span class="indicator-pill orange">${x.days === 0 ? __("Today") : x.days === 1 ? __("Tomorrow") : __("In {0} days", [x.days])}</span>`;
+		const row = (x) => `
+			<div class="nx-row nx-inv-row" ${this.link_attrs("Project Invoicing", x.name)}>
+				<span class="nx-wrap"><b>${this.esc(x.project)}</b> · ${this.esc(String(x.name).replace(x.project + "-", ""))}
+					<div class="nx-muted">${this.esc(x.project_name)}</div></span>
+				<span class="nx-wrap nx-hide-sm">${x.customer ? `<span class="nx-code">${this.esc(x.customer)}</span>` : ""}
+					${x.customer_name && x.customer_name !== x.customer ? `<div class="nx-muted">${this.esc(x.customer_name)}</div>` : ""}</span>
+				<span class="nx-wrap nx-muted nx-hide-sm">${x.description ? this.esc(x.description) : "—"}</span>
+				<span>${when(x)}<div class="nx-muted" style="margin-top:4px">${date(x.expected_date)}</div></span>
+				<span class="nx-right">${flt(x.share, 2)}%</span>
+				<span class="nx-right"><b>${this.money(x.amount)}</b></span>
+			</div>`;
+		const head = `<div class="nx-row nx-inv-row nx-head"><span>${__("Project · Invoice")}</span><span class="nx-hide-sm">${__("Customer")}</span>
+			<span class="nx-hide-sm">${__("Description")}</span><span>${__("Expected date")}</span><span class="nx-right">${__("Share")}</span>
+			<span class="nx-right">${__("Amount")}</span></div>`;
+		const group = (label, list) => list.length ? `<div class="nx-vgroup">${label}<span>${list.length}</span></div>${list.map(row).join("")}` : "";
+		const table = !over.length && !due.length
+			? `<div class="nx-box" style="margin-top:12px"><div class="nx-empty">${__("No invoices are overdue or due in the next {0} days.", [v.window])}</div></div>`
+			: `<div class="nx-box" style="margin-top:12px">${head}${group(__("Overdue"), over)}${group(__("Due in the next {0} days", [v.window]), due)}</div>`;
+		return this.section(__("Invoicing"), __("{0} of {1} invoiced · approved projects", [tt.invoiced_count || 0, tt.total_count || 0]), cards + table);
+	}
+
 	render_budget() {
 		const b = this.data.budget, v = this.data.violations;
 		const rows = !b.categories.length

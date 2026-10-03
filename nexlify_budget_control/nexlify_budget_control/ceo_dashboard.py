@@ -21,6 +21,9 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
     target, low, aging = flt(s.target_margin_pct), flt(s.low_margin_threshold), cint(s.approval_aging_warning_days)
 
     only = _filtered_projects(company, project, extra_filters)
+    # Only the projects this user may see (role and User Permissions, e.g. one Company)
+    allowed = set(_permitted_projects())
+    only = allowed if only is None else (only & allowed)
 
     def in_only(field):
         return {field: ["in", list(only) or [""]]} if only is not None else {}
@@ -158,6 +161,7 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
     } for o in queue]
 
     vm = _visits_and_manpower(active, titles, s)
+    inv = _invoicing(active, titles, s, can_see_price)
 
     if not can_see_price:
         for k in ("contract_value", "expected_profit", "margin_pct"):
@@ -180,6 +184,7 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         "attention": attention,
         "visits": vm["visits"],
         "manpower": vm["manpower"],
+        "invoicing": inv,
     }
 
 
@@ -253,6 +258,12 @@ def _visits_and_manpower(active, titles, s):
         if r.trade and cint(r.headcount) > 0:
             by = team.setdefault(r.parent, {})
             by[r.trade] = by.get(r.trade, 0) + cint(r.headcount)
+    equipment = {}
+    for r in frappe.get_all("Project Visit Allocation",
+            filters={"parenttype": "Project Visits", "parent": ["in", [v.name for v in visits] or [""]]},
+            fields=["parent", "equipment", "quantity", "work_days"], order_by="idx asc"):
+        equipment.setdefault(r.parent, []).append(
+            {"equipment": r.equipment, "quantity": flt(r.quantity, 2), "work_days": flt(r.work_days, 2)})
     known = {x["name"] for x in trades}
     for by in team.values():
         for tr in by:
@@ -272,7 +283,7 @@ def _visits_and_manpower(active, titles, s):
                 "start_date": str(v.start_date), "end_date": str(v.end_date),
                 "day": date_diff(t, v.start_date) + 1, "days": date_diff(v.end_date, v.start_date) + 1,
                 "starts_in": date_diff(v.start_date, t), "team": by, "people": sum(by.values()),
-                "working_days": flt(v.working_days, 2)}
+                "working_days": flt(v.working_days, 2), "equipment": equipment.get(v.name, [])}
 
     current = [row(v) for v in visits if v.start_date <= t <= v.end_date]
     upcoming = [row(v) for v in visits if t < v.start_date <= soon]
@@ -303,3 +314,55 @@ def _visits_and_manpower(active, titles, s):
         "visits": {"current": current, "upcoming": upcoming, "upcoming_days": upcoming_days},
         "manpower": {"trades": trades, "today": now, "weeks": out_weeks},
     }
+
+def _invoicing(active, titles, s, can_see_price):
+    """Invoices of approved projects: overdue, due soon, and totals."""
+    window = cint(s.get("invoice_due_days")) or 30
+    t = getdate(today())
+    soon = getdate(add_days(t, window))
+    ov = {o.revenue_budget: o for o in active if o.docstatus == 1 and o.revenue_budget}
+    meta = frappe.get_meta("Project Invoicing")
+    desc = next((f.fieldname for f in meta.fields
+        if f.fieldtype in ("Small Text", "Text", "Long Text", "Text Editor", "Data")
+        and ("desc" in f.fieldname or "description" in (f.label or "").lower() or f.fieldname in ("notes", "remarks"))), None)
+    fields = ["name", "project_planning", "invoice_percentage", "expected_invoice_date", "status"] + ([desc] if desc else [])
+    rows = frappe.get_all("Project Invoicing", filters={"project_planning": ["in", list(ov) or [""]]},
+        fields=fields, order_by="expected_invoice_date asc, creation asc")
+    cust = dict(frappe.get_all("Customer", filters={"name": ["in", list({o.customer for o in ov.values() if o.customer}) or [""]]},
+        fields=["name", "customer_name"], as_list=True))
+    tt = {"contract": sum(flt(o.contract_value) for o in ov.values()), "invoiced_amount": 0, "remaining_amount": 0,
+          "overdue_count": 0, "overdue_amount": 0, "due_count": 0, "due_amount": 0, "invoiced_count": 0, "total_count": len(rows)}
+    overdue, due = [], []
+    for r in rows:
+        o = ov[r.project_planning]
+        amount = flt(o.contract_value) * flt(r.invoice_percentage) / 100
+        if (r.status or "") == "Invoiced":
+            tt["invoiced_amount"] += amount
+            tt["invoiced_count"] += 1
+            continue
+        tt["remaining_amount"] += amount
+        if not r.expected_invoice_date:
+            continue
+        d = getdate(r.expected_invoice_date)
+        item = {"name": r.name, "project": o.project, "project_name": titles.get(o.project, o.project),
+                "customer": o.customer, "customer_name": cust.get(o.customer) or o.customer,
+                "description": frappe.utils.strip_html(r.get(desc) or "").strip() if desc else None,
+                "expected_date": str(d), "days": date_diff(d, t), "share": flt(r.invoice_percentage, 2),
+                "amount": amount, "status": r.status}
+        if d < t:
+            overdue.append(item); tt["overdue_count"] += 1; tt["overdue_amount"] += amount
+        elif d <= soon:
+            due.append(item); tt["due_count"] += 1; tt["due_amount"] += amount
+    if not can_see_price:
+        for k in ("contract", "invoiced_amount", "remaining_amount", "overdue_amount", "due_amount"):
+            tt[k] = None
+        for x in overdue + due:
+            x["amount"] = None
+    return {"window": window, "overdue": overdue, "due": due, "totals": tt}
+
+
+def _permitted_projects():
+    """Project names the current user can read, honouring User Permissions."""
+    if frappe.has_permission("Project", "read"):
+        return frappe.get_list("Project", pluck="name", limit_page_length=0)
+    return [p for p in frappe.get_list(OV, pluck="project", limit_page_length=0) if p]

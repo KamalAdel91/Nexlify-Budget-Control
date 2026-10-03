@@ -184,8 +184,7 @@ function show_closing_date_dialog(frm) {
     // Reset properties context stably if user exits modal layout manually
     d.onhide = function() {
         if (frm.doc.sales_stage === "Closed Won" && should_show_closing_dialog(frm)) {
-            frm.__bypass_validation = false;
-            frm.reload_doc();
+            nexlify_discard_stage(frm);
         }
     };
 
@@ -338,8 +337,7 @@ function show_lost_reason_dialog(frm) {
     // reappearing right after a successful save.
     d.onhide = function() {
         if (!save_confirmed) {
-            frm.__bypass_validation = false;
-            frm.reload_doc();
+            nexlify_discard_stage(frm);
         }
     };
 
@@ -545,4 +543,17 @@ function inject_opportunity_header_styles() {
         }
     `;
     document.head.appendChild(s);
+}
+
+// Undo a stage change the user backed out of. A saved Opportunity is reloaded
+// from the server; a new one has nothing to reload, so its stage goes back to
+// the default instead (reloading it would show "Opportunity new-... not found").
+function nexlify_discard_stage(frm) {
+    frm.__bypass_validation = false;
+    if (!frm.is_new()) {
+        frm.reload_doc();
+        return;
+    }
+    frm.doc.sales_stage = frappe.meta.get_docfield('Opportunity', 'sales_stage').default || null;
+    frm.refresh_field('sales_stage');
 }

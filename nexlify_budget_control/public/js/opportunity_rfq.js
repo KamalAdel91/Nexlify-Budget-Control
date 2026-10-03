@@ -1,3 +1,16 @@
+// ERPNext asks the server for open activities on every refresh, even before the
+// Opportunity is saved. For non-admin users the server then looks for the temporary
+// "new-opportunity-..." name and answers "not found". A new document has no
+// activities yet, so skip the call until it is saved.
+if (window.erpnext && erpnext.utils && erpnext.utils.CRMActivities && !erpnext.utils.CRMActivities.__nx_skip_new) {
+	const nx_orig_refresh = erpnext.utils.CRMActivities.prototype.refresh;
+	erpnext.utils.CRMActivities.prototype.refresh = function() {
+		if (this.frm && this.frm.is_new()) return;
+		return nx_orig_refresh.apply(this, arguments);
+	};
+	erpnext.utils.CRMActivities.__nx_skip_new = true;
+}
+
 // RFQ tab: Send To Estimation, shown above the RFQ Items while the RFQ is not sent yet
 frappe.ui.form.on('Opportunity', {
 	refresh(frm) { nexlify_render_rfq_actions(frm); nexlify_render_estimation_view(frm); },

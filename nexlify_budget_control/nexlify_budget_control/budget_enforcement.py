@@ -3212,7 +3212,7 @@ def get_overview_page(overview):
         out["visits"] = _enrich_overview_visits(visits)
 
         inv_meta = frappe.get_meta("Project Invoicing")
-        extra = [f for f in ("title", "invoice_title", "description", "invoice_date", "due_date", "expected_invoice_date", "actual_date", "status") if inv_meta.has_field(f)]
+        extra = [f for f in ("invoice_label", "invoice_description", "title", "invoice_title", "description", "invoice_date", "due_date", "expected_invoice_date", "actual_date", "status") if inv_meta.has_field(f)]
         desc_field = next((f.fieldname for f in inv_meta.fields
             if f.fieldtype in ("Small Text", "Text", "Long Text", "Text Editor", "Data")
             and ("desc" in f.fieldname or "description" in (f.label or "").lower() or f.fieldname in ("notes", "remarks"))), None)

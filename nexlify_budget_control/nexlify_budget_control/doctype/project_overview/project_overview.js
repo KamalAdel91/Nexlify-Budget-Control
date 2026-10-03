@@ -922,7 +922,7 @@ function pop_page_html(frm, d, scope) {
 	const pct_total = invoices.reduce((s, i) => s + flt(i.invoice_percentage), 0);
 	const is_done = i => (i.status || '') === 'Invoiced';
 	const done_amt = invoices.filter(is_done).reduce((s, i) => s + contract * flt(i.invoice_percentage) / 100, 0);
-	const inv_name = (i, n) => i.title || i.invoice_title || __('Invoice {0}', [n]);
+	const inv_name = (i, n) => i.invoice_label || i.title || i.invoice_title || __('Invoice {0}', [n]);
 	const inv_date = i => i.expected_date || i.expected_invoice_date || i.invoice_date || i.due_date;
 	const unlinked = invoices.filter(i => !(i.after_visits || []).length && !i.invoice_date && !i.due_date).length;
 
@@ -1123,7 +1123,7 @@ function pop_page_html(frm, d, scope) {
 		const when = inv_date(i) ? date(inv_date(i)) : '-';
 		return `<tr>
 			<td class="nowrap"><a href="/app/project-invoicing/${i.name}">${esc(inv_name(i, k + 1))}</a></td>
-			<td class="sub pop-desc">${i.description ? esc(i.description) : '—'}</td>
+			<td class="sub pop-desc">${i.description ? esc(i.invoice_description || i.description) : '—'}</td>
 			<td class="num">${flt(i.invoice_percentage, 2)}%</td>
 			<td class="num">${acc.contract ? money(contract * flt(i.invoice_percentage) / 100) : '-'}</td>
 			<td>${when}</td>

@@ -31,6 +31,7 @@
   "approval_aging_warning_days",
   "upcoming_visit_days",
   "manpower_weeks",
+  "invoice_due_days",
   "section_break_dashboard_filters",
   "dashboard_filters",
   "section_break_estimation_project",
@@ -190,6 +191,13 @@
    "description": "How many weeks ahead the Dashboard shows the manpower needed."
   },
   {
+   "fieldname": "invoice_due_days",
+   "fieldtype": "Int",
+   "label": "Invoices Due Window (days)",
+   "default": "30",
+   "description": "Invoices expected within this many days show as due on the Dashboard."
+  },
+  {
    "fieldname": "section_break_dashboard_filters",
    "fieldtype": "Section Break"
   },
@@ -214,7 +222,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 14:22:35.737166",
+ "modified": "2026-09-28 20:26:48.124094",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",
