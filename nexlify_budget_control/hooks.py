@@ -227,3 +227,8 @@ after_install = [
 ]
 
 boot_session = "nexlify_budget_control.nexlify_budget_control.manpower.boot_session"
+
+override_doctype_dashboards = {
+    "Opportunity": "nexlify_budget_control.nexlify_budget_control.dashboards.opportunity_dashboard",
+    "Project": "nexlify_budget_control.nexlify_budget_control.dashboards.project_dashboard",
+}

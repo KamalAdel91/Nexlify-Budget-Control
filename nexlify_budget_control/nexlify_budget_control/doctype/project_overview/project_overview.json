@@ -111,11 +111,11 @@
    "set_only_once": 1
   },
   {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:1",
    "fieldname": "deal_section",
    "fieldtype": "Section Break",
-   "label": "The Deal",
-   "collapsible": 1,
-   "collapsible_depends_on": "eval:1"
+   "label": "The Deal"
   },
   {
    "fieldname": "deal_html",
@@ -127,42 +127,42 @@
    "fetch_from": "project.custom_planned_revenue",
    "fieldname": "contract_value",
    "fieldtype": "Currency",
+   "hidden": 1,
    "label": "Contract Value",
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fieldname": "planned_cost",
    "fieldtype": "Currency",
+   "hidden": 1,
    "label": "Planned Cost",
    "no_copy": 1,
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fieldname": "expected_profit",
    "fieldtype": "Currency",
+   "hidden": 1,
    "label": "Expected Profit",
    "no_copy": 1,
    "permlevel": 1,
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fieldname": "margin_pct",
    "fieldtype": "Percent",
+   "hidden": 1,
    "label": "Expected Margin",
    "no_copy": 1,
    "permlevel": 1,
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:1",
    "fieldname": "cost_section",
    "fieldtype": "Section Break",
-   "label": "Cost Breakdown",
-   "collapsible": 1,
-   "collapsible_depends_on": "eval:1"
+   "label": "Cost Breakdown"
   },
   {
    "fieldname": "cost_html",
@@ -170,10 +170,10 @@
    "label": "Cost Breakdown"
   },
   {
+   "collapsible": 1,
    "fieldname": "scope_section",
    "fieldtype": "Section Break",
-   "label": "Scope: Plan vs Estimation",
-   "collapsible": 1
+   "label": "Scope: Plan vs Estimation"
   },
   {
    "fieldname": "scope_html",
@@ -181,10 +181,10 @@
    "label": "Scope"
   },
   {
+   "collapsible": 1,
    "fieldname": "schedule_section",
    "fieldtype": "Section Break",
-   "label": "Schedule",
-   "collapsible": 1
+   "label": "Schedule"
   },
   {
    "fieldname": "schedule_html",
@@ -192,10 +192,10 @@
    "label": "Schedule"
   },
   {
+   "collapsible": 1,
    "fieldname": "invoicing_section",
    "fieldtype": "Section Break",
-   "label": "Invoicing",
-   "collapsible": 1
+   "label": "Invoicing"
   },
   {
    "fieldname": "invoicing_html",
@@ -253,10 +253,10 @@
    "search_index": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "history_section",
    "fieldtype": "Section Break",
-   "label": "History",
-   "collapsible": 1
+   "label": "History"
   },
   {
    "fieldname": "history_html",
@@ -275,8 +275,14 @@
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
- "links": [],
- "modified": "2026-09-28 15:41:28.796170",
+ "links": [
+  {
+   "group": "Project",
+   "link_doctype": "Project",
+   "link_fieldname": "custom_project_overview"
+  }
+ ],
+ "modified": "2026-10-04 01:47:54.536326",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Overview",

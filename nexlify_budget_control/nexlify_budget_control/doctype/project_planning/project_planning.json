@@ -193,8 +193,34 @@
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
- "links": [],
- "modified": "2026-09-27 20:50:13.203417",
+ "links": [
+  {
+   "group": "Project",
+   "link_doctype": "Project",
+   "link_fieldname": "custom_project_planning"
+  },
+  {
+   "group": "Planning",
+   "link_doctype": "Project Planning Scope",
+   "link_fieldname": "project_planning"
+  },
+  {
+   "group": "Planning",
+   "link_doctype": "Project Visits",
+   "link_fieldname": "project_planning"
+  },
+  {
+   "group": "Planning",
+   "link_doctype": "Project Invoicing",
+   "link_fieldname": "project_planning"
+  },
+  {
+   "group": "Approval",
+   "link_doctype": "Project Overview",
+   "link_fieldname": "revenue_budget"
+  }
+ ],
+ "modified": "2026-10-04 01:47:54.536326",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Planning",

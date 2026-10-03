@@ -236,7 +236,7 @@ SALES_VISIBLE = ("Sent to Sales", "Contract Review", "Handed Over")
 # Source doctype -> (doctype that fetches from it, its link field). The fetched fields come from the meta.
 FETCH_LINKS = {
 	"Opportunity": (("Project", "custom_opportunity"), ("Project Estimation", "opportunity")),
-	"Project Estimation": (("Opportunity", "custom_estimation"),),
+	"Project Estimation": (("Opportunity", "custom_estimation"), ("Project", "custom_budget_cost")),
 }
 
 

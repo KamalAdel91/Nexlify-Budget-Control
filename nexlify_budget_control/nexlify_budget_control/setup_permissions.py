@@ -13,6 +13,11 @@ from frappe.permissions import add_permission, update_permission_property
 ESTIMATION_PLANNING = ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager"]
 ALL_APP_ROLES = ESTIMATION_PLANNING + ["O&M Manager", "COO", "CEO"]
 
+# Sensitive numbers (contract value, estimated cost) sit on permlevel 2: ERPNext gives Desk User read on level 1.
+SENSITIVE_READ = {
+    ("Project", 2): ["CEO", "COO", "Estimation Manager", "Estimation User", "Accounts User", "Accounts Manager", "System Manager"],
+}
+
 # (doctype, roles, permission types)
 APP_ROLE_PERMISSIONS = [
     ("Designation", ESTIMATION_PLANNING, ["select"]),
@@ -32,6 +37,10 @@ def ensure_app_role_permissions():
                 update_permission_property(doctype, role, 0, ptype, 1)
             if "read" not in ptypes:
                 update_permission_property(doctype, role, 0, "read", 0)
+    for (doctype, level), roles in SENSITIVE_READ.items():
+        for role in roles:
+            if frappe.db.exists("Role", role):
+                add_permission(doctype, role, level, "read")
     frappe.db.commit()
 
 

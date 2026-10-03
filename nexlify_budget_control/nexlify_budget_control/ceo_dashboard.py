@@ -51,8 +51,13 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         o.waiting_days = date_diff(today(), getdate(o.pending_since)) if o.pending_since and o.docstatus == 0 else None
 
     # ---------- KPIs ----------
-    revenue = sum(flt(o.contract_value) for o in active)
-    cost = sum(flt(o.planned_cost) for o in active)
+    # From the Projects whose Estimation is handed over (submitted): Planned Revenue comes from the
+    # Opportunity, Estimated Cost from the Estimation, both by fetch_from.
+    handed_over = set(frappe.get_all("Project Estimation", filters={"docstatus": 1, **in_only("project")}, pluck="project"))
+    kpi_projects = frappe.get_all("Project", filters={"name": ["in", list(handed_over) or [""]]},
+        fields=["custom_planned_revenue", "estimated_costing"])
+    revenue = sum(flt(p.custom_planned_revenue) for p in kpi_projects)
+    cost = sum(flt(p.estimated_costing) for p in kpi_projects)
     queue = sorted((o for o in active if o.docstatus == 0 and o.workflow_state in mine),
         key=lambda o: -(o.waiting_days or 0))
     kpis = {
@@ -60,7 +65,7 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         "planned_cost": cost,
         "expected_profit": revenue - cost,
         "margin_pct": flt((revenue - cost) / revenue * 100, 2) if revenue else 0,
-        "projects": len(active),
+        "projects": len(kpi_projects),
         "waiting_for_me": len(queue),
         "oldest_wait_days": max((o.waiting_days or 0 for o in queue), default=0),
         "pending_total": sum(1 for o in active if o.docstatus == 0 and o.workflow_state in pending),

@@ -249,7 +249,7 @@ class NexlifyCeoDashboard {
 			</div>`;
 		return `<div class="nx-kpis">
 			${card(__("Contract value"), this.money(k.contract_value), this.n_(k.projects, "{0} project", "{0} projects"))}
-			${card(__("Planned cost"), this.money(k.planned_cost), __("from approved estimations"))}
+			${card(__("Planned cost"), this.money(k.planned_cost), __("from handed-over estimations"))}
 			${card(__("Expected profit"), this.money(k.expected_profit), k.contract_value ? __("{0}% of contract value", [Math.round(k.expected_profit / k.contract_value * 1000) / 10]) : "", "", k.expected_profit < 0 ? "color: var(--red-500)" : "")}
 			${card(__("Avg margin"), this.pct(k.margin_pct),
 				`<span style="color:${this.margin_color(k.margin_pct)}">${__("Target {0}%", [s.target_margin_pct])}</span>`)}

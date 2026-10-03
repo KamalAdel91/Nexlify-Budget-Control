@@ -496,8 +496,34 @@
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
- "links": [],
- "modified": "2026-10-03 23:32:26.535110",
+ "links": [
+  {
+   "group": "Sales",
+   "link_doctype": "Opportunity",
+   "link_fieldname": "custom_estimation"
+  },
+  {
+   "group": "Project",
+   "link_doctype": "Project",
+   "link_fieldname": "custom_budget_cost"
+  },
+  {
+   "group": "Estimation",
+   "link_doctype": "Project Equipment Scope",
+   "link_fieldname": "cost_budget"
+  },
+  {
+   "group": "Planning",
+   "link_doctype": "Project Planning",
+   "link_fieldname": "estimation"
+  },
+  {
+   "group": "Approval",
+   "link_doctype": "Project Overview",
+   "link_fieldname": "cost_budget"
+  }
+ ],
+ "modified": "2026-10-04 01:47:54.536326",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",
