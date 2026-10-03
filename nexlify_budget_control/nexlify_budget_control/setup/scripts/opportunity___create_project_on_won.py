@@ -27,13 +27,8 @@ if doc.sales_stage == "Closed Won":
         # 3. Formulate and structure the new Project payload
         project = frappe.get_doc({
             "doctype": "Project",
-            "project_name": doc.custom_opportunity_name or doc.title or doc.name,
-            "company": doc.company,
             "is_active": "No",
-            "customer": doc.party_name if doc.opportunity_from == "Customer" else None,
             "custom_opportunity": doc.name,
-            "custom_project_location": doc.custom_project_location,
-            "project_type": doc.custom_project_type,
         })
         
         # 4. Push and commit the project into the database

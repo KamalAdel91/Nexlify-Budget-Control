@@ -28,16 +28,34 @@ def _rfq_rows(doc):
 MAINTENANCE_PROJECT_TYPE = "Maintenance"
 
 
+def set_locations_summary(doc, method=None):
+	"""Stored, read-only list of the chosen Locations: Project reads it with fetch_from."""
+	doc.custom_locations_summary = ", ".join(r.project_location for r in (doc.get("custom_project_locations") or []) if r.project_location)
+
+
 def validate_project_type(doc, method=None):
-	"""Maintenance Type belongs to Maintenance projects only, and both are fixed once sent to Estimation."""
+	"""Maintenance Type belongs to Maintenance projects only. Project Type, Maintenance Type and Locations are fixed once sent to Estimation."""
 	if doc.get("custom_project_type") != MAINTENANCE_PROJECT_TYPE and doc.get("custom_maintenance_type"):
 		doc.custom_maintenance_type = None
 	before = doc.get_doc_before_save()
 	if not before or (before.get("custom_estimation_status") or "Not Sent") not in LOCKED_STATUSES:
 		return
-	for f in ("custom_project_type", "custom_maintenance_type"):
+	for f, label_field in (("custom_project_type", "custom_project_type"), ("custom_maintenance_type", "custom_maintenance_type"),
+			("custom_locations_summary", "custom_project_locations")):
 		if (doc.get(f) or "") != (before.get(f) or ""):
-			frappe.throw(_("{0} was sent to Estimation {1} and cannot be changed.").format(_(doc.meta.get_label(f)), before.custom_estimation))
+			frappe.throw(_("{0} was sent to Estimation {1} and cannot be changed.").format(_(doc.meta.get_label(label_field)), before.custom_estimation))
+
+
+def refresh_project_fetches(doc, method=None):
+	"""Project fields with fetch_from custom_opportunity.<field> always show this Opportunity's current value."""
+	fields = {df.fieldname: df.fetch_from.split(".", 1)[1] for df in frappe.get_meta("Project").fields
+			if (df.fetch_from or "").startswith("custom_opportunity.")}
+	if not fields:
+		return
+	for p in frappe.get_all("Project", filters={"custom_opportunity": doc.name}, fields=["name", *fields]):
+		changes = {f: doc.get(src) for f, src in fields.items() if (p.get(f) or "") != (doc.get(src) or "")}
+		if changes:
+			frappe.db.set_value("Project", p.name, changes, update_modified=False)
 
 
 def validate_rfq_lock(doc, method=None):
@@ -65,6 +83,8 @@ def send_to_estimation(opportunity):
 		if not r.equipment or flt(r.quantity) <= 0:
 			frappe.throw(_("Row {0}: Equipment Scope and a Quantity above zero are required.").format(r.idx))
 
+	if not opp.get("custom_region"):
+		frappe.throw(_("Select the Region before sending to Estimation."))
 	if not opp.get("custom_project_type"):
 		frappe.throw(_("Select the Project Type before sending to Estimation."))
 	if opp.custom_project_type == MAINTENANCE_PROJECT_TYPE and not opp.get("custom_maintenance_type"):
@@ -117,13 +137,13 @@ def get_rfq_for_estimation(estimation):
 	opp = frappe.db.get_value("Project Estimation", estimation, "opportunity")
 	if not opp:
 		return {"opportunity": None, "rows": []}
-	o = frappe.db.get_value("Opportunity", opp, ["customer_name", "party_name", "custom_opportunity_name", "custom_project_location",
+	o = frappe.db.get_value("Opportunity", opp, ["customer_name", "party_name", "custom_opportunity_name", "custom_locations_summary",
 		"custom_project_type", "custom_maintenance_type"], as_dict=True) or {}
 	rows = frappe.get_all("Opportunity RFQ Item", filters={"parent": opp, "parenttype": "Opportunity"},
 		fields=["equipment", "quantity", "description"], order_by="idx")
 	return {"opportunity": opp, "customer": o.get("customer_name") or o.get("party_name"),
 		"opportunity_name": o.get("custom_opportunity_name"), "rows": rows,
-		"meta": [[_("Location"), o.get("custom_project_location")], [_("Project Type"), o.get("custom_project_type")],
+		"meta": [[_("Locations"), o.get("custom_locations_summary")], [_("Project Type"), o.get("custom_project_type")],
 			[_("Maintenance Type"), o.get("custom_maintenance_type")]]}
 
 

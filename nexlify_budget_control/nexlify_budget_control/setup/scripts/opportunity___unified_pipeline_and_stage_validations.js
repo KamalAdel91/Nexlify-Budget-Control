@@ -385,7 +385,7 @@ function render_dynamic_stage_bar(frm) {
         const chip = (icon, label, value) => value
             ? `<span class="nx-chip" title="${esc(label)}">${ICON[icon]}<span>${esc(value)}</span></span>` : '';
         const chips = [
-            chip('pin', __('Location'), d.custom_project_location),
+            chip('pin', __('Locations'), d.custom_locations_summary),
             chip('globe', __('Region'), d.custom_region),
             chip('tag', __('Project Type'), d.custom_project_type),
             d.custom_maintenance_type ? chip('tool', __('Maintenance Type'), d.custom_maintenance_type) : '',

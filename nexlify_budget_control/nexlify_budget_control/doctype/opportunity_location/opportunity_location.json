@@ -1,0 +1,31 @@
+{
+ "actions": [],
+ "creation": "2026-10-03 23:02:42.755892",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "project_location"
+ ],
+ "fields": [
+  {
+   "fieldname": "project_location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Location",
+   "options": "Project Location",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-03 23:02:42.755892",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Opportunity Location",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
