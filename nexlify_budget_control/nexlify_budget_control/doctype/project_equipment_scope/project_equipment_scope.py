@@ -11,6 +11,13 @@ class ProjectEquipmentScope(Document):
 	def validate(self):
 		self.total_days = flt(self.quantity) * flt(self.days_per_equipment)
 		self._lock_rfq_equipment()
+		self._lock_while_with_sales()
+
+	def _lock_while_with_sales(self):
+		if frappe.flags.nexlify_rfq_scope_sync:
+			return
+		if frappe.db.get_value("Project Estimation", self.cost_budget, "workflow_state") == "Sent to Sales":
+			frappe.throw(_("The Estimation {0} is with Sales. Sales can send it back with Request Revision.").format(self.cost_budget))
 
 	def before_submit(self):
 		self._check_cost_budget_still_draft()

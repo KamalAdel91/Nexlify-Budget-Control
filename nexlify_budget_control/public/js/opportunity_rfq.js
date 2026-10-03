@@ -13,7 +13,7 @@ if (window.erpnext && erpnext.utils && erpnext.utils.CRMActivities && !erpnext.u
 
 // RFQ tab: Send To Estimation, shown above the RFQ Items while the RFQ is not sent yet
 frappe.ui.form.on('Opportunity', {
-	refresh(frm) { nexlify_render_rfq_actions(frm); nexlify_render_estimation_view(frm); },
+	refresh(frm) { nexlify_render_rfq_actions(frm); nexlify_render_estimation_view(frm); nexlify_lock_closed(frm); },
 	custom_estimation_status(frm) { nexlify_render_rfq_actions(frm); },
 });
 
@@ -67,7 +67,7 @@ function nexlify_render_estimation_view(frm) {
 		args: { opportunity: frm.doc.name },
 		callback(r) {
 			const d = r.message || {};
-			const pill = { 'Estimated': 'green', 'With Estimation': 'orange' }[d.status] || 'gray';
+			const pill = { 'Sent to Sales': 'green', 'Contract Review': 'orange', 'Handed Over': 'green', 'Draft': 'orange' }[d.status] || 'gray';
 			const money = v => format_currency(v, d.currency);
 			const sub = d.estimation ? __('Estimation {0}', [esc(d.estimation)]) : __('No Estimation yet');
 			const head = (right) => `<div class="nx-rfq-head">
@@ -77,23 +77,26 @@ function nexlify_render_estimation_view(frm) {
 			if (!d.submitted) {
 				const msg = !d.estimation
 					? [__('Not sent to Estimation yet'), __('Add the RFQ Items above and use Send To Estimation.')]
-					: [__('The Estimation team is preparing the prices'), __('The prices appear here once the Estimation is submitted.')];
+					: [__('The Estimation team is preparing the prices'), __('The prices appear here once the Estimation is sent to Sales.')];
 				field.$wrapper.html(`<div class="nx-rfq-card">${head()}<div class="nx-empty"><b>${msg[0]}</b>${msg[1]}</div></div>`);
 				return;
 			}
+			const revise = (d.status === 'Sent to Sales' && !['Closed Won', 'Closed Lost'].includes(frm.doc.sales_stage))
+				? `<button class="btn btn-xs btn-default nx-request-revision" style="margin-left:8px">${__('Request Revision')}</button>` : '';
 			const body = (d.rows || []).map(x => `<tr>
 				<td>${esc(x.equipment || '')}</td>
 				<td class="nx-num">${format_number(x.quantity)}</td>
 				<td class="nx-num">${money(x.unit_price)}</td>
 				<td class="nx-num">${money(x.total_price)}</td></tr>`).join('');
 			field.$wrapper.html(`<div class="nx-rfq-card">
-				${head(`<span class="nx-total">${money(d.total)}</span>`)}
+				${head(`<span class="nx-total">${money(d.total)}</span>${revise}`)}
 				<div class="nx-rfq-scroll"><table class="nx-rfq-table">
 					<thead><tr><th>${__('Equipment Scope')}</th><th class="nx-num">${__('Qty')}</th>
 						<th class="nx-num">${__('Unit Price')}</th><th class="nx-num">${__('Total Price')}</th></tr></thead>
 					<tbody>${body}</tbody>
 					<tfoot><tr><td colspan="3" class="nx-num">${__('Total')}</td><td class="nx-num">${money(d.total)}</td></tr></tfoot>
 				</table></div></div>`);
+			field.$wrapper.find('.nx-request-revision').on('click', () => nexlify_request_revision(frm));
 		},
 	});
 }
@@ -141,4 +144,32 @@ function nexlify_rfq_styles() {
 		[data-theme="dark"] .nx-pill.blue { color:#93c5fd; }
 	`;
 	document.head.appendChild(s);
+}
+
+function nexlify_request_revision(frm) {
+	frappe.prompt({ fieldname: 'reason', fieldtype: 'Small Text', label: __('What should the Estimation team revise?'), reqd: 1 }, (v) => {
+		frappe.call({
+			method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.request_estimation_revision',
+			args: { opportunity: frm.doc.name, reason: v.reason },
+			freeze: true,
+			callback() {
+				frappe.show_alert({ message: __('Sent back to Estimation'), indicator: 'orange' });
+				frm.reload_doc();
+			},
+		});
+	}, __('Request Revision'), __('Send Back'));
+}
+
+// A closed Opportunity (won or lost) is read only. The Signed Contract stays open while the Estimation is in Contract Review.
+function nexlify_lock_closed(frm) {
+	const closed = ['Closed Won', 'Closed Lost', 'Closed Lost to Competition'].includes(frm.doc.sales_stage);
+	if (frm.is_new() || !closed || frappe.user.has_role('System Manager')) return;
+	const contract_open = frm.doc.custom_estimation_status === 'Contract Review';
+	(frm.meta.fields || []).forEach(df => {
+		if (frappe.model.no_value_type.includes(df.fieldtype) && !frappe.model.table_fields.includes(df.fieldtype)) return;
+		if (contract_open && df.fieldname === 'custom_signed_contract') return;
+		frm.set_df_property(df.fieldname, 'read_only', 1);
+	});
+	if (!contract_open) frm.disable_save();
+	frm.dashboard.set_headline_alert(__('This Opportunity is {0} and cannot be changed.', [__(frm.doc.sales_stage)]), 'gray');
 }

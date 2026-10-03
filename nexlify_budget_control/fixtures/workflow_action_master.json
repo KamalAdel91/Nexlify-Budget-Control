@@ -26,5 +26,47 @@
   "modified": "2026-06-14 23:25:59.822988",
   "name": "Approve",
   "workflow_action_name": "Approve"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-03 23:34:37.495905",
+  "name": "Send to Sales",
+  "workflow_action_name": "Send to Sales"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-03 23:34:37.513467",
+  "name": "Request Revision",
+  "workflow_action_name": "Request Revision"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-03 23:34:37.519376",
+  "name": "Receive Contract",
+  "workflow_action_name": "Receive Contract"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-03 23:34:37.523326",
+  "name": "Resume Contract Review",
+  "workflow_action_name": "Resume Contract Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-03 23:34:37.527468",
+  "name": "Handover to Planning",
+  "workflow_action_name": "Handover to Planning"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-03 23:34:37.530861",
+  "name": "Cancel",
+  "workflow_action_name": "Cancel"
  }
 ]

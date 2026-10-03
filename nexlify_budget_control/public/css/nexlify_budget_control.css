@@ -9,6 +9,7 @@
 .page-container[data-page-route="Project Invoicing"] .form-section .section-head,
 .page-container[data-page-route="Project Budget Settings"] .form-section .section-head,
 .page-container[data-page-route="Opportunity"] .form-section .section-head,
+.page-container[data-page-route="Project"] .form-section .section-head,
 .nx-section-title {
 	display: flex !important;
 	align-items: center;
@@ -30,6 +31,7 @@
 .page-container[data-page-route="Project Invoicing"] .form-section .section-head::before,
 .page-container[data-page-route="Project Budget Settings"] .form-section .section-head::before,
 .page-container[data-page-route="Opportunity"] .form-section .section-head::before,
+.page-container[data-page-route="Project"] .form-section .section-head::before,
 .nx-section-title::before {
 	content: '';
 	width: 4px;

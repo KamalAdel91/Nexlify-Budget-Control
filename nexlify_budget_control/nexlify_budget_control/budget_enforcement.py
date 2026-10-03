@@ -3073,22 +3073,26 @@ def _run_as_administrator(fn, *args, **kwargs):
         frappe.local.user_perms = None
 
 
+def attach_file_copy(file_url, doctype, name, field):
+	"""The same file attached to another document too, for users who can read that document but not the source."""
+	if not file_url or frappe.db.exists("File", {"file_url": file_url, "attached_to_doctype": doctype, "attached_to_name": name}):
+		return
+	src = frappe.db.get_value("File", {"file_url": file_url}, ["file_name", "is_private"], as_dict=True) or frappe._dict()
+	frappe.get_doc({
+		"doctype": "File",
+		"file_url": file_url,
+		"file_name": src.file_name,
+		"is_private": 1 if src.is_private is None else src.is_private,
+		"attached_to_doctype": doctype,
+		"attached_to_name": name,
+		"attached_to_field": field,
+	}).insert(ignore_permissions=True)
+
+
 def _copy_contract_to_plan(plan, file_url):
-    """Planning cannot read the Estimation, so the contract gets its own File attached to the plan."""
-    if file_url and not frappe.db.exists(
-        "File", {"file_url": file_url, "attached_to_doctype": "Project Planning", "attached_to_name": plan}
-    ):
-        src = frappe.db.get_value("File", {"file_url": file_url}, ["file_name", "is_private"], as_dict=True) or frappe._dict()
-        frappe.get_doc({
-            "doctype": "File",
-            "file_url": file_url,
-            "file_name": src.file_name,
-            "is_private": 1 if src.is_private is None else src.is_private,
-            "attached_to_doctype": "Project Planning",
-            "attached_to_name": plan,
-            "attached_to_field": "contract_no_prices",
-        }).insert(ignore_permissions=True)
-    frappe.db.set_value("Project Planning", plan, "contract_no_prices", file_url or None, update_modified=False)
+	"""Planning cannot read the Estimation, so the contract gets its own File attached to the plan."""
+	attach_file_copy(file_url, "Project Planning", plan, "contract_no_prices")
+	frappe.db.set_value("Project Planning", plan, "contract_no_prices", file_url or None, update_modified=False)
 
 
 def on_project_estimation_update(doc, method=None):

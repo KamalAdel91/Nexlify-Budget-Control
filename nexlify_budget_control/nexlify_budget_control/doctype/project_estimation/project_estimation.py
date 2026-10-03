@@ -46,11 +46,16 @@ class ProjectEstimation(Document):
 		self._set_default_currency()
 		self._calculate_equipment_scope_totals()
 		self._calculate_estimation()
+		self._validate_workflow_step()
 
 	def before_submit(self):
-		self._validate_equipment_ready()
 		if not self.contract_no_prices:
-			frappe.throw(_("Attach the Contract (No Prices) before submitting the Estimation."))
+			frappe.throw(_("Attach the Contract (No Prices) before handing over to Planning."))
+		self._validate_ready()
+
+	def _validate_ready(self):
+		"""Checked when the prices go to Sales, and again at the Handover."""
+		self._validate_equipment_ready()
 		missing = self._missing_rate_trades()
 		if missing:
 			frappe.throw(
@@ -73,6 +78,16 @@ class ProjectEstimation(Document):
 			)
 		if not self.details:
 			frappe.throw(_("Budget Details cannot be empty. Add Team Daily Rates / Other Costs, or a manual budget row."))
+
+	def _validate_workflow_step(self):
+		"""Sent to Sales: the prices are checked first, then locked while Sales has them."""
+		if self.workflow_state != "Sent to Sales":
+			return
+		before = None if self.is_new() else self.get_doc_before_save()
+		if not before or before.get("workflow_state") != "Sent to Sales":
+			self._validate_ready()
+		elif not frappe.flags.nexlify_rfq_scope_sync:
+			frappe.throw(_("The Estimation is with Sales. Sales can send it back with Request Revision."))
 
 	def _scope_rows_with_roles(self):
 		if self.is_new():

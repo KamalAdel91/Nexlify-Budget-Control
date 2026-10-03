@@ -38,6 +38,6 @@ def execute():
     frappe.db.delete("Property Setter", {"doc_type": ["in", ["Opportunity", "Project"]], "field_name": OLD})
     frappe.clear_cache()
 
-    from nexlify_budget_control.nexlify_budget_control.opportunity_rfq import refresh_project_fetches
+    from nexlify_budget_control.nexlify_budget_control.opportunity_rfq import refresh_fetches
     for opp in frappe.get_all("Project", filters={"custom_opportunity": ["is", "set"]}, pluck="custom_opportunity", distinct=True):
-        refresh_project_fetches(frappe.get_doc("Opportunity", opp))
+        refresh_fetches(frappe.get_doc("Opportunity", opp))

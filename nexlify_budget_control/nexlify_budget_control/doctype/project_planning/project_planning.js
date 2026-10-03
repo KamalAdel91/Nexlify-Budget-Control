@@ -144,6 +144,11 @@ function build_edit_visits_dialog(frm, visits, field_defs) {
 	d.show();
 }
 
+// Add dialogs show only what the planner fills in: no read-only, hidden or system-set fields
+function nexlify_user_fills(f) {
+	return !f.read_only && !f.hidden && !['project_planning', 'naming_series'].includes(f.fieldname);
+}
+
 function open_column_picker(field_defs, current_visible, on_confirm) {
 	frappe.prompt(
 		[
@@ -194,7 +199,7 @@ function build_add_visits_dialog(frm, visit_count, existing_count) {
 	frappe.call({
 		method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_project_visits_editable_fields',
 		callback: function(r) {
-			let field_defs = (r.message || []).filter(f => !['Table', 'Table MultiSelect'].includes(f.fieldtype) && f.fieldname !== 'visit_label');
+			let field_defs = (r.message || []).filter(f => !['Table', 'Table MultiSelect'].includes(f.fieldtype) && f.fieldname !== 'visit_label' && nexlify_user_fills(f));
 			if (!_visit_visible_columns) {
 				_visit_visible_columns = field_defs.map(f => f.fieldname);
 			}
@@ -569,7 +574,7 @@ function open_add_invoice_dialog(frm) {
 			frappe.call({
 				method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_project_invoicing_editable_fields',
 				callback: function(r) {
-					let field_defs = (r.message || []).filter(f => !['Table', 'Table MultiSelect'].includes(f.fieldtype) && f.fieldname !== 'invoice_label');
+					let field_defs = (r.message || []).filter(f => !['Table', 'Table MultiSelect'].includes(f.fieldtype) && f.fieldname !== 'invoice_label' && nexlify_user_fills(f));
 					if (!_invoice_visible_columns) {
 						_invoice_visible_columns = field_defs.map(f => f.fieldname);
 					}

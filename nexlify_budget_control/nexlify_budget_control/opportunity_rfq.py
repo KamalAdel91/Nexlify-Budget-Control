@@ -2,7 +2,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
 
-LOCKED_STATUSES = ("With Estimation", "Estimated")
+LOCKED_STATUSES = ('Draft', 'Sent to Sales', 'Contract Review', 'Handed Over', 'Cancelled')
 
 
 @frappe.whitelist()
@@ -46,16 +46,23 @@ def validate_project_type(doc, method=None):
 			frappe.throw(_("{0} was sent to Estimation {1} and cannot be changed.").format(_(doc.meta.get_label(label_field)), before.custom_estimation))
 
 
-def refresh_project_fetches(doc, method=None):
-	"""Project fields with fetch_from custom_opportunity.<field> always show this Opportunity's current value."""
-	fields = {df.fieldname: df.fetch_from.split(".", 1)[1] for df in frappe.get_meta("Project").fields
-			if (df.fetch_from or "").startswith("custom_opportunity.")}
-	if not fields:
-		return
-	for p in frappe.get_all("Project", filters={"custom_opportunity": doc.name}, fields=["name", *fields]):
-		changes = {f: doc.get(src) for f, src in fields.items() if (p.get(f) or "") != (doc.get(src) or "")}
-		if changes:
-			frappe.db.set_value("Project", p.name, changes, update_modified=False)
+def refresh_fetches(doc, method=None):
+	"""Fields fetched from this document (fetch_from <link>.<field>) always show its current value in the linked documents."""
+	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import attach_file_copy
+	for target, link in FETCH_LINKS.get(doc.doctype, ()):
+		meta = frappe.get_meta(target)
+		fields = {df.fieldname: df.fetch_from.split(".", 1)[1] for df in meta.fields
+				if (df.fetch_from or "").startswith(link + ".")}
+		if not fields:
+			continue
+		for t in frappe.get_all(target, filters={link: doc.name}, fields=["name", *fields]):
+			changes = {f: doc.get(src) for f, src in fields.items() if (t.get(f) or "") != (doc.get(src) or "")}
+			if not changes:
+				continue
+			frappe.db.set_value(target, t.name, changes, update_modified=False)
+			for f, value in changes.items():
+				if value and meta.get_field(f).fieldtype in ("Attach", "Attach Image"):
+					attach_file_copy(value, target, t.name, f)
 
 
 def validate_rfq_lock(doc, method=None):
@@ -126,7 +133,8 @@ def send_to_estimation(opportunity):
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _recalculate_cost_budget_total_work_days
 	_recalculate_cost_budget_total_work_days(est.name)
 
-	opp.db_set({"custom_estimation": est.name, "custom_estimation_status": "With Estimation"})
+	opp.db_set("custom_estimation", est.name)
+	refresh_fetches(est)
 	return est.name
 
 
@@ -149,55 +157,59 @@ def get_rfq_for_estimation(estimation):
 
 @frappe.whitelist()
 def get_estimation_for_opportunity(opportunity):
-	"""Selling information only (equipment, quantity, unit and total price), once the Estimation is submitted."""
+	"""Selling information only (equipment, quantity, unit and total price), once the Estimation is sent to Sales."""
 	frappe.has_permission("Opportunity", "read", doc=opportunity, throw=True)
 	est, status = frappe.db.get_value("Opportunity", opportunity, ["custom_estimation", "custom_estimation_status"])
 	status = status or "Not Sent"
-	if not est or frappe.db.get_value("Project Estimation", est, "docstatus") != 1:
+	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in SALES_VISIBLE:
 		return {"estimation": est, "status": status, "submitted": False, "rows": [], "total": 0, "currency": None}
 	e = frappe.db.get_value("Project Estimation", est, ["total_price", "currency"], as_dict=True)
-	rows = frappe.get_all("Project Equipment Scope", filters={"cost_budget": est, "docstatus": 1},
-		fields=["equipment", "quantity", "unit_price", "total_price"], order_by="creation")
+	rows = frappe.get_all("Project Equipment Scope", filters={"cost_budget": est, "docstatus": ["<", 2]},
+			fields=["equipment", "quantity", "unit_price", "total_price"], order_by="creation")
 	return {"estimation": est, "status": status, "submitted": True, "rows": rows,
-		"total": flt(e.total_price), "currency": e.currency}
+			"total": flt(e.total_price), "currency": e.currency}
 
 def release_opportunity(estimation):
 	"""A deleted Estimation gives the RFQ back to its Opportunity: link removed, status Not Sent, a note on the timeline."""
 	opp = estimation.get("opportunity")
 	if not opp or frappe.db.get_value("Opportunity", opp, "custom_estimation") != estimation.name:
 		return
-	frappe.db.set_value("Opportunity", opp, {"custom_estimation": None, "custom_estimation_status": "Not Sent"},
-		update_modified=False)
+	frappe.db.set_value("Opportunity", opp, {"custom_estimation": None, "custom_estimation_status": None},
+			update_modified=False)
 	frappe.get_doc("Opportunity", opp).add_comment("Info", _("Estimation {0} was deleted by {1}. The RFQ is open again.").format(
-		estimation.name, frappe.utils.get_fullname()))
+			estimation.name, frappe.utils.get_fullname()))
 
 
 def on_estimation_submit(doc, method=None):
-	"""Submitted: the Opportunity shows the prices."""
-	if doc.get("opportunity"):
-		frappe.db.set_value("Opportunity", doc.opportunity,
-			{"custom_estimation": doc.name, "custom_estimation_status": "Estimated"}, update_modified=False)
+	"""Handed Over: the Opportunity shows it, and the Plan opens for Planning with the contract without prices."""
+	refresh_fetches(doc)
+	if not doc.project or frappe.db.exists("Project Planning", {"project": doc.project, "docstatus": ["<", 2]}):
+		return
+	plan = frappe.get_doc({"doctype": "Project Planning", "project": doc.project, "company": doc.company})
+	plan.insert(ignore_permissions=True, ignore_mandatory=True)
+	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _copy_contract_to_plan
+	_copy_contract_to_plan(plan.name, doc.contract_no_prices)
+	frappe.msgprint(_("Handed over to Planning: Plan {0} is open.").format(plan.name), alert=True)
 
 
 def on_estimation_cancel(doc, method=None):
-	"""Cancelled: back to With Estimation, until the amended one is submitted."""
-	if doc.get("opportunity") and frappe.db.get_value("Opportunity", doc.opportunity, "custom_estimation") == doc.name:
-		frappe.db.set_value("Opportunity", doc.opportunity, "custom_estimation_status", "With Estimation", update_modified=False)
+	"""Cancelled: the Opportunity shows it, until the amended one goes on."""
+	refresh_fetches(doc)
 
 
 def on_estimation_amended(doc):
 	"""Amended: the Opportunity points at the new Estimation."""
 	if doc.get("opportunity") and doc.amended_from:
-		frappe.db.set_value("Opportunity", doc.opportunity,
-			{"custom_estimation": doc.name, "custom_estimation_status": "With Estimation"}, update_modified=False)
+		frappe.db.set_value("Opportunity", doc.opportunity, "custom_estimation", doc.name, update_modified=False)
+		refresh_fetches(doc)
 
 
 def link_estimation_to_new_project(project, method=None):
-	"""A Project made from a won Opportunity takes that Opportunity's submitted Estimation, both ways."""
+	"""A Project made from a won Opportunity takes that Opportunity's Estimation, both ways."""
 	if not project.get("custom_opportunity"):
 		return
 	est = frappe.db.get_value("Opportunity", project.custom_opportunity, "custom_estimation")
-	if not est or frappe.db.get_value("Project Estimation", est, "docstatus") != 1:
+	if not est or frappe.db.get_value("Project Estimation", est, "docstatus") == 2:
 		return
 	frappe.db.set_value("Project Estimation", est, "project", project.name, update_modified=False)
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import link_project_document
@@ -217,4 +229,116 @@ def get_project_estimation_status(project):
 	frappe.has_permission("Project", "read", doc=project, throw=True)
 	est = frappe.db.get_value("Project", project, "custom_budget_cost")
 	return frappe.db.get_value("Project Estimation", est, "docstatus") if est else None
+
+
+SALES_VISIBLE = ("Sent to Sales", "Contract Review", "Handed Over")
+
+# Source doctype -> (doctype that fetches from it, its link field). The fetched fields come from the meta.
+FETCH_LINKS = {
+	"Opportunity": (("Project", "custom_opportunity"), ("Project Estimation", "opportunity")),
+	"Project Estimation": (("Opportunity", "custom_estimation"),),
+}
+
+
+def share_signed_contract(doc, method=None):
+	"""The Estimation team cannot read the Opportunity, so the signed contract gets its own File on the Estimation."""
+	if doc.get("signed_contract"):
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import attach_file_copy
+		attach_file_copy(doc.signed_contract, doc.doctype, doc.name, "signed_contract")
+
+
+def on_opportunity_won(doc, method=None):
+	"""Closed Won with the signed contract: the Estimation goes back to the Estimation team for the Contract Review."""
+	if doc.sales_stage != "Closed Won" or not doc.has_value_changed("sales_stage") or not doc.get("custom_estimation"):
+		return
+	if frappe.db.get_value("Project Estimation", doc.custom_estimation, "workflow_state") != "Sent to Sales":
+		return
+	from frappe.model.workflow import apply_workflow
+	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator
+	est = frappe.get_doc("Project Estimation", doc.custom_estimation).as_dict()
+	_run_as_administrator(apply_workflow, est, "Receive Contract")
+
+
+@frappe.whitelist()
+def request_estimation_revision(opportunity, reason):
+	"""Sales sends the priced Estimation back to the Estimation team, with the reason, before the deal is closed."""
+	opp = frappe.get_doc("Opportunity", opportunity)
+	opp.check_permission("write")
+	reason = (reason or "").strip()
+	if not reason:
+		frappe.throw(_("Write what the Estimation team should revise."))
+	if opp.sales_stage in ("Closed Won", "Closed Lost"):
+		frappe.throw(_("The Opportunity is closed."))
+	est = opp.get("custom_estimation")
+	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") != "Sent to Sales":
+		frappe.throw(_("The Estimation is not with Sales."))
+	from frappe.model.workflow import apply_workflow
+	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator
+	_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", est).as_dict(), "Request Revision")
+	note = _("Revision requested by {0}: {1}").format(frappe.utils.get_fullname(), frappe.utils.escape_html(reason))
+	frappe.get_doc("Project Estimation", est).add_comment("Comment", note)
+	opp.add_comment("Comment", note)
+
+
+def claim_signed_contract(doc, method=None):
+	"""A contract uploaded from the Closed Won dialog is not attached to anything yet: attach it to this Opportunity, private."""
+	url = doc.get("custom_signed_contract")
+	if not url or doc.is_new() or not doc.has_value_changed("custom_signed_contract"):
+		return
+	name = frappe.db.get_value("File", {"file_url": url, "attached_to_name": ["is", "not set"]}, "name")
+	if not name:
+		return
+	f = frappe.get_doc("File", name)
+	f.update({"attached_to_doctype": doc.doctype, "attached_to_name": doc.name,
+			"attached_to_field": "custom_signed_contract", "is_private": 1})
+	f.save(ignore_permissions=True)
+	doc.custom_signed_contract = f.file_url
+
+
+CLOSED_STAGES = ("Closed Won", "Closed Lost", "Closed Lost to Competition")
+
+
+def _norm(df, value):
+	from frappe.utils import cstr, flt, get_datetime, getdate
+	if not value and value != 0:
+		return ""
+	if df.fieldtype == "Date":
+		return str(getdate(value))
+	if df.fieldtype == "Datetime":
+		return str(get_datetime(value))
+	if df.fieldtype in ("Currency", "Float", "Percent", "Int", "Check"):
+		return flt(value)
+	return cstr(value).strip()
+
+
+def _rows(doc, df):
+	from frappe.model import no_value_fields
+	child = frappe.get_meta(df.options)
+	fields = [c for c in child.fields if c.fieldtype not in no_value_fields]
+	return [tuple(_norm(c, r.get(c.fieldname)) for c in fields) for r in (doc.get(df.fieldname) or [])]
+
+
+def validate_closed_lock(doc, method=None):
+	"""A closed Opportunity (won or lost) cannot change. Only the Signed Contract may be replaced while the Estimation is in Contract Review."""
+	if doc.is_new() or "System Manager" in frappe.get_roles():
+		return
+	before = doc.get_doc_before_save()
+	if not before or before.get("sales_stage") not in CLOSED_STAGES:
+		return
+	from frappe.model import no_value_fields, table_fields
+	allowed = set()
+	if doc.get("custom_estimation") and frappe.db.get_value("Project Estimation", doc.custom_estimation, "workflow_state") == "Contract Review":
+		allowed.add("custom_signed_contract")
+	changed = []
+	for df in doc.meta.fields:
+		if (df.fieldtype in no_value_fields and df.fieldtype not in table_fields) or df.read_only or df.hidden or df.fetch_from or df.fieldname in allowed:
+			continue
+		if df.fieldtype in table_fields:
+			if _rows(doc, df) != _rows(before, df):
+				changed.append(_(df.label or df.fieldname))
+		elif _norm(df, doc.get(df.fieldname)) != _norm(df, before.get(df.fieldname)):
+			changed.append(_(df.label or df.fieldname))
+	if changed:
+		frappe.throw(_("This Opportunity is {0} and cannot be changed. Changed: {1}").format(_(before.sales_stage), ", ".join(changed)),
+					title=_("Opportunity Closed"))
 

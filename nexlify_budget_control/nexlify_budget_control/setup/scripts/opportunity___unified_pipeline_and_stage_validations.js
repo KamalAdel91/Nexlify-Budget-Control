@@ -10,8 +10,8 @@ frappe.ui.form.on('Opportunity', {
         // Re-render the visual track layout to reflect any status modification
         render_dynamic_stage_bar(frm);
 
-        // Closed Won needs a submitted Estimation (Estimation Status = Estimated)
-        if (frm.doc.sales_stage === "Closed Won" && frm.doc.custom_estimation_status !== "Estimated") {
+        // Closed Won needs the Estimation sent to Sales (Estimation Status = Sent to Sales)
+        if (frm.doc.sales_stage === "Closed Won" && frm.doc.custom_estimation_status !== "Sent to Sales") {
             // Back to the stage saved in the database; other unsaved changes stay
             if (frm.is_new()) {
                 frm.doc.sales_stage = frappe.meta.get_docfield('Opportunity', 'sales_stage').default || null;
@@ -27,19 +27,20 @@ frappe.ui.form.on('Opportunity', {
             frappe.msgprint({
                 title: __('Estimation Required'),
                 indicator: 'red',
-                message: __('The Opportunity can be Closed Won only after its Estimation is submitted. Estimation Status: {0}',
+                message: __('The Opportunity can be Closed Won only after its Estimation is sent to Sales. Estimation Status: {0}',
                     [__(frm.doc.custom_estimation_status || 'Not Sent')]),
                 primary_action: {
                     label: __('Go to RFQ'),
                     action: function() {
                         frappe.hide_msgprint();
-                        frm.scroll_to_field(frm.doc.custom_estimation_status === 'With Estimation'
+                        frm.scroll_to_field(frm.doc.custom_estimation_status === 'Draft'
                             ? 'custom_estimation_status' : 'custom_rfq_items');
                     }
                 }
             });
             return;
         }
+
 
         // Immediate Intercept: If user changes stage to Closed Won, trigger validation immediately
         if (frm.doc.sales_stage === "Closed Won" && should_show_closing_dialog(frm)) {
@@ -77,6 +78,7 @@ frappe.ui.form.on('Opportunity', {
 // Evaluate whether the core custom fields require data collection
 function should_show_closing_dialog(frm) {
     if (!frm.doc.custom_closing_date) return true;
+    if (!frm.doc.custom_signed_contract) return true;
     if (!frm.doc.opportunity_amount || frm.doc.opportunity_amount <= 0) return true;
     if (!frm.doc.custom_region) return true;
     return false;
@@ -120,6 +122,16 @@ function show_closing_date_dialog(frm) {
     });
 
 
+    // 5. Mandatory Signed Contract (the contract signed with the client)
+    let contract_docfield = frm.get_docfield('custom_signed_contract');
+    dialog_fields.push({
+        label: contract_docfield?.label || __('Signed Contract'),
+        fieldname: 'custom_signed_contract',
+        fieldtype: 'Attach',
+        reqd: 1,
+        default: frm.doc.custom_signed_contract
+    });
+
     let d = new frappe.ui.Dialog({
         title: __('Required Information for Closed Won'),
         fields: dialog_fields,
@@ -144,6 +156,7 @@ function show_closing_date_dialog(frm) {
             frm.set_value('custom_closing_date', values.custom_closing_date);
             frm.set_value('opportunity_amount', values.opportunity_amount);
             frm.set_value('custom_region', values.custom_region);
+            frm.set_value('custom_signed_contract', values.custom_signed_contract);
 
             // Bypass the 'status' trigger the same way as the Lost flow,
             // purely for consistency/safety - avoids any core script bound
@@ -372,7 +385,7 @@ function render_dynamic_stage_bar(frm) {
 
         // Estimation status, shown next to the amount
         const est_status = d.custom_estimation_status || 'Not Sent';
-        const est_class = { 'Estimated': 'is-green', 'With Estimation': 'is-orange' }[est_status] || 'is-gray';
+        const est_class = { 'Sent to Sales': 'is-green', 'Contract Review': 'is-orange', 'Handed Over': 'is-green', 'Draft': 'is-orange' }[est_status] || 'is-gray';
         const est_sub = d.custom_estimation ? esc(d.custom_estimation) : __('Not linked yet');
 
         const ICON = {

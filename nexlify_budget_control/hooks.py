@@ -13,10 +13,12 @@ doc_events = {
     "Opportunity": {
         "validate": [
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.set_locations_summary",
+            "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.claim_signed_contract",
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_project_type",
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_rfq_lock",
+            "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_closed_lock",
         ],
-        "on_update": "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_project_fetches",
+        "on_update": ["nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_opportunity_won"],
     },
     "Designation": {
         "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
@@ -47,8 +49,8 @@ doc_events = {
 	"Project Estimation": {
 		"on_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_submit", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_submit"],
 		"on_cancel": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_cancel", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancel"],
-		"on_update": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update",
-		"on_update_after_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update"
+		"on_update": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract"],
+		"on_update_after_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract"]
 	},
 	"Project Planning": {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_submit",
@@ -123,6 +125,9 @@ fixtures = [
 					"Opportunity-custom_region",
 					"Opportunity-custom_maintenance_type",
 					"Opportunity-custom_project_type",
+					"Project-custom_maintenance_type",
+					"Project-custom_section_break_7pnjy",
+					"Opportunity-custom_signed_contract",
 					"Opportunity-custom_project_locations",
 					"Opportunity-custom_locations_summary",
 					"Project-custom_project_locations",
@@ -166,7 +171,7 @@ fixtures = [
 					"In Planning",
 					"Pending COO Approval",
 					"Pending CEO Approval",
-					"Approved"
+					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled"
 				]
 			]
 		]
@@ -181,7 +186,7 @@ fixtures = [
 					"Send for Approval",
 					"Approve",
 					"Return to Planning",
-					"Return to COO"
+					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel"
 				]
 			]
 		]
@@ -194,7 +199,7 @@ fixtures = [
 				"in",
 				[
 					"Project Overview Approval",
-					"Project Planning Approval"
+					"Project Planning Approval", "Project Estimation Workflow"
 				]
 			]
 		]

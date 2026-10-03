@@ -38,6 +38,15 @@
  {
   "docstatus": 0,
   "doctype": "Workflow State",
+  "icon": "ok-sign",
+  "modified": "2026-06-14 23:25:59.808903",
+  "name": "Approved",
+  "style": "Success",
+  "workflow_state_name": "Approved"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
   "icon": "",
   "modified": "2025-06-27 16:12:41.379987",
   "name": "Draft",
@@ -47,10 +56,37 @@
  {
   "docstatus": 0,
   "doctype": "Workflow State",
-  "icon": "ok-sign",
-  "modified": "2026-06-14 23:25:59.808903",
-  "name": "Approved",
+  "icon": "",
+  "modified": "2026-10-03 23:34:37.125332",
+  "name": "Sent to Sales",
+  "style": "Primary",
+  "workflow_state_name": "Sent to Sales"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-03 23:34:37.465601",
+  "name": "Contract Review",
+  "style": "Warning",
+  "workflow_state_name": "Contract Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-03 23:34:37.470577",
+  "name": "Handed Over",
   "style": "Success",
-  "workflow_state_name": "Approved"
+  "workflow_state_name": "Handed Over"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-03 23:34:37.475366",
+  "name": "Cancelled",
+  "style": "Danger",
+  "workflow_state_name": "Cancelled"
  }
 ]
