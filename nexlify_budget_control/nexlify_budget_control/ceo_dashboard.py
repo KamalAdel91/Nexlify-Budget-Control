@@ -16,7 +16,8 @@ OPEN_VIOLATIONS_CARD = "Open Budget Violations"
 @frappe.whitelist()
 def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
     frappe.has_permission(OV, "read", throw=True)
-    can_see_price = 1 in (frappe.get_meta(OV).get_permlevel_access("read") or [])
+    # The money comes from the Project (Planned Revenue / Estimated Cost sit on permlevel 2 there)
+    can_see_price = 2 in (frappe.get_meta("Project").get_permlevel_access("read") or [])
     s = frappe.get_single("Project Budget Settings")
     target, low, aging = flt(s.target_margin_pct), flt(s.low_margin_threshold), cint(s.approval_aging_warning_days)
 
@@ -31,13 +32,21 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
     pending, mine, approved_state = _workflow_states()
 
     projects = frappe.get_all("Project", filters=in_only("name"),
-        fields=["name", "project_name", "custom_budget_cost", "custom_project_planning"])
+        fields=["name", "project_name", "custom_budget_cost", "custom_project_planning",
+                "custom_planned_revenue", "estimated_costing"])
     titles = {p.name: p.project_name or p.name for p in projects}
+    # Every money figure on this dashboard comes from the Project: Planned Revenue (from the Opportunity) and
+    # Estimated Cost (from the Estimation), both by fetch_from. The Overview's own numbers are the copy kept
+    # for its approval, so they are not read here.
+    money = {p.name: _money(p.custom_planned_revenue, p.estimated_costing) for p in projects}
+
+    def money_of(project):
+        return money.get(project) or _money(0, 0)
 
     ov_by_project = {}
     for o in frappe.get_all(OV, filters={"docstatus": ["!=", 2], **in_only("project")},
-            fields=["name", "project", "customer", "workflow_state", "docstatus", "revenue_budget", "contract_value",
-                    "planned_cost", "expected_profit", "margin_pct", "pending_since", "return_count"],
+            fields=["name", "project", "customer", "workflow_state", "docstatus", "revenue_budget",
+                    "pending_since", "return_count"],
             order_by="modified desc"):
         ov_by_project.setdefault(o.project, o)
     active = list(ov_by_project.values())
@@ -51,13 +60,11 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         o.waiting_days = date_diff(today(), getdate(o.pending_since)) if o.pending_since and o.docstatus == 0 else None
 
     # ---------- KPIs ----------
-    # From the Projects whose Estimation is handed over (submitted): Planned Revenue comes from the
-    # Opportunity, Estimated Cost from the Estimation, both by fetch_from.
-    handed_over = set(frappe.get_all("Project Estimation", filters={"docstatus": 1, **in_only("project")}, pluck="project"))
-    kpi_projects = frappe.get_all("Project", filters={"name": ["in", list(handed_over) or [""]]},
-        fields=["custom_planned_revenue", "estimated_costing"])
-    revenue = sum(flt(p.custom_planned_revenue) for p in kpi_projects)
-    cost = sum(flt(p.estimated_costing) for p in kpi_projects)
+    # From the Projects whose Estimation is handed over (submitted). Needs attention checks the same projects.
+    handed_over = sorted(set(money) & set(frappe.get_all("Project Estimation",
+        filters={"docstatus": 1, **in_only("project")}, pluck="project")))
+    revenue = sum(money[p].revenue for p in handed_over)
+    cost = sum(money[p].cost for p in handed_over)
     queue = sorted((o for o in active if o.docstatus == 0 and o.workflow_state in mine),
         key=lambda o: -(o.waiting_days or 0))
     kpis = {
@@ -65,7 +72,7 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         "planned_cost": cost,
         "expected_profit": revenue - cost,
         "margin_pct": flt((revenue - cost) / revenue * 100, 2) if revenue else 0,
-        "projects": len(kpi_projects),
+        "projects": len(handed_over),
         "waiting_for_me": len(queue),
         "oldest_wait_days": max((o.waiting_days or 0 for o in queue), default=0),
         "pending_total": sum(1 for o in active if o.docstatus == 0 and o.workflow_state in pending),
@@ -93,8 +100,8 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
             continue
         key = getdate(o.from_date).strftime("%Y-%m")
         m = months.setdefault(key, {"month": key, "revenue": 0, "cost": 0})
-        m["revenue"] += flt(o.contract_value)
-        m["cost"] += flt(o.planned_cost)
+        m["revenue"] += money_of(o.project).revenue
+        m["cost"] += money_of(o.project).cost
     monthly = [months[k] for k in sorted(months)]
 
     # ---------- budget health (same numbers as the current page) ----------
@@ -150,9 +157,19 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         if o.docstatus == 0 and o.workflow_state in pending and cint(o.return_count):
             attention.append(_item("returned", "warning", o.project, o.project_name, o.name,
                 _("Returned before approval"), f"{cint(o.return_count)}x"))
-        if can_see_price and flt(o.contract_value) and flt(o.margin_pct) < low:
-            attention.append(_item("low_margin", "warning", o.project, o.project_name, o.name,
-                _("Margin below {0}%").format(f"{low:g}"), f"{flt(o.margin_pct, 1):g}%"))
+    if can_see_price:
+        for proj in handed_over:
+            m, o = money[proj], ov_by_project.get(proj)
+            args = (proj, titles.get(proj, proj), o.name if o else None)
+            if not m.revenue:
+                attention.append(_item("no_contract", "danger", *args, _("No contract value"), _("Missing")))
+            elif not m.cost:
+                attention.append(_item("no_cost", "warning", *args, _("No estimated cost"), _("Missing")))
+            elif m.profit < 0:
+                attention.append(_item("loss", "danger", *args, _("Loss-making"), f"{flt(m.margin, 1):g}%"))
+            elif m.margin < low:
+                attention.append(_item("low_margin", "warning", *args,
+                    _("Margin below {0}%").format(f"{low:g}"), f"{flt(m.margin, 1):g}%"))
     attention.sort(key=lambda a: a["severity"] != "danger")
 
     qcust = dict(frappe.get_all("Customer", filters={"name": ["in", list({o.customer for o in queue if o.customer}) or [""]]},
@@ -160,21 +177,21 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
     queue_out = [{
         "name": o.name, "project": o.project, "project_name": o.project_name, "customer": o.customer,
         "customer_name": qcust.get(o.customer) or o.customer,
-        "state": o.workflow_state, "contract_value": o.contract_value, "margin_pct": o.margin_pct,
+        "state": o.workflow_state, "contract_value": money_of(o.project).revenue, "margin_pct": money_of(o.project).margin,
         "waiting_days": o.waiting_days, "overdue": (o.waiting_days or 0) > aging,
         "return_count": cint(o.return_count),
     } for o in queue]
 
     vm = _visits_and_manpower(active, titles, s)
-    inv = _invoicing(active, titles, s, can_see_price)
+    inv = _invoicing(active, titles, s, can_see_price, money_of)
 
     if not can_see_price:
-        for k in ("contract_value", "expected_profit", "margin_pct"):
+        for k in ("contract_value", "planned_cost", "expected_profit", "margin_pct"):
             kpis[k] = None
         for q in queue_out:
             q["contract_value"] = q["margin_pct"] = None
         for m in monthly:
-            m["revenue"] = None
+            m["revenue"] = m["cost"] = None
 
     return {
         "can_see_price": can_see_price,
@@ -196,6 +213,13 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
 def _item(kind, severity, project, project_name, overview, label, value):
     return {"kind": kind, "severity": severity, "project": project, "project_name": project_name,
             "overview": overview, "label": label, "value": value}
+
+
+def _money(revenue, cost):
+    """A project's money as the dashboard shows it: the margin is on the contract value, like the KPIs."""
+    revenue, cost = flt(revenue), flt(cost)
+    return frappe._dict(revenue=revenue, cost=cost, profit=revenue - cost,
+                        margin=flt((revenue - cost) / revenue * 100, 2) if revenue else 0)
 
 
 def _workflow_states():
@@ -320,7 +344,7 @@ def _visits_and_manpower(active, titles, s):
         "manpower": {"trades": trades, "today": now, "weeks": out_weeks},
     }
 
-def _invoicing(active, titles, s, can_see_price):
+def _invoicing(active, titles, s, can_see_price, money_of):
     """Invoices of approved projects: overdue, due soon, and totals."""
     window = cint(s.get("invoice_due_days")) or 30
     t = getdate(today())
@@ -335,12 +359,12 @@ def _invoicing(active, titles, s, can_see_price):
         fields=fields, order_by="expected_invoice_date asc, creation asc")
     cust = dict(frappe.get_all("Customer", filters={"name": ["in", list({o.customer for o in ov.values() if o.customer}) or [""]]},
         fields=["name", "customer_name"], as_list=True))
-    tt = {"contract": sum(flt(o.contract_value) for o in ov.values()), "invoiced_amount": 0, "remaining_amount": 0,
+    tt = {"contract": sum(money_of(o.project).revenue for o in ov.values()), "invoiced_amount": 0, "remaining_amount": 0,
           "overdue_count": 0, "overdue_amount": 0, "due_count": 0, "due_amount": 0, "invoiced_count": 0, "total_count": len(rows)}
     overdue, due = [], []
     for r in rows:
         o = ov[r.project_planning]
-        amount = flt(o.contract_value) * flt(r.invoice_percentage) / 100
+        amount = money_of(o.project).revenue * flt(r.invoice_percentage) / 100
         if (r.status or "") == "Invoiced":
             tt["invoiced_amount"] += amount
             tt["invoiced_count"] += 1
