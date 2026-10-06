@@ -23,3 +23,4 @@ nexlify_budget_control.patches.opportunity_multi_locations  # one-time, remove i
 nexlify_budget_control.patches.estimation_workflow_states  # one-time, remove in final Cleanup
 nexlify_budget_control.patches.project_fetch_backfill  # one-time, remove in final Cleanup
 nexlify_budget_control.patches.legacy_estimation_totals  # one-time, remove in final Cleanup
+nexlify_budget_control.patches.drop_merged_module_sidebar  # one-time, remove in final Cleanup
