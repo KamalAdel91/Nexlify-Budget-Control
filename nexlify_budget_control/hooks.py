@@ -89,9 +89,7 @@ fixtures = [
 				"name",
 				"in",
 				[
-					"Estimation User",
 					"Estimation Manager",
-					"Planning User",
 					"Planning Manager",
 					"O&M Manager",
 					"COO",
@@ -211,6 +209,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.merge_standard_into_custom_perms",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
+	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
 ]
@@ -224,6 +223,7 @@ auto_cancel_exempted_doctypes = [
 after_install = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
+	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 ]
 
 boot_session = "nexlify_budget_control.nexlify_budget_control.manpower.boot_session"
@@ -232,3 +232,19 @@ override_doctype_dashboards = {
     "Opportunity": "nexlify_budget_control.nexlify_budget_control.dashboards.opportunity_dashboard",
     "Project": "nexlify_budget_control.nexlify_budget_control.dashboards.project_dashboard",
 }
+
+app_home = "/alsa-projects"
+
+website_route_rules = [
+	{"from_route": "/alsa-projects", "to_route": "alsa_projects"},
+]
+
+add_to_apps_screen = [
+	{
+		"name": "nexlify_budget_control",
+		"logo": "/assets/nexlify_budget_control/images/alsa-projects-logo.svg",
+		"title": "ALSA Projects",
+		"route": app_home,
+	}
+]
+

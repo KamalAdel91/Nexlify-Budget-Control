@@ -50,7 +50,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-25 20:25:47.625208",
+ "modified": "2026-10-08 00:22:18.404778",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Budget Category",
@@ -101,15 +101,7 @@
   },
   {
    "read": 1,
-   "role": "Estimation User"
-  },
-  {
-   "read": 1,
    "role": "Estimation Manager"
-  },
-  {
-   "read": 1,
-   "role": "Planning User"
   },
   {
    "read": 1,

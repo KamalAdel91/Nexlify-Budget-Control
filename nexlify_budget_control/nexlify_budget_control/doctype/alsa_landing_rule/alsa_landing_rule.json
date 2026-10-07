@@ -1,0 +1,40 @@
+{
+ "actions": [],
+ "creation": "2026-10-08 00:32:54.612074",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "role",
+  "landing_route"
+ ],
+ "fields": [
+  {
+   "fieldname": "role",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Role",
+   "options": "Role",
+   "reqd": 1
+  },
+  {
+   "description": "e.g. /desk/estimation",
+   "fieldname": "landing_route",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Landing Route",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-08 00:32:54.612074",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "ALSA Landing Rule",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

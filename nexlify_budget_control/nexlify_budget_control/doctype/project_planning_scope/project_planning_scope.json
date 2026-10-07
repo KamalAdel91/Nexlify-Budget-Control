@@ -121,6 +121,7 @@
  ],
  "is_submittable": 1,
  "links": [],
+ "modified": "2026-10-08 00:22:18.404778",
  "module": "Nexlify Budget Control",
  "name": "Project Planning Scope",
  "naming_rule": "By \"Naming Series\" field",
@@ -157,28 +158,11 @@
    "write": 1
   },
   {
-   "create": 1,
-   "delete": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Planning User",
-   "write": 1
-  },
-  {
    "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,
    "role": "Estimation Manager"
-  },
-  {
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Estimation User"
   },
   {
    "export": 1,

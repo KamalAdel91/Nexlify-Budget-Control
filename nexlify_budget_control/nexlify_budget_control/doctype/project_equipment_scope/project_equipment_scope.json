@@ -139,7 +139,7 @@
    "link_fieldname": "estimation_scope"
   }
  ],
- "modified": "2026-10-04 01:47:54.536326",
+ "modified": "2026-10-08 00:22:18.404778",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Equipment Scope",
@@ -174,16 +174,6 @@
    "role": "Estimation Manager",
    "share": 1,
    "submit": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Estimation User",
    "write": 1
   },
   {
@@ -238,11 +228,6 @@
    "permlevel": 1,
    "read": 1,
    "role": "Estimation Manager"
-  },
-  {
-   "permlevel": 1,
-   "read": 1,
-   "role": "Estimation User"
   },
   {
    "permlevel": 1,

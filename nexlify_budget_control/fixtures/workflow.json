@@ -5,7 +5,7 @@
   "document_type": "Project Overview",
   "enable_action_confirmation": 1,
   "is_active": 1,
-  "modified": "2026-10-04 00:30:12.202845",
+  "modified": "2026-10-08 00:22:18.404778",
   "name": "Project Overview Approval",
   "override_status": 0,
   "send_email_alert": 0,
@@ -134,13 +134,13 @@
   "document_type": "Project Planning",
   "enable_action_confirmation": 1,
   "is_active": 1,
-  "modified": "2026-10-04 00:30:12.202845",
+  "modified": "2026-10-08 00:22:18.404778",
   "name": "Project Planning Approval",
   "override_status": 0,
   "send_email_alert": 0,
   "states": [
    {
-    "allow_edit": "Planning User",
+    "allow_edit": "Planning Manager",
     "avoid_status_override": 0,
     "doc_status": "0",
     "evaluate_as_expression": 0,
@@ -227,13 +227,13 @@
   "document_type": "Project Estimation",
   "enable_action_confirmation": 1,
   "is_active": 1,
-  "modified": "2026-10-04 00:30:12.202845",
+  "modified": "2026-10-08 00:22:18.404778",
   "name": "Project Estimation Workflow",
   "override_status": 0,
   "send_email_alert": 0,
   "states": [
    {
-    "allow_edit": "Estimation User",
+    "allow_edit": "Estimation Manager",
     "avoid_status_override": 0,
     "doc_status": "0",
     "evaluate_as_expression": 0,
@@ -261,7 +261,7 @@
     "workflow_builder_id": null
    },
    {
-    "allow_edit": "Estimation User",
+    "allow_edit": "Estimation Manager",
     "avoid_status_override": 0,
     "doc_status": "0",
     "evaluate_as_expression": 0,

@@ -1,0 +1,39 @@
+{
+ "app": "nexlify_budget_control",
+ "creation": "2026-10-08 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Dock",
+ "idx": 0,
+ "items": [
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "project",
+   "link_to": "ALSA Projects",
+   "link_type": "Sidebar",
+   "title": "Home"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "calculator",
+   "link_to": "Estimation",
+   "link_type": "Sidebar",
+   "title": "Estimation"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "calendar-days",
+   "link_to": "Planning",
+   "link_type": "Sidebar",
+   "title": "Planning"
+  }
+ ],
+ "modified": "2026-10-08 00:09:40.859986",
+ "modified_by": "Administrator",
+ "name": "nexlify_budget_control",
+ "owner": "Administrator",
+ "standard": 1,
+ "user": ""
+}

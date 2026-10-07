@@ -10,12 +10,12 @@ Permissions for ERPNext's default roles are managed from the UI, not here.
 import frappe
 from frappe.permissions import add_permission, update_permission_property
 
-ESTIMATION_PLANNING = ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager"]
+ESTIMATION_PLANNING = ["Estimation Manager", "Planning Manager"]
 ALL_APP_ROLES = ESTIMATION_PLANNING + ["O&M Manager", "COO", "CEO"]
 
 # Sensitive numbers (contract value, estimated cost) sit on permlevel 2: ERPNext gives Desk User read on level 1.
 SENSITIVE_READ = {
-    ("Project", 2): ["CEO", "COO", "Estimation Manager", "Estimation User", "Accounts User", "Accounts Manager", "System Manager"],
+    ("Project", 2): ["CEO", "COO", "Estimation Manager", "Accounts User", "Accounts Manager", "System Manager"],
 }
 
 # (doctype, roles, permission types)
@@ -48,8 +48,8 @@ def ensure_app_role_permissions():
 # Add a line here, update the app and migrate: each entry is applied once per site,
 # then Role Permissions Manager owns it.
 LINK_SELECT = {
-    "Customer": ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager"],
-    "Company": ["Estimation User", "Estimation Manager", "Planning User", "Planning Manager"],
+    "Customer": ["Estimation Manager", "Planning Manager"],
+    "Company": ["Estimation Manager", "Planning Manager"],
 }
 
 

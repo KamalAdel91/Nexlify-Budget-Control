@@ -23,6 +23,8 @@
   "plan_button_roles",
   "estimation_button_roles",
   "overview_button_roles",
+  "section_break_alsa_landing",
+  "alsa_landing_rules",
   "tab_dashboard",
   "section_break_dashboard_kpis",
   "target_margin_pct",
@@ -143,6 +145,18 @@
    "options": "Has Role"
   },
   {
+   "fieldname": "section_break_alsa_landing",
+   "fieldtype": "Section Break",
+   "label": "ALSA Projects Landing"
+  },
+  {
+   "description": "Where the ALSA Projects icon opens. The first row matching one of the user's roles wins. Leave empty to use the built-in defaults.",
+   "fieldname": "alsa_landing_rules",
+   "fieldtype": "Table",
+   "label": "Landing by Role",
+   "options": "ALSA Landing Rule"
+  },
+  {
    "fieldname": "tab_dashboard",
    "fieldtype": "Tab Break",
    "label": "Dashboard"
@@ -177,25 +191,25 @@
    "label": "Approval Aging Warning (Days)"
   },
   {
+   "default": "14",
+   "description": "Visits starting within this many days show under Visits now on the Dashboard.",
    "fieldname": "upcoming_visit_days",
    "fieldtype": "Int",
-   "label": "Upcoming Visits Window (days)",
-   "default": "14",
-   "description": "Visits starting within this many days show under Visits now on the Dashboard."
+   "label": "Upcoming Visits Window (days)"
   },
   {
+   "default": "8",
+   "description": "How many weeks ahead the Dashboard shows the manpower needed.",
    "fieldname": "manpower_weeks",
    "fieldtype": "Int",
-   "label": "Manpower Forecast (weeks)",
-   "default": "8",
-   "description": "How many weeks ahead the Dashboard shows the manpower needed."
+   "label": "Manpower Forecast (weeks)"
   },
   {
+   "default": "30",
+   "description": "Invoices expected within this many days show as due on the Dashboard.",
    "fieldname": "invoice_due_days",
    "fieldtype": "Int",
-   "label": "Invoices Due Window (days)",
-   "default": "30",
-   "description": "Invoices expected within this many days show as due on the Dashboard."
+   "label": "Invoices Due Window (days)"
   },
   {
    "fieldname": "section_break_dashboard_filters",
@@ -222,7 +236,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 20:26:48.124094",
+ "modified": "2026-10-08 00:32:54.612074",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

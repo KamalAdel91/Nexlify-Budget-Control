@@ -1303,7 +1303,7 @@ def get_project_overview_summary(project):
 
 	expected_profit = flt(planned_revenue) - flt(planned_cost)
 
-	price_roles = {"System Manager", "COO", "CEO", "Accounts Manager", "Accounts User", "Estimation Manager", "Estimation User"}
+	price_roles = {"System Manager", "COO", "CEO", "Accounts Manager", "Accounts User", "Estimation Manager"}
 	can_see_price = bool(set(frappe.get_roles()) & price_roles)
 	if not can_see_price:
 		planned_revenue = None

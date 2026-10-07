@@ -1,0 +1,19 @@
+{
+ "app": "nexlify_budget_control",
+ "creation": "2026-10-08 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "layout-grid",
+ "icon_type": "App",
+ "idx": 0,
+ "label": "ALSA Projects",
+ "link": "/desk/ceo",
+ "link_type": "External",
+ "modified": "2026-10-07 23:56:18.370916",
+ "modified_by": "Administrator",
+ "name": "ALSA Projects",
+ "owner": "Administrator",
+ "roles": [],
+ "standard": 1
+}
