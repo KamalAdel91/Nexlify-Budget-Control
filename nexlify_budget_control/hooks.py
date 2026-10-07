@@ -235,6 +235,9 @@ override_doctype_dashboards = {
 
 app_home = "/alsa-projects"
 
+# The DocTypes live in Nexlify Budget Control; navigation lives in these modules (first = default home).
+code_only_modules = {"Nexlify Budget Control": ["ALSA Projects", "Estimation", "Planning"]}
+
 website_route_rules = [
 	{"from_route": "/alsa-projects", "to_route": "alsa_projects"},
 ]

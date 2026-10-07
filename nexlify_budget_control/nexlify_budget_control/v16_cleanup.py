@@ -70,6 +70,11 @@ def run(dry_run=1):
 		else:
 			act(f"delete Role {old}", lambda old=old: frappe.delete_doc("Role", old, force=True))
 
+	# 5. new desk (dock rail) instead of the v15 icon grid the upgrade patch keeps
+	if frappe.db.get_single_value("Desktop Settings", "desktop_page") != "Apps":
+		act("set Desktop Settings.desktop_page = Apps",
+			lambda: frappe.db.set_single_value("Desktop Settings", "desktop_page", "Apps"))
+
 	if not dry:
 		frappe.db.commit()
 		frappe.clear_cache()
