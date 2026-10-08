@@ -453,15 +453,23 @@ function pes_recalculate(frm) {
 			tr += cost;
 		});
 
+		let sp = 0;
+		(d.supply || []).forEach(s => {
+			let cost = flt(flt(s.rate) * flt(s.qty), 2);
+			pes_set_row(s, 'cost', cost);
+			sp += cost;
+		});
+
 		let oc = 0;
 		(d.other_costs || []).forEach(o => { oc += flt(o.cost, 2); });
 
 		pes_set_doc(frm, 'accommodation_total', flt(acc, 2));
 		pes_set_doc(frm, 'test_equipment_total', flt(te, 2));
 		pes_set_doc(frm, 'transportation_total', flt(tr + flt(d.fuel_maintenance_total), 2));
+		pes_set_doc(frm, 'supply_total', flt(sp, 2));
 		pes_set_doc(frm, 'other_costs_table_total', flt(oc, 2));
 
-		let other = flt(acc + te + tr + flt(d.fuel_maintenance_total) + oc, 2);
+		let other = flt(acc + te + tr + flt(d.fuel_maintenance_total) + sp + oc, 2);
 		pes_set_doc(frm, 'other_cost_total', other);
 		let total = flt(manpower + other, 2);
 		pes_set_doc(frm, 'total_cost', total);
@@ -571,6 +579,7 @@ frappe.ui.form.on('Project Estimation', {
 	accommodation_remove: function(frm) { pes_recalculate(frm); },
 	test_equipment_remove: function(frm) { pes_recalculate(frm); },
 	transportation_remove: function(frm) { pes_recalculate(frm); },
+	supply_remove: function(frm) { pes_recalculate(frm); },
 	other_costs_remove: function(frm) { pes_recalculate(frm); }
 });
 
@@ -651,6 +660,7 @@ function pes_render_summary(frm) {
 		[__('Accommodation'), d.accommodation_total],
 		[__('Test Equipment'), d.test_equipment_total],
 		[__('Car & Fuels'), d.transportation_total],
+		[__('Supply'), d.supply_total],
 	];
 	let by_cat = {};
 	let cat_order = [];
@@ -697,6 +707,7 @@ function pes_inject_total_styles() {
 		.frappe-control[data-fieldname="accommodation_total"],
 		.frappe-control[data-fieldname="test_equipment_total"],
 		.frappe-control[data-fieldname="transportation_total"],
+		.frappe-control[data-fieldname="supply_total"],
 		.frappe-control[data-fieldname="other_costs_table_total"] {
 			width: 50%;
 			margin-inline-start: auto;
@@ -711,6 +722,7 @@ function pes_inject_total_styles() {
 			.frappe-control[data-fieldname="accommodation_total"],
 			.frappe-control[data-fieldname="test_equipment_total"],
 			.frappe-control[data-fieldname="transportation_total"],
+			.frappe-control[data-fieldname="supply_total"],
 			.frappe-control[data-fieldname="other_costs_table_total"] {
 				width: 100%;
 			}
@@ -971,4 +983,18 @@ function nx_sort_trade_rows(frm, table) {
 	const sorted = nexlify.sort_trades(rows, 'designation');
 	sorted.forEach((r, i) => { r.idx = i + 1; });
 	frm.doc[table] = sorted;
+}
+
+// Supply: the price comes only from the Supply Chain, so a new item or quantity has to be quoted again.
+frappe.ui.form.on('Project Estimation Supply', {
+	item_code: pes_supply_changed,
+	qty: pes_supply_changed,
+});
+
+function pes_supply_changed(frm, cdt, cdn) {
+	let row = locals[cdt][cdn];
+	if (flt(row.rate) || row.supplier_quotation) {
+		frappe.model.set_value(cdt, cdn, { rate: 0, supplier_quotation: '' });
+	}
+	pes_recalculate(frm);
 }

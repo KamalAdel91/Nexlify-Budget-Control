@@ -45,6 +45,7 @@ class ProjectEstimation(Document):
 		self._validate_duplicate_categories()
 		self._set_default_currency()
 		self._calculate_equipment_scope_totals()
+		self._reset_changed_supply_prices()
 		self._calculate_estimation()
 		self._validate_workflow_step()
 
@@ -192,12 +193,14 @@ class ProjectEstimation(Document):
 		for v in self.transportation or []:
 			v.monthly_cost = flt(self._monthly_asset_cost(v, _("Car & Fuels")), 2)
 			v.cost = flt(v.monthly_cost * months, 2)
+		for s in self.supply or []:
+			s.cost = flt(flt(s.rate) * flt(s.qty), 2)
 
 		other = 0
 		for oc in self.other_costs or []:
 			oc.cost = flt(oc.cost, 2)
 			other += oc.cost
-		for rows in (self.accommodation, self.test_equipment, self.transportation):
+		for rows in (self.accommodation, self.test_equipment, self.transportation, self.supply):
 			other += sum(flt(x.cost) for x in (rows or []))
 		other += flt(self.fuel_maintenance_total)
 		self.other_cost_total = flt(other, 2)
@@ -205,6 +208,7 @@ class ProjectEstimation(Document):
 		self.accommodation_total = flt(sum(flt(x.cost) for x in (self.accommodation or [])), 2)
 		self.test_equipment_total = flt(sum(flt(x.cost) for x in (self.test_equipment or [])), 2)
 		self.transportation_total = flt(sum(flt(x.cost) for x in (self.transportation or [])) + flt(self.fuel_maintenance_total), 2)
+		self.supply_total = flt(sum(flt(x.cost) for x in (self.supply or [])), 2)
 		self.other_costs_table_total = flt(sum(flt(x.cost) for x in (self.other_costs or [])), 2)
 		self.total_cost = flt(self.manpower_cost + self.other_cost_total, 2)
 		self.margin_amount = flt(self.total_cost * flt(self.margin_percentage) / 100, 2)
@@ -235,12 +239,27 @@ class ProjectEstimation(Document):
 			frappe.db.set_value("Project Equipment Scope", r.name,
 				{"crew_day_cost": crew, "manpower_cost": cost, "total_price": price, "unit_price": unit}, update_modified=False)
 
+	def _reset_changed_supply_prices(self):
+		"""A Supply price comes only from the Supply Chain: a new line, or a changed item or quantity, is quoted again."""
+		if self.flags.from_supply_chain or (self.is_new() and self.amended_from):
+			return
+		before = None if self.is_new() else self.get_doc_before_save()
+		old = {r.name: r for r in ((before.get("supply") if before else None) or [])}
+		for row in self.supply or []:
+			prev = old.get(row.name)
+			if not prev or prev.item_code != row.item_code or flt(prev.qty) != flt(row.qty):
+				row.rate = 0
+				row.supplier_quotation = None
+			else:
+				row.rate, row.supplier_quotation = prev.rate, prev.supplier_quotation
+
 	def _estimation_categories(self):
 		fields = {
 			"manpower": "manpower_budget_category",
 			"accommodation": "accommodation_budget_category",
 			"test_equipment": "test_equipment_budget_category",
 			"transportation": "transportation_budget_category",
+			"supply": "supply_budget_category",
 		}
 		return {k: frappe.db.get_single_value("Project Budget Settings", v) for k, v in fields.items()}
 
@@ -250,6 +269,7 @@ class ProjectEstimation(Document):
 			(cats.get("accommodation"), self.accommodation, _("Accommodation")),
 			(cats.get("test_equipment"), self.test_equipment, _("Test Equipment")),
 			(cats.get("transportation"), self.transportation, _("Car & Fuels")),
+			(cats.get("supply"), self.supply, _("Supply")),
 		]
 		return items if with_labels else [(c, r) for c, r, _l in items]
 

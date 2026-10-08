@@ -11,6 +11,7 @@
   "column_break_estimation_categories",
   "test_equipment_budget_category",
   "transportation_budget_category",
+  "supply_budget_category",
   "tab_budget_control",
   "section_break_enforcement",
   "budget_bypass_role",
@@ -99,6 +100,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "0",
    "description": "Enable temporarily before a large bulk import (e.g. Data Import). Every budget violation is still recorded in the Violation Log, but nothing will stop or warn during submission. Remember to turn this OFF again after the import finishes.",
    "fieldname": "import_mode",
    "fieldtype": "Check",
@@ -232,11 +234,17 @@
    "fieldname": "show_create_estimation_on_project",
    "fieldtype": "Check",
    "label": "Show Create Estimation on Project"
+  },
+  {
+   "fieldname": "supply_budget_category",
+   "fieldtype": "Link",
+   "label": "Supply Budget Category",
+   "options": "Budget Category"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-08 00:32:54.612074",
+ "modified": "2026-10-09 01:56:52.549220",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",
@@ -253,6 +261,8 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "states": []
 }

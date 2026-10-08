@@ -57,6 +57,9 @@
   "transportation",
   "fuel_maintenance_total",
   "transportation_total",
+  "supply_section",
+  "supply",
+  "supply_total",
   "other_costs_section",
   "other_costs",
   "other_costs_table_total",
@@ -492,6 +495,23 @@
    "no_copy": 1,
    "options": "Workflow State",
    "read_only": 1
+  },
+  {
+   "fieldname": "supply_section",
+   "fieldtype": "Section Break",
+   "label": "Supply"
+  },
+  {
+   "fieldname": "supply",
+   "fieldtype": "Table",
+   "options": "Project Estimation Supply"
+  },
+  {
+   "fieldname": "supply_total",
+   "fieldtype": "Currency",
+   "label": "Total Supply",
+   "options": "currency",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -523,7 +543,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-08 00:22:18.404778",
+ "modified": "2026-10-09 01:56:52.327976",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",
