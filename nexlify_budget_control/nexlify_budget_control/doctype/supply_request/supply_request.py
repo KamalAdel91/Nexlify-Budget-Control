@@ -6,6 +6,12 @@ from frappe.model.document import Document
 
 
 class SupplyRequest(Document):
+	def validate(self):
+		from nexlify_budget_control.nexlify_budget_control.supply_chain import RETURNED, apply_quotations
+
+		if not self.is_new() and self.has_value_changed("status") and self.status == RETURNED:
+			apply_quotations(self)
+
 	@property
 	def items(self):
 		"""The Supply lines of the Estimation sent in this request. Read from the Estimation, never copied;
