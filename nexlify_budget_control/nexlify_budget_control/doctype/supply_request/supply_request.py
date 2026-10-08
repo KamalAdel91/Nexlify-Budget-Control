@@ -12,6 +12,11 @@ class SupplyRequest(Document):
 		if not self.is_new() and self.has_value_changed("status") and self.status == RETURNED:
 			apply_quotations(self)
 
+	def on_update(self):
+		from nexlify_budget_control.nexlify_budget_control.supply_chain import refresh_quotation_status
+
+		refresh_quotation_status(self.estimation)
+
 	@property
 	def items(self):
 		"""The Supply lines of the Estimation sent in this request. Read from the Estimation, never copied;

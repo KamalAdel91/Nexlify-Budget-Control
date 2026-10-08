@@ -77,6 +77,8 @@ def validate_supplier_quotation(doc, method=None):
 	"""A quotation for a Supply Request is made while the request is pending, and only for its items."""
 	if not doc.get("custom_supply_request"):
 		return
+	if doc.is_new():
+		doc.custom_supply_status = PENDING
 	if doc.is_new() or getattr(doc, "_action", None) == "submit":
 		status = frappe.db.get_value("Supply Request", doc.custom_supply_request, "status")
 		if status != PENDING:
@@ -118,3 +120,59 @@ def apply_quotations(req):
 		r.supplier_quotation, r.rate = offers[r.item_code]
 	est.flags.from_supply_chain = True
 	_run_as_administrator(est.save)
+
+
+CANCELLED = "Cancelled"  # Supply Request.status
+
+
+def refresh_quotation_status(estimation):
+	"""Supplier Quotation.custom_supply_status, worked out from the data every time (never typed):
+	Pending and Cancelled follow the Supply Request; Selected when a Supply line of the Estimation uses
+	the quotation (Won or Lost once the Opportunity is closed); Not selected otherwise."""
+	from nexlify_budget_control.nexlify_budget_control.opportunity_rfq import CLOSED_STAGES
+
+	if not estimation:
+		return
+	reqs = dict(frappe.get_all("Supply Request", filters={"estimation": estimation}, fields=["name", "status"], as_list=True))
+	if not reqs:
+		return
+	used = set(frappe.get_all("Project Estimation Supply",
+		filters={"parent": estimation, "parenttype": "Project Estimation", "supplier_quotation": ["is", "set"]},
+		pluck="supplier_quotation"))
+	opportunity = frappe.db.get_value("Project Estimation", estimation, "opportunity")
+	stage = opportunity and frappe.db.get_value("Opportunity", opportunity, "sales_stage")
+	for sq in frappe.get_all("Supplier Quotation", filters={"custom_supply_request": ["in", list(reqs)]},
+			fields=["name", "docstatus", "custom_supply_request", "custom_supply_status"]):
+		req_status = reqs.get(sq.custom_supply_request)
+		if sq.docstatus == 2 or req_status == CANCELLED:
+			status = "Cancelled"
+		elif req_status == PENDING:
+			status = "Pending"
+		elif sq.name in used:
+			status = "Won" if stage == "Closed Won" else "Lost" if stage in CLOSED_STAGES else "Selected"
+		else:
+			status = "Not selected"
+		if status != sq.custom_supply_status:
+			frappe.db.set_value("Supplier Quotation", sq.name, "custom_supply_status", status, update_modified=False)
+
+
+def before_quotation_cancel(doc, method=None):
+	"""A quotation that prices Supply lines can't be cancelled under them."""
+	used_in = sorted(set(frappe.get_all("Project Estimation Supply",
+		filters={"supplier_quotation": doc.name, "parenttype": "Project Estimation"}, pluck="parent")))
+	if used_in:
+		frappe.throw(_("{0} prices the Supply of {1}. Change those lines first.").format(doc.name, ", ".join(used_in)))
+
+
+def on_quotation_change(doc, method=None):
+	if doc.get("custom_supply_request"):
+		refresh_quotation_status(frappe.db.get_value("Supply Request", doc.custom_supply_request, "estimation"))
+
+
+def on_estimation_update(doc, method=None):
+	refresh_quotation_status(doc.name)
+
+
+def on_opportunity_update(doc, method=None):
+	if doc.get("custom_estimation") and doc.has_value_changed("sales_stage"):
+		refresh_quotation_status(doc.custom_estimation)
