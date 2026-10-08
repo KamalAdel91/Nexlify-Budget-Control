@@ -10,7 +10,7 @@
    "label": "Violations by Type"
   }
  ],
- "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Overview</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Waiting for CEO Approval\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Projects\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Contract Value\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Budget Violations\", \"col\": 3}}, {\"id\": \"ch0\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Approved Contract Value per Month\", \"col\": 12}}, {\"id\": \"ch1\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Violations by Type\", \"col\": 12}}]",
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Overview</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Waiting for CEO Approval\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Projects\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Contract Value\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Budget Violations\", \"col\": 3}}, {\"id\": \"ch0\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Approved Contract Value per Month\", \"col\": 12}}, {\"id\": \"ch1\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Violations by Type\", \"col\": 12}}, {\"id\": \"bqTfssjGhm\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>COO</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Waiting for COO Approval\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"With the CEO\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Approved This Month\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Contract Value Approved This Month\", \"col\": 3}}]",
  "creation": "2026-09-24 21:56:40.112764",
  "custom_blocks": [],
  "docstatus": 0,
@@ -100,7 +100,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-07 23:56:18.370916",
+ "modified": "2026-10-08 14:57:33.182087",
  "modified_by": "Administrator",
  "module": "ALSA Projects",
  "name": "ALSA Projects",
@@ -120,12 +120,38 @@
   {
    "label": "Open Budget Violations",
    "number_card_name": "Open Budget Violations"
+  },
+  {
+   "label": "Waiting for COO Approval",
+   "number_card_name": "Waiting for COO Approval"
+  },
+  {
+   "label": "With the CEO",
+   "number_card_name": "With the CEO"
+  },
+  {
+   "label": "Approved This Month",
+   "number_card_name": "Approved This Month"
+  },
+  {
+   "label": "Contract Value Approved This Month",
+   "number_card_name": "Contract Value Approved This Month"
   }
  ],
  "owner": "Administrator",
  "public": 1,
  "quick_lists": [],
- "roles": [],
+ "roles": [
+  {
+   "role": "CEO"
+  },
+  {
+   "role": "COO"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
  "sequence_id": 0.0,
  "shortcuts": [],
  "title": "ALSA Projects",

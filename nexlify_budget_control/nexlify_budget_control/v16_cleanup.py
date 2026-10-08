@@ -75,6 +75,11 @@ def run(dry_run=1):
 		act("set Desktop Settings.desktop_page = Apps",
 			lambda: frappe.db.set_single_value("Desktop Settings", "desktop_page", "Apps"))
 
+	# 6. COO workspace was merged into ALSA Projects
+	if frappe.db.exists("Workspace", "COO"):
+		act("delete Workspace COO (merged into ALSA Projects)",
+			lambda: frappe.delete_doc("Workspace", "COO", force=True, ignore_permissions=True))
+
 	if not dry:
 		frappe.db.commit()
 		frappe.clear_cache()
