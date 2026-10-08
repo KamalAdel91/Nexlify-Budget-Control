@@ -93,7 +93,8 @@ fixtures = [
 					"Planning Manager",
 					"O&M Manager",
 					"COO",
-					"CEO"
+					"CEO",
+					"Supply Chain Manager"
 				]
 			]
 		]
@@ -169,7 +170,7 @@ fixtures = [
 					"In Planning",
 					"Pending COO Approval",
 					"Pending CEO Approval",
-					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled"
+					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled", "Pending", "Returned"
 				]
 			]
 		]
@@ -184,7 +185,7 @@ fixtures = [
 					"Send for Approval",
 					"Approve",
 					"Return to Planning",
-					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel"
+					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel", "Return"
 				]
 			]
 		]
@@ -197,7 +198,7 @@ fixtures = [
 				"in",
 				[
 					"Project Overview Approval",
-					"Project Planning Approval", "Project Estimation Workflow"
+					"Project Planning Approval", "Project Estimation Workflow", "Supply Request Workflow"
 				]
 			]
 		]

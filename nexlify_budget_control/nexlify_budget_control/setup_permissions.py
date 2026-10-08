@@ -12,6 +12,7 @@ from frappe.permissions import add_permission, update_permission_property
 
 ESTIMATION_PLANNING = ["Estimation Manager", "Planning Manager"]
 ALL_APP_ROLES = ESTIMATION_PLANNING + ["O&M Manager", "COO", "CEO"]
+SUPPLY_CHAIN = ["Supply Chain Manager"]
 
 # Sensitive numbers (contract value, estimated cost) sit on permlevel 2: ERPNext gives Desk User read on level 1.
 SENSITIVE_READ = {
@@ -22,6 +23,9 @@ SENSITIVE_READ = {
 APP_ROLE_PERMISSIONS = [
     ("Designation", ESTIMATION_PLANNING, ["select"]),
     ("Project", ALL_APP_ROLES, ["read"]),
+    ("Supplier Quotation", SUPPLY_CHAIN, ["read", "write", "create", "submit", "cancel", "amend", "report", "print", "email"]),
+    ("Supplier", SUPPLY_CHAIN, ["read", "write", "create", "report"]),
+    ("Item", SUPPLY_CHAIN, ["read", "write", "create", "report"]),
 ]
 
 
@@ -49,7 +53,8 @@ def ensure_app_role_permissions():
 # then Role Permissions Manager owns it.
 LINK_SELECT = {
     "Customer": ["Estimation Manager", "Planning Manager"],
-    "Company": ["Estimation Manager", "Planning Manager"],
+    "Company": ["Estimation Manager", "Planning Manager", "Supply Chain Manager"],
+    "Item": ["Estimation Manager"],
 }
 
 

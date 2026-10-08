@@ -385,5 +385,87 @@
   "workflow_data": null,
   "workflow_name": "Project Estimation Workflow",
   "workflow_state_field": "workflow_state"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow",
+  "document_type": "Supply Request",
+  "enable_action_confirmation": 0,
+  "is_active": 1,
+  "modified": "2026-10-09 02:09:23.758382",
+  "name": "Supply Request Workflow",
+  "override_status": 0,
+  "send_email_alert": 0,
+  "states": [
+   {
+    "allow_edit": "Supply Chain Manager",
+    "avoid_status_override": 0,
+    "doc_status": "0",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Pending",
+    "update_field": "status",
+    "update_value": "Pending",
+    "workflow_builder_id": null
+   },
+   {
+    "allow_edit": "System Manager",
+    "avoid_status_override": 0,
+    "doc_status": "0",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Returned",
+    "update_field": "status",
+    "update_value": "Returned",
+    "workflow_builder_id": null
+   },
+   {
+    "allow_edit": "System Manager",
+    "avoid_status_override": 0,
+    "doc_status": "0",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Cancelled",
+    "update_field": "status",
+    "update_value": "Cancelled",
+    "workflow_builder_id": null
+   }
+  ],
+  "transitions": [
+   {
+    "action": "Return",
+    "allow_self_approval": 1,
+    "allowed": "Supply Chain Manager",
+    "condition": null,
+    "next_state": "Returned",
+    "send_email_to_creator": 0,
+    "state": "Pending",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Cancel",
+    "allow_self_approval": 1,
+    "allowed": "Estimation Manager",
+    "condition": null,
+    "next_state": "Cancelled",
+    "send_email_to_creator": 0,
+    "state": "Pending",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   }
+  ],
+  "workflow_data": null,
+  "workflow_name": "Supply Request Workflow",
+  "workflow_state_field": "workflow_state"
  }
 ]

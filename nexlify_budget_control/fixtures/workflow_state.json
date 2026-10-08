@@ -2,6 +2,15 @@
  {
   "docstatus": 0,
   "doctype": "Workflow State",
+  "icon": "question-sign",
+  "modified": "2026-06-14 23:25:59.806843",
+  "name": "Pending",
+  "style": "",
+  "workflow_state_name": "Pending"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
   "icon": "",
   "modified": "2026-09-24 14:29:25.585772",
   "name": "Pending COO Approval",
@@ -88,5 +97,14 @@
   "name": "Cancelled",
   "style": "Danger",
   "workflow_state_name": "Cancelled"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": null,
+  "modified": "2026-10-09 02:09:23.380180",
+  "name": "Returned",
+  "style": "Success",
+  "workflow_state_name": "Returned"
  }
 ]

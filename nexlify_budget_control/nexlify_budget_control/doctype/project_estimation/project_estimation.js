@@ -998,3 +998,36 @@ function pes_supply_changed(frm, cdt, cdn) {
 	}
 	pes_recalculate(frm);
 }
+
+// Supply Chain: send the unpriced Supply lines in a Supply Request, and show what is still pending.
+frappe.ui.form.on('Project Estimation', {
+	refresh(frm) {
+		pes_supply_chain(frm);
+	},
+});
+
+function pes_supply_chain(frm) {
+	if (frm.is_new()) return;
+	frappe.db.get_list('Supply Request', { filters: { estimation: frm.doc.name, status: 'Pending' }, fields: ['name'] }).then(rows => {
+		let pending = rows.map(r => r.name);
+		if (pending.length) {
+			let links = pending.map(n => `<a href="/app/supply-request/${encodeURIComponent(n)}">${frappe.utils.escape_html(n)}</a>`);
+			frm.set_intro(__('Waiting for the Supply Chain: {0}', [links.join(', ')]), 'orange');
+		}
+		let to_send = (frm.doc.supply || []).filter(r => !r.supplier_quotation && !pending.includes(r.supply_request));
+		if (!to_send.length || frm.doc.docstatus !== 0) return;
+		frm.add_custom_button(__('Send to Supply Chain'), () => {
+			if (frm.is_dirty()) {
+				frappe.msgprint(__('Save the Estimation first.'));
+				return;
+			}
+			frappe.confirm(__('Send {0} Supply items to the Supply Chain for pricing?', [to_send.length]), () => {
+				frappe.xcall('nexlify_budget_control.nexlify_budget_control.supply_chain.send_to_supply_chain', { estimation: frm.doc.name })
+					.then(name => {
+						frappe.show_alert({ message: __('Sent: {0}', [name]), indicator: 'green' });
+						frm.reload_doc();
+					});
+			});
+		});
+	});
+}
