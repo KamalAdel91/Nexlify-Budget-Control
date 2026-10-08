@@ -28,9 +28,17 @@
    "link_to": "Planning",
    "link_type": "Sidebar",
    "title": "Planning"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "truck",
+   "link_to": "Supply Chain",
+   "link_type": "Sidebar",
+   "title": "Supply Chain"
   }
  ],
- "modified": "2026-10-08 00:09:40.859986",
+ "modified": "2026-10-09 02:34:27.973675",
  "modified_by": "Administrator",
  "name": "nexlify_budget_control",
  "owner": "Administrator",

@@ -176,3 +176,12 @@ def on_estimation_update(doc, method=None):
 def on_opportunity_update(doc, method=None):
 	if doc.get("custom_estimation") and doc.has_value_changed("sales_stage"):
 		refresh_quotation_status(doc.custom_estimation)
+
+
+def before_quotation_update(doc, method=None):
+	"""Update Items after submit can't change a quotation whose price an Estimation already took."""
+	used_in = sorted(set(frappe.get_all("Project Estimation Supply",
+		filters={"supplier_quotation": doc.name, "parenttype": "Project Estimation"}, pluck="parent")))
+	if used_in:
+		frappe.throw(_("{0} prices the Supply of {1}, so its items and rates can't change.").format(doc.name, ", ".join(used_in)),
+			title=_("Quotation in use"))

@@ -15,6 +15,7 @@ DEFAULT_LANDING = [
 	("COO", "/desk/alsa-projects"),
 	("Estimation Manager", "/desk/estimation"),
 	("Planning Manager", "/desk/planning"),
+	("Supply Chain Manager", "/desk/supply-chain"),
 ]
 
 

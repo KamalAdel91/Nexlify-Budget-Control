@@ -52,7 +52,7 @@ doc_events = {
 		"on_update": ["nexlify_budget_control.nexlify_budget_control.supply_chain.on_estimation_update", "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract"],
 		"on_update_after_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract"]
 	},
-	"Supplier Quotation": {"validate": "nexlify_budget_control.nexlify_budget_control.supply_chain.validate_supplier_quotation", "before_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_cancel", "on_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change", "on_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change"},
+	"Supplier Quotation": {"validate": "nexlify_budget_control.nexlify_budget_control.supply_chain.validate_supplier_quotation", "before_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_cancel", "before_update_after_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_update", "on_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change", "on_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change"},
 	"Project Planning": {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_submit",
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
@@ -238,7 +238,7 @@ override_doctype_dashboards = {
 app_home = "/alsa-projects"
 
 # The DocTypes live in Nexlify Budget Control; navigation lives in these modules (first = default home).
-code_only_modules = {"Nexlify Budget Control": ["ALSA Projects", "Estimation", "Planning"]}
+code_only_modules = {"Nexlify Budget Control": ["ALSA Projects", "Estimation", "Planning", "Supply Chain"]}
 
 website_route_rules = [
 	{"from_route": "/alsa-projects", "to_route": "alsa_projects"},
