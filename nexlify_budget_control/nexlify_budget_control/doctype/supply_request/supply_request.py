@@ -7,9 +7,9 @@ from frappe.model.document import Document
 
 class SupplyRequest(Document):
 	def validate(self):
-		from nexlify_budget_control.nexlify_budget_control.supply_chain import RETURNED, apply_quotations
+		from nexlify_budget_control.nexlify_budget_control.supply_chain import PRICED, apply_quotations
 
-		if not self.is_new() and self.has_value_changed("status") and self.status == RETURNED:
+		if not self.is_new() and self.has_value_changed("status") and self.status == PRICED:
 			apply_quotations(self)
 
 	def on_update(self):

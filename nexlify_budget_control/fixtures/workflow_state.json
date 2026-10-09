@@ -102,18 +102,18 @@
   "docstatus": 0,
   "doctype": "Workflow State",
   "icon": null,
-  "modified": "2026-10-09 02:09:23.380180",
-  "name": "Returned",
+  "modified": "2026-10-09 03:20:57.253107",
+  "name": "Priced",
   "style": "Success",
-  "workflow_state_name": "Returned"
+  "workflow_state_name": "Priced"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow State",
   "icon": null,
-  "modified": "2026-10-09 02:58:04.309389",
-  "name": "Withdrawn",
+  "modified": "2026-10-09 03:20:57.810447",
+  "name": "Cancelled Draft",
   "style": "Inverse",
-  "workflow_state_name": "Withdrawn"
+  "workflow_state_name": "Cancelled Draft"
  }
 ]

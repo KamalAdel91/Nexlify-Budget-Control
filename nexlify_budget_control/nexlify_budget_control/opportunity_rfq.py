@@ -169,14 +169,14 @@ def get_estimation_for_opportunity(opportunity):
 	return {"estimation": est, "status": status, "submitted": True, "rows": rows,
 			"total": flt(e.total_price), "currency": e.currency}
 
-def release_opportunity(estimation, withdrawn=False):
+def release_opportunity(estimation, cancelled=False):
 	"""A deleted Estimation gives the RFQ back to its Opportunity: link removed, status Not Sent, a note on the timeline."""
 	opp = estimation.get("opportunity")
 	if not opp or frappe.db.get_value("Opportunity", opp, "custom_estimation") != estimation.name:
 		return
 	frappe.db.set_value("Opportunity", opp, {"custom_estimation": None, "custom_estimation_status": None},
 			update_modified=False)
-	frappe.get_doc("Opportunity", opp).add_comment("Info", (_("Estimation {0} was withdrawn by {1}. The RFQ is open again.") if withdrawn else _("Estimation {0} was deleted by {1}. The RFQ is open again.")).format(
+	frappe.get_doc("Opportunity", opp).add_comment("Info", (_("Estimation {0} was cancelled by {1}. The RFQ is open again.") if cancelled else _("Estimation {0} was deleted by {1}. The RFQ is open again.")).format(
 			estimation.name, frappe.utils.get_fullname()))
 
 
@@ -343,11 +343,11 @@ def validate_closed_lock(doc, method=None):
 					title=_("Opportunity Closed"))
 
 
-def on_estimation_withdrawn(doc, method=None):
-	"""Withdraw: the RFQ goes back to Sales and the pending Supply Requests are cancelled; the Estimation stays as history."""
-	if not doc.get("is_withdrawn") or not doc.has_value_changed("is_withdrawn"):
+def on_estimation_cancelled_draft(doc, method=None):
+	"""Cancel (Draft): the RFQ goes back to Sales and the pending Supply Requests are cancelled; the Estimation stays as history."""
+	if not doc.get("is_cancelled_draft") or not doc.has_value_changed("is_cancelled_draft"):
 		return
 	from nexlify_budget_control.nexlify_budget_control.supply_chain import cancel_pending_requests
 
-	release_opportunity(doc, withdrawn=True)
+	release_opportunity(doc, cancelled=True)
 	cancel_pending_requests(doc.name)

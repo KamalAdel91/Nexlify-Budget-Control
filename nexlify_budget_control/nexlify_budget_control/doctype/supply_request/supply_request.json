@@ -51,7 +51,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Pending\nReturned\nCancelled",
+   "options": "Pending\nPriced\nCancelled",
    "read_only": 1
   },
   {
@@ -135,7 +135,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-09 02:37:26.205970",
+ "modified": "2026-10-09 03:20:57.411165",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Supply Request",

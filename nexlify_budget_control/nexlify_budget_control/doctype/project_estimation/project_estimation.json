@@ -75,7 +75,7 @@
   "price_per_day",
   "other_cost_total",
   "workflow_state",
-  "is_withdrawn"
+  "is_cancelled_draft"
  ],
  "fields": [
   {
@@ -516,10 +516,10 @@
   },
   {
    "default": "0",
-   "fieldname": "is_withdrawn",
+   "fieldname": "is_cancelled_draft",
    "fieldtype": "Check",
    "hidden": 1,
-   "label": "Withdrawn",
+   "label": "Cancelled Draft",
    "no_copy": 1,
    "read_only": 1
   }
@@ -553,7 +553,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-09 02:58:02.915330",
+ "modified": "2026-10-09 03:20:57.877701",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

@@ -72,15 +72,8 @@
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-10-09 02:09:23.399113",
-  "name": "Return",
-  "workflow_action_name": "Return"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow Action Master",
-  "modified": "2026-10-09 02:58:04.330859",
-  "name": "Withdraw",
-  "workflow_action_name": "Withdraw"
+  "modified": "2026-10-09 03:20:57.392057",
+  "name": "Send Prices",
+  "workflow_action_name": "Send Prices"
  }
 ]

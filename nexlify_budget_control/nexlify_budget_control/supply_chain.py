@@ -49,7 +49,7 @@ def send_to_supply_chain(estimation):
 	return req.name
 
 
-RETURNED = "Returned"  # Supply Request.status
+PRICED = "Priced"  # Supply Request.status
 
 
 @frappe.whitelist()
@@ -107,7 +107,7 @@ def lowest_offers(req, est):
 
 
 def apply_quotations(req):
-	"""Return: every line of the request takes its cheapest quotation, and the Estimation recalculates."""
+	"""Send Prices: every line of the request takes its cheapest quotation, and the Estimation recalculates."""
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator
 
 	est = frappe.get_doc("Project Estimation", req.estimation)
@@ -197,20 +197,59 @@ def _status_state(status):
 
 
 def cancel_pending_requests(estimation):
-	"""The Estimation was withdrawn: its pending Supply Requests are cancelled, and their quotations follow."""
+	"""The Estimation was cancelled: its pending Supply Requests are cancelled, and their quotations follow."""
 	state = _status_state(CANCELLED)
 	for name in pending_requests(estimation):
 		values = {"status": CANCELLED}
 		if state:
 			values["workflow_state"] = state
 		frappe.db.set_value("Supply Request", name, values)
-		frappe.get_doc("Supply Request", name).add_comment("Info", _("Cancelled: the Estimation {0} was withdrawn.").format(estimation))
+		frappe.get_doc("Supply Request", name).add_comment("Info", _("Cancelled: the Estimation {0} was cancelled.").format(estimation))
 	refresh_quotation_status(estimation)
 
 
 def block_delete_with_supply_requests(estimation):
-	"""An Estimation that went to the Supply Chain is withdrawn, not deleted: its requests and quotations stay."""
+	"""An Estimation that went to the Supply Chain is cancelled, not deleted: its requests and quotations stay."""
 	reqs = frappe.get_all("Supply Request", filters={"estimation": estimation}, pluck="name")
 	if reqs:
-		frappe.throw(_("{0} has Supply Requests ({1}). Use Withdraw instead of deleting it.").format(estimation, ", ".join(reqs)),
-			title=_("Withdraw instead"))
+		frappe.throw(_("{0} has Supply Requests ({1}). Cancel it instead of deleting it.").format(estimation, ", ".join(reqs)),
+			title=_("Cancel instead"))
+
+
+NOTIFICATIONS = [
+	{
+		"name": "Supply Request: New",
+		"document_type": "Supply Request", "event": "New",
+		"channel": "Email", "send_system_notification": 1,
+		"subject": "New Supply Request {{ doc.name }} for {{ doc.customer or doc.estimation }}",
+		"message": """<p>A new Supply Request <b>{{ doc.name }}</b> for <b>{{ doc.customer or "" }}</b> is waiting for prices.</p>
+<p><a href='{{ frappe.utils.get_url_to_form(doc.doctype, doc.name) }}'>Open {{ doc.name }}</a></p>""",
+		"recipients": [{"receiver_by_role": "Supply Chain Manager"}],
+	},
+	{
+		"name": "Supply Request: Priced",
+		"document_type": "Supply Request", "event": "Value Change", "value_changed": "status",
+		"condition": 'doc.status == "Priced"',
+		"channel": "Email", "send_system_notification": 1,
+		"subject": "Supply priced: {{ doc.name }} is back in {{ doc.estimation }}",
+		"message": """<p>The Supply Chain priced <b>{{ doc.name }}</b>. The prices are now in the Estimation <b>{{ doc.estimation }}</b>.</p>
+<p><a href='{{ frappe.utils.get_url_to_form("Project Estimation", doc.estimation) }}'>Open {{ doc.estimation }}</a></p>""",
+		"recipients": [{"receiver_by_document_field": "owner"}],
+	},
+]
+
+
+def seed_notifications():
+	"""Each Notification is created once per site, then the UI owns it: edit or disable it there."""
+	applied = set(frappe.parse_json(frappe.db.get_default("nexlify_seeded_notifications") or "[]"))
+	changed = False
+	for rule in NOTIFICATIONS:
+		if rule["name"] in applied:
+			continue
+		if not frappe.db.exists("Notification", rule["name"]):
+			frappe.get_doc({"doctype": "Notification", "enabled": 1, "is_standard": 0, "message_type": "HTML", **rule}).insert(
+				ignore_permissions=True)
+		applied.add(rule["name"])
+		changed = True
+	if changed:
+		frappe.db.set_default("nexlify_seeded_notifications", frappe.as_json(sorted(applied)))

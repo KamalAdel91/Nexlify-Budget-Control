@@ -227,7 +227,7 @@
   "document_type": "Project Estimation",
   "enable_action_confirmation": 1,
   "is_active": 1,
-  "modified": "2026-10-09 02:58:04.346210",
+  "modified": "2026-10-09 03:20:57.833128",
   "name": "Project Estimation Workflow",
   "override_status": 0,
   "send_email_alert": 0,
@@ -311,8 +311,8 @@
     "message": null,
     "next_action_email_template": null,
     "send_email": 1,
-    "state": "Withdrawn",
-    "update_field": "is_withdrawn",
+    "state": "Cancelled Draft",
+    "update_field": "is_cancelled_draft",
     "update_value": "1",
     "workflow_builder_id": null
    }
@@ -396,11 +396,11 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Withdraw",
+    "action": "Cancel",
     "allow_self_approval": 1,
     "allowed": "Estimation Manager",
     "condition": null,
-    "next_state": "Withdrawn",
+    "next_state": "Cancelled Draft",
     "send_email_to_creator": 0,
     "state": "Draft",
     "transition_tasks": null,
@@ -417,7 +417,7 @@
   "document_type": "Supply Request",
   "enable_action_confirmation": 0,
   "is_active": 1,
-  "modified": "2026-10-09 02:09:23.758382",
+  "modified": "2026-10-09 03:20:57.554518",
   "name": "Supply Request Workflow",
   "override_status": 0,
   "send_email_alert": 0,
@@ -445,9 +445,9 @@
     "message": null,
     "next_action_email_template": null,
     "send_email": 1,
-    "state": "Returned",
+    "state": "Priced",
     "update_field": "status",
-    "update_value": "Returned",
+    "update_value": "Priced",
     "workflow_builder_id": null
    },
    {
@@ -467,11 +467,11 @@
   ],
   "transitions": [
    {
-    "action": "Return",
+    "action": "Send Prices",
     "allow_self_approval": 1,
     "allowed": "Supply Chain Manager",
     "condition": null,
-    "next_state": "Returned",
+    "next_state": "Priced",
     "send_email_to_creator": 0,
     "state": "Pending",
     "transition_tasks": null,

@@ -49,7 +49,7 @@ doc_events = {
 	"Project Estimation": {
 		"on_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_submit", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_submit"],
 		"on_cancel": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_cancel", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancel"],
-		"on_update": ["nexlify_budget_control.nexlify_budget_control.supply_chain.on_estimation_update", "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_withdrawn"],
+		"on_update": ["nexlify_budget_control.nexlify_budget_control.supply_chain.on_estimation_update", "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancelled_draft"],
 		"on_update_after_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract"]
 	},
 	"Supplier Quotation": {"validate": "nexlify_budget_control.nexlify_budget_control.supply_chain.validate_supplier_quotation", "before_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_cancel", "before_update_after_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_update", "on_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change", "on_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change"},
@@ -171,7 +171,7 @@ fixtures = [
 					"In Planning",
 					"Pending COO Approval",
 					"Pending CEO Approval",
-					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled", "Pending", "Returned", "Withdrawn"
+					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled", "Pending", "Priced", "Cancelled Draft"
 				]
 			]
 		]
@@ -186,7 +186,7 @@ fixtures = [
 					"Send for Approval",
 					"Approve",
 					"Return to Planning",
-					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel", "Return", "Withdraw"
+					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel", "Send Prices"
 				]
 			]
 		]
@@ -211,6 +211,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.merge_standard_into_custom_perms",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
+	"nexlify_budget_control.nexlify_budget_control.supply_chain.seed_notifications",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
@@ -225,6 +226,7 @@ auto_cancel_exempted_doctypes = [
 after_install = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
+	"nexlify_budget_control.nexlify_budget_control.supply_chain.seed_notifications",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 ]
 
