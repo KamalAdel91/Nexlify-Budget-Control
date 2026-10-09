@@ -3033,6 +3033,9 @@ def cascade_delete_estimation(cb):
         plan = frappe.db.get_value("Project Planning", {"project": cb.project, "docstatus": ["<", 2]}, "name")
         if plan:
             frappe.throw(_("Cannot delete: the Project Planning {0} is built on this Estimation. Delete or cancel the plan first.").format(plan))
+    from nexlify_budget_control.nexlify_budget_control.supply_chain import block_delete_with_supply_requests
+
+    block_delete_with_supply_requests(cb.name)
     overview = _approved_overview("cost_budget", cb.name)
     if overview:
         frappe.throw(_("Cannot delete: the approved Project Overview {0} is based on this Estimation.").format(overview))

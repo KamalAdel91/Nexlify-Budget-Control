@@ -416,7 +416,7 @@ function pes_recalculate(frm) {
 		});
 
 		let months = flt(flt(d.total_work_days) / wdm, 4);
-		pes_set_doc(frm, 'duration_months', months, 4);
+		pes_set_doc(frm, 'duration_months', months, precision('duration_months', frm.doc));
 
 		let manpower = 0;
 		(frm.__pes_rows || []).forEach(s => { manpower += flt(s.total_days) * pes_crew_day_cost(s, rates); });

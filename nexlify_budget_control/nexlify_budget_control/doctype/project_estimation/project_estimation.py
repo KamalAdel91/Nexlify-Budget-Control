@@ -373,7 +373,7 @@ class ProjectEstimation(Document):
 		key = "project" if self.project else "opportunity"
 		other = frappe.db.get_value(
 			"Project Estimation",
-			{key: self.get(key), "docstatus": ["<", 2], "name": ["!=", self.name or ""]},
+			{key: self.get(key), "docstatus": ["<", 2], "is_withdrawn": 0, "name": ["!=", self.name or ""]},
 			"name",
 		)
 		if other:

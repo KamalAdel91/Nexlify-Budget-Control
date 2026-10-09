@@ -227,7 +227,7 @@
   "document_type": "Project Estimation",
   "enable_action_confirmation": 1,
   "is_active": 1,
-  "modified": "2026-10-08 00:22:18.404778",
+  "modified": "2026-10-09 02:58:04.346210",
   "name": "Project Estimation Workflow",
   "override_status": 0,
   "send_email_alert": 0,
@@ -300,6 +300,20 @@
     "state": "Cancelled",
     "update_field": null,
     "update_value": null,
+    "workflow_builder_id": null
+   },
+   {
+    "allow_edit": "System Manager",
+    "avoid_status_override": 0,
+    "doc_status": "0",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Withdrawn",
+    "update_field": "is_withdrawn",
+    "update_value": "1",
     "workflow_builder_id": null
    }
   ],
@@ -378,6 +392,17 @@
     "next_state": "Cancelled",
     "send_email_to_creator": 0,
     "state": "Handed Over",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Withdraw",
+    "allow_self_approval": 1,
+    "allowed": "Estimation Manager",
+    "condition": null,
+    "next_state": "Withdrawn",
+    "send_email_to_creator": 0,
+    "state": "Draft",
     "transition_tasks": null,
     "workflow_builder_id": null
    }

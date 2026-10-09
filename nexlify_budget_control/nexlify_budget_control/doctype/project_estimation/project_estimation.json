@@ -74,7 +74,8 @@
   "total_price",
   "price_per_day",
   "other_cost_total",
-  "workflow_state"
+  "workflow_state",
+  "is_withdrawn"
  ],
  "fields": [
   {
@@ -512,6 +513,15 @@
    "label": "Total Supply",
    "options": "currency",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_withdrawn",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Withdrawn",
+   "no_copy": 1,
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -543,7 +553,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-09 01:56:52.327976",
+ "modified": "2026-10-09 02:58:02.915330",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

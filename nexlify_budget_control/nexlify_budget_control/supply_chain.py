@@ -185,3 +185,32 @@ def before_quotation_update(doc, method=None):
 	if used_in:
 		frappe.throw(_("{0} prices the Supply of {1}, so its items and rates can't change.").format(doc.name, ", ".join(used_in)),
 			title=_("Quotation in use"))
+
+
+def _status_state(status):
+	"""The Supply Request Workflow state that sets this status (read from the Workflow, not named here)."""
+	from frappe.model.workflow import get_workflow_name
+
+	name = get_workflow_name("Supply Request")
+	states = (name and frappe.get_cached_doc("Workflow", name).states) or []
+	return next((s.state for s in states if s.update_field == "status" and s.update_value == status), None)
+
+
+def cancel_pending_requests(estimation):
+	"""The Estimation was withdrawn: its pending Supply Requests are cancelled, and their quotations follow."""
+	state = _status_state(CANCELLED)
+	for name in pending_requests(estimation):
+		values = {"status": CANCELLED}
+		if state:
+			values["workflow_state"] = state
+		frappe.db.set_value("Supply Request", name, values)
+		frappe.get_doc("Supply Request", name).add_comment("Info", _("Cancelled: the Estimation {0} was withdrawn.").format(estimation))
+	refresh_quotation_status(estimation)
+
+
+def block_delete_with_supply_requests(estimation):
+	"""An Estimation that went to the Supply Chain is withdrawn, not deleted: its requests and quotations stay."""
+	reqs = frappe.get_all("Supply Request", filters={"estimation": estimation}, pluck="name")
+	if reqs:
+		frappe.throw(_("{0} has Supply Requests ({1}). Use Withdraw instead of deleting it.").format(estimation, ", ".join(reqs)),
+			title=_("Withdraw instead"))
