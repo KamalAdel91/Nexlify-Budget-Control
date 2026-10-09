@@ -95,29 +95,38 @@ def estimation_rate(item, est):
 	return flt(flt(item.base_net_rate) / flt(item.conversion_factor or 1) / flt(est.conversion_rate or 1), 6)
 
 
-def lowest_offers(req, est):
-	"""{item_code: (supplier_quotation, rate)}: the cheapest submitted quotation for each item."""
+def quotation_offers(req, est):
+	"""{item_code: [offer, ...]}, cheapest first: every submitted quotation of the request that prices the item,
+	with its rate in the Estimation's currency."""
 	offers = {}
-	for name in frappe.get_all("Supplier Quotation", filters={"custom_supply_request": req.name, "docstatus": 1}, pluck="name"):
-		for it in frappe.get_doc("Supplier Quotation", name).items:
-			rate = estimation_rate(it, est)
-			if it.item_code not in offers or rate < offers[it.item_code][1]:
-				offers[it.item_code] = (name, rate)
+	for q in frappe.get_all("Supplier Quotation", filters={"custom_supply_request": req.name, "docstatus": 1},
+			fields=["name", "supplier", "supplier_name", "valid_till"]):
+		for it in frappe.get_doc("Supplier Quotation", q.name).items:
+			offers.setdefault(it.item_code, []).append(frappe._dict(
+				quotation=q.name, supplier=q.supplier, supplier_name=q.supplier_name, valid_till=q.valid_till, rate=estimation_rate(it, est)))
+	for options in offers.values():
+		options.sort(key=lambda o: o.rate)
 	return offers
 
 
 def apply_quotations(req):
-	"""Send Prices: every line of the request takes its cheapest quotation, and the Estimation recalculates."""
+	"""Send Prices: every line of the request takes the quotation chosen for it (Choose and Send Prices), or the cheapest; the Estimation recalculates."""
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator
 
 	est = frappe.get_doc("Project Estimation", req.estimation)
-	offers = lowest_offers(req, est)
+	offers = quotation_offers(req, est)
+	chosen = frappe.flags.supply_choices or {}
 	rows = [r for r in est.supply or [] if r.supply_request == req.name]
 	missing = sorted({r.item_code for r in rows if r.item_code not in offers})
 	if missing:
 		frappe.throw(_("No submitted Supplier Quotation for: {0}").format(", ".join(missing)), title=_("Quotations missing"))
 	for r in rows:
-		r.supplier_quotation, r.rate = offers[r.item_code]
+		options = offers[r.item_code]
+		want = chosen.get(r.name)
+		pick = next((o for o in options if o.quotation == want), None) if want else options[0]
+		if not pick:
+			frappe.throw(_("{0} has no submitted offer for {1}.").format(want, r.item_code))
+		r.supplier_quotation, r.rate = pick.quotation, pick.rate
 	est.flags.from_supply_chain = True
 	_run_as_administrator(est.save)
 
@@ -253,3 +262,38 @@ def seed_notifications():
 		changed = True
 	if changed:
 		frappe.db.set_default("nexlify_seeded_notifications", frappe.as_json(sorted(applied)))
+
+
+@frappe.whitelist()
+def get_quotation_choices(supply_request):
+	"""Choose and Send Prices: every line of the request with its offers, cheapest first and preselected."""
+	req = frappe.get_doc("Supply Request", supply_request)
+	req.check_permission("read")
+	est = frappe.get_doc("Project Estimation", req.estimation)
+	offers = quotation_offers(req, est)
+	rows = []
+	for r in est.supply or []:
+		if r.supply_request != req.name:
+			continue
+		options = offers.get(r.item_code, [])
+		rows.append({"row": r.name, "item_code": r.item_code, "qty": r.qty, "uom": r.uom,
+			"chosen": options[0].quotation if options else None, "options": options})
+	return {"currency": est.currency, "rows": rows}
+
+
+@frappe.whitelist()
+def send_prices_with_choices(supply_request, choices):
+	"""The Send Prices action of the Workflow, with the quotation chosen for each line."""
+	from frappe.model.workflow import apply_workflow, get_transitions
+
+	req = frappe.get_doc("Supply Request", supply_request)
+	req.check_permission("write")
+	target = _status_state(PRICED)
+	action = next((t.action for t in get_transitions(req) if t.next_state == target), None)
+	if not action:
+		frappe.throw(_("{0} can't be priced from {1}.").format(req.name, _(req.workflow_state)))
+	frappe.flags.supply_choices = frappe.parse_json(choices) or {}
+	try:
+		apply_workflow(req.as_dict(), action)
+	finally:
+		frappe.flags.supply_choices = None
