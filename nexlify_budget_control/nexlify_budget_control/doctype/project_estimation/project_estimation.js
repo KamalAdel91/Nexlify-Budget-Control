@@ -455,7 +455,7 @@ function pes_recalculate(frm) {
 
 		let sp = 0;
 		(d.supply || []).forEach(s => {
-			let cost = flt(flt(s.rate) * flt(s.qty), 2);
+			let cost = s.is_cancelled ? 0 : flt(flt(s.rate) * flt(s.qty), 2);
 			pes_set_row(s, 'cost', cost);
 			sp += cost;
 		});
@@ -1008,29 +1008,39 @@ function pes_supply_changed(frm, cdt, cdn) {
 	pes_recalculate(frm);
 }
 
-// Supply Chain: send the unpriced Supply lines in a Supply Request, and show what is still pending.
+// Supply Chain: a message on top while lines wait or are not sent yet, and the Send button under the Supply table.
 frappe.ui.form.on('Project Estimation', {
 	refresh(frm) {
 		pes_supply_chain(frm);
 	},
 });
 
+function pes_supply_to_send(frm, pending) {
+	return (frm.doc.supply || []).filter(r => !r.is_cancelled && r.price_source !== 'Manual' && !r.supplier_quotation && !pending.includes(r.supply_request));
+}
+
 function pes_supply_chain(frm) {
+	const grid = frm.fields_dict.supply && frm.fields_dict.supply.grid;
+	const label = __('Send to Supply Chain');
+	if (grid && grid.custom_buttons && grid.custom_buttons[label]) grid.custom_buttons[label].addClass('hidden');
 	if (frm.is_new()) return;
 	frappe.db.get_list('Supply Request', { filters: { estimation: frm.doc.name, status: 'Pending' }, fields: ['name'] }).then(rows => {
-		let pending = rows.map(r => r.name);
+		const pending = rows.map(r => r.name);
+		const to_send = pes_supply_to_send(frm, pending);
 		if (pending.length) {
-			let links = pending.map(n => `<a href="/app/supply-request/${encodeURIComponent(n)}">${frappe.utils.escape_html(n)}</a>`);
-			frm.set_intro(__('Waiting for the Supply Chain: {0}', [links.join(', ')]), 'orange');
+			const links = pending.map(n => `<a href="/app/supply-request/${encodeURIComponent(n)}">${frappe.utils.escape_html(n)}</a>`);
+			frm.set_intro(__('Supply: waiting for the Supply Chain to price {0}.', [links.join(', ')]), 'orange');
+		} else if (to_send.length) {
+			frm.set_intro(__('Supply: {0} items are not sent to the Supply Chain yet.', [to_send.length]), 'blue');
 		}
-		let to_send = (frm.doc.supply || []).filter(r => r.price_source !== 'Manual' && !r.supplier_quotation && !pending.includes(r.supply_request));
-		if (!to_send.length || frm.doc.docstatus !== 0) return;
-		frm.add_custom_button(__('Send to Supply Chain'), () => {
+		if (!grid || !to_send.length || frm.doc.docstatus !== 0 || !(frm.perm[0] && frm.perm[0].write)) return;
+		grid.add_custom_button(label, () => {
+			const items = pes_supply_to_send(frm, pending);
 			if (frm.is_dirty()) {
 				frappe.msgprint(__('Save the Estimation first.'));
 				return;
 			}
-			frappe.confirm(__('Send {0} Supply items to the Supply Chain for pricing?', [to_send.length]), () => {
+			frappe.confirm(__('Send {0} Supply items to the Supply Chain for pricing?', [items.length]), () => {
 				frappe.xcall('nexlify_budget_control.nexlify_budget_control.supply_chain.send_to_supply_chain', { estimation: frm.doc.name })
 					.then(name => {
 						frappe.show_alert({ message: __('Sent: {0}', [name]), indicator: 'green' });
@@ -1038,5 +1048,136 @@ function pes_supply_chain(frm) {
 					});
 			});
 		});
+		pes_place_supply_buttons(frm);
+	});
+}
+
+// Supply summary, right above the Supply table: how many lines are Priced, Waiting, Not Sent and Manual.
+frappe.ui.form.on('Project Estimation', {
+	refresh: pes_supply_summary,
+	supply_add: pes_supply_summary,
+	supply_remove: pes_supply_summary,
+});
+
+frappe.ui.form.on('Project Estimation Supply', {
+	price_source: frm => pes_supply_summary(frm),
+	is_cancelled(frm) {
+		pes_recalculate(frm);
+		pes_supply_summary(frm);
+	},
+});
+
+function pes_supply_summary(frm) {
+	const grid = frm.fields_dict.supply && frm.fields_dict.supply.grid;
+	if (!grid) return;
+	grid.wrapper.find('.pes-supply-summary').remove();
+	const rows = frm.doc.supply || [];
+	if (!rows.length) return;
+	const status = r => r.is_cancelled ? 'Cancelled' : (r.price_source === 'Manual' ? 'Manual' : (r.supply_status || 'Not Sent'));
+	const by = {};
+	rows.forEach(r => (by[status(r)] = by[status(r)] || []).push(r));
+	const n = k => (by[k] || []).length;
+	const esc = frappe.utils.escape_html;
+	let kind, title;
+	if (n('Waiting')) {
+		const reqs = [...new Set(by['Waiting'].map(r => r.supply_request).filter(Boolean))]
+			.map(x => `<a href="/app/supply-request/${encodeURIComponent(x)}">${esc(x)}</a>`).join(', ');
+		kind = 'warning';
+		title = __('Waiting for the Supply Chain to send the prices of {0} items ({1}).', [n('Waiting'), reqs]);
+		if (n('Not Sent')) title += ' ' + __('{0} more items are not sent yet.', [n('Not Sent')]);
+	} else if (n('Not Sent')) {
+		kind = 'danger';
+		title = __('{0} items are not sent to the Supply Chain yet. Use Send to Supply Chain under the table.', [n('Not Sent')]);
+	} else {
+		kind = 'success';
+		title = __('All Supply items are priced.');
+	}
+	const parts = [['Priced', n('Priced')], ['Waiting', n('Waiting')], ['Not Sent', n('Not Sent')], ['Manual', n('Manual')], ['Cancelled', n('Cancelled')]]
+		.filter(p => p[1]).map(p => `${__(p[0])}: <b>${p[1]}</b>`).join(' &nbsp;·&nbsp; ');
+	$(`<div class="pes-supply-summary alert alert-${kind}" style="margin:0 0 10px;padding:10px 14px">
+		<div style="font-size:14px;font-weight:600">${title}</div>
+		<div style="font-size:12px;margin-top:4px">${parts}</div>
+	</div>`).prependTo(grid.wrapper);
+}
+
+// Supply line Actions: the menu of what can be done on one line.
+const PES_SUPPLY = 'nexlify_budget_control.nexlify_budget_control.supply_chain.';
+
+frappe.ui.form.on('Project Estimation Supply', {
+	line_actions: pes_supply_line_actions,
+});
+
+function pes_supply_call(frm, method, args, dialog) {
+	return frappe.xcall(PES_SUPPLY + method, Object.assign({ estimation: frm.doc.name }, args)).then(() => {
+		if (dialog) dialog.hide();
+		frm.reload_doc();
+	});
+}
+
+function pes_supply_line_actions(frm, cdt, cdn) {
+	const row = locals[cdt][cdn];
+	if (frm.is_dirty() || row.__islocal) {
+		frappe.msgprint(__('Save the Estimation first.'));
+		return;
+	}
+	const manual = row.price_source === 'Manual';
+	const status = row.is_cancelled ? 'Cancelled' : (manual ? 'Manual' : (row.supply_status || 'Not Sent'));
+	const editable = frm.doc.docstatus === 0 && frm.perm[0] && frm.perm[0].write;
+	const live = !row.is_cancelled;
+	const actions = [];
+	const add = (value, label, ok) => { if (ok) actions.push({ value, label }); };
+	if (editable) {
+		add('restore', __('Restore Line'), row.is_cancelled);
+		add('send_line', __('Send This Line to the Supply Chain'), live && !manual && status === 'Not Sent');
+		add('quote_again', __('Quote Again (clear the price and send it again)'), live && status === 'Priced');
+		add('to_manual', __('Switch to Manual (type the rate yourself)'), live && !manual && status !== 'Waiting');
+		add('to_supply_chain', __('Switch to Supply Chain (get a quotation)'), live && manual);
+		add('cancel', __('Cancel Line (it stays, its cost is 0)'), live);
+	}
+	add('open_quotation', __('Open Supplier Quotation {0}', [row.supplier_quotation]), !!row.supplier_quotation);
+	add('open_request', __('Open Supply Request {0}', [row.supply_request]), !!row.supply_request);
+	if (!actions.length) {
+		frappe.msgprint(__('Nothing to do on this line.'));
+		return;
+	}
+	const d = new frappe.ui.Dialog({
+		title: __('Supply Line {0}: {1}', [row.idx, row.item_code]),
+		fields: [
+			{ fieldtype: 'Data', label: __('Status'), default: __(status), read_only: 1 },
+			{ fieldtype: 'Data', label: __('Rate'), default: format_currency(row.rate, frm.doc.currency), read_only: 1 },
+			{ fieldtype: 'Select', fieldname: 'action', label: __('What do you want to do?'), reqd: 1,
+				options: actions, default: actions[0].value },
+		],
+		primary_action_label: __('Go'),
+		primary_action(values) {
+			if (values.action === 'open_quotation' || values.action === 'open_request') {
+				d.hide();
+				frappe.set_route('Form', values.action === 'open_quotation' ? 'Supplier Quotation' : 'Supply Request',
+					values.action === 'open_quotation' ? row.supplier_quotation : row.supply_request);
+				return;
+			}
+			if (values.action === 'send_line') {
+				pes_supply_call(frm, 'send_to_supply_chain', { rows: [row.name] }, d);
+				return;
+			}
+			pes_supply_call(frm, 'supply_line_action', { row: row.name, action: values.action }, d);
+		},
+	});
+	d.show();
+}
+
+// Send to Supply Chain sits on the right of the Supply table's button bar (Add row stays left).
+function pes_place_supply_buttons(frm) {
+	const grid = frm.fields_dict.supply && frm.fields_dict.supply.grid;
+	if (!grid || !grid.custom_buttons) return;
+	const bar = grid.grid_buttons || grid.wrapper.find('.grid-buttons');
+	bar.css({ display: 'flex', flex: '1', 'align-items': 'center', gap: '6px' });
+	let right = bar.find('.pes-grid-right');
+	if (!right.length) {
+		right = $('<div class="pes-grid-right" style="margin-inline-start:auto;display:flex;gap:6px"></div>').appendTo(bar);
+	}
+	[[__('Send to Supply Chain'), 1]].forEach(([label, order]) => {
+		const $btn = grid.custom_buttons[label];
+		if ($btn && !$btn.parent().is(right)) $btn.css('order', order).appendTo(right);
 	});
 }

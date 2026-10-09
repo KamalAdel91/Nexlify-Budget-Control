@@ -14,6 +14,9 @@
   "price_source",
   "rate",
   "cost",
+  "supply_status",
+  "line_actions",
+  "is_cancelled",
   "column_break_quote",
   "supplier_quotation",
   "supplier",
@@ -51,7 +54,6 @@
    "fetch_from": "item_code.stock_uom",
    "fieldname": "uom",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "UOM",
    "options": "UOM",
    "read_only": 1
@@ -66,7 +68,7 @@
    "read_only_depends_on": "eval:doc.price_source !== \"Manual\""
   },
   {
-   "columns": 2,
+   "columns": 1,
    "fieldname": "cost",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -109,13 +111,38 @@
    "label": "Price Source",
    "options": "Supply Chain\nManual",
    "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "supply_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Supply Status",
+   "no_copy": 1,
+   "options": "\nNot Sent\nWaiting\nPriced\nCancelled",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "fieldname": "is_cancelled",
+   "fieldtype": "Check",
+   "label": "Cancelled",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "line_actions",
+   "fieldtype": "Button",
+   "in_list_view": 1,
+   "label": "Actions"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-09 03:44:26.786002",
+ "modified": "2026-10-09 21:39:34.867525",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation Supply",

@@ -13,9 +13,10 @@ class SupplyRequest(Document):
 			apply_quotations(self)
 
 	def on_update(self):
-		from nexlify_budget_control.nexlify_budget_control.supply_chain import refresh_quotation_status
+		from nexlify_budget_control.nexlify_budget_control.supply_chain import refresh_quotation_status, sync_supply_status
 
 		refresh_quotation_status(self.estimation)
+		sync_supply_status(self.estimation)
 
 	@property
 	def items(self):
@@ -26,6 +27,6 @@ class SupplyRequest(Document):
 		return frappe.get_all(
 			"Project Estimation Supply",
 			filters={"parent": self.estimation, "parenttype": "Project Estimation", "supply_request": self.name},
-			fields=["item_code", "description", "qty", "uom", "supplier_quotation", "supplier"],
+			fields=["item_code", "description", "qty", "uom", "supplier_quotation", "supplier", "is_cancelled"],
 			order_by="idx asc",
 		)

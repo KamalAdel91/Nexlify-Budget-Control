@@ -8,6 +8,7 @@ from frappe import _
 from frappe.utils import flt
 
 PENDING = "Pending"  # Supply Request.status, set by its Workflow (Update Field)
+SUPPLY_CHAIN = "Supply Chain"  # Project Estimation Supply.price_source
 MANUAL = "Manual"  # Project Estimation Supply.price_source: typed by the estimator, never sent
 
 
@@ -32,21 +33,23 @@ def pending_requests(estimation):
 def rows_to_send(est):
 	"""Supply lines with no price that are not already waiting in a pending request."""
 	pending = set(pending_requests(est.name))
-	return [r for r in est.get("supply") or [] if r.price_source != MANUAL and not r.supplier_quotation and r.supply_request not in pending]
+	return [r for r in est.get("supply") or [] if not r.is_cancelled and r.price_source != MANUAL and not r.supplier_quotation and r.supply_request not in pending]
 
 
 @frappe.whitelist()
-def send_to_supply_chain(estimation):
+def send_to_supply_chain(estimation, rows=None):
 	est = frappe.get_doc("Project Estimation", estimation)
 	est.check_permission("write")
 	if not in_first_state(est):
 		frappe.throw(_("The Supply can be sent only while the Estimation is in {0}.").format(_(first_state())))
-	rows = rows_to_send(est)
+	only = set(frappe.parse_json(rows) or []) if rows else None
+	rows = [r for r in rows_to_send(est) if only is None or r.name in only]
 	if not rows:
 		frappe.throw(_("Every Supply line is already priced or waiting at the Supply Chain."))
 	req = frappe.get_doc({"doctype": "Supply Request", "estimation": est.name}).insert()
 	for r in rows:
 		frappe.db.set_value("Project Estimation Supply", r.name, "supply_request", req.name, update_modified=False)
+	sync_supply_status(est.name)
 	return req.name
 
 
@@ -117,7 +120,7 @@ def apply_quotations(req):
 	est = frappe.get_doc("Project Estimation", req.estimation)
 	offers = quotation_offers(req, est)
 	chosen = frappe.flags.supply_choices or {}
-	rows = [r for r in est.supply or [] if r.supply_request == req.name]
+	rows = [r for r in est.supply or [] if r.supply_request == req.name and not r.is_cancelled]
 	missing = sorted({r.item_code for r in rows if r.item_code not in offers})
 	if missing:
 		frappe.throw(_("No submitted Supplier Quotation for: {0}").format(", ".join(missing)), title=_("Quotations missing"))
@@ -147,7 +150,7 @@ def refresh_quotation_status(estimation):
 	if not reqs:
 		return
 	used = set(frappe.get_all("Project Estimation Supply",
-		filters={"parent": estimation, "parenttype": "Project Estimation", "supplier_quotation": ["is", "set"]},
+		filters={"parent": estimation, "parenttype": "Project Estimation", "supplier_quotation": ["is", "set"], "is_cancelled": 0},
 		pluck="supplier_quotation"))
 	opportunity = frappe.db.get_value("Project Estimation", estimation, "opportunity")
 	stage = opportunity and frappe.db.get_value("Opportunity", opportunity, "sales_stage")
@@ -169,7 +172,7 @@ def refresh_quotation_status(estimation):
 def before_quotation_cancel(doc, method=None):
 	"""A quotation that prices Supply lines can't be cancelled under them."""
 	used_in = sorted(set(frappe.get_all("Project Estimation Supply",
-		filters={"supplier_quotation": doc.name, "parenttype": "Project Estimation"}, pluck="parent")))
+		filters={"supplier_quotation": doc.name, "parenttype": "Project Estimation", "is_cancelled": 0}, pluck="parent")))
 	if used_in:
 		frappe.throw(_("{0} prices the Supply of {1}. Change those lines first.").format(doc.name, ", ".join(used_in)))
 
@@ -191,7 +194,7 @@ def on_opportunity_update(doc, method=None):
 def before_quotation_update(doc, method=None):
 	"""Update Items after submit can't change a quotation whose price an Estimation already took."""
 	used_in = sorted(set(frappe.get_all("Project Estimation Supply",
-		filters={"supplier_quotation": doc.name, "parenttype": "Project Estimation"}, pluck="parent")))
+		filters={"supplier_quotation": doc.name, "parenttype": "Project Estimation", "is_cancelled": 0}, pluck="parent")))
 	if used_in:
 		frappe.throw(_("{0} prices the Supply of {1}, so its items and rates can't change.").format(doc.name, ", ".join(used_in)),
 			title=_("Quotation in use"))
@@ -216,6 +219,7 @@ def cancel_pending_requests(estimation):
 		frappe.db.set_value("Supply Request", name, values)
 		frappe.get_doc("Supply Request", name).add_comment("Info", _("Cancelled: the Estimation {0} was cancelled.").format(estimation))
 	refresh_quotation_status(estimation)
+	sync_supply_status(estimation)
 
 
 def block_delete_with_supply_requests(estimation):
@@ -274,7 +278,7 @@ def get_quotation_choices(supply_request):
 	offers = quotation_offers(req, est)
 	rows = []
 	for r in est.supply or []:
-		if r.supply_request != req.name:
+		if r.supply_request != req.name or r.is_cancelled:
 			continue
 		options = offers.get(r.item_code, [])
 		rows.append({"row": r.name, "item_code": r.item_code, "qty": r.qty, "uom": r.uom,
@@ -298,3 +302,71 @@ def send_prices_with_choices(supply_request, choices):
 		apply_workflow(req.as_dict(), action)
 	finally:
 		frappe.flags.supply_choices = None
+
+
+NOT_SENT, WAITING = "Not Sent", "Waiting"  # Project Estimation Supply.supply_status (with PRICED)
+
+
+def row_supply_status(row, request_status):
+	"""Where a Supply line stands: Manual lines have no status."""
+	if row.is_cancelled:
+		return CANCELLED
+	if row.price_source == MANUAL:
+		return ""
+	if row.supplier_quotation:
+		return PRICED
+	if row.supply_request and request_status == PENDING:
+		return WAITING
+	return NOT_SENT
+
+
+def sync_supply_status(estimation):
+	"""Keeps the Supply Status column right when a Supply Request moves without the Estimation being saved."""
+	reqs = dict(frappe.get_all("Supply Request", filters={"estimation": estimation}, fields=["name", "status"], as_list=True))
+	for r in frappe.get_all("Project Estimation Supply", filters={"parent": estimation, "parenttype": "Project Estimation"},
+			fields=["name", "price_source", "supplier_quotation", "supply_request", "supply_status", "is_cancelled"]):
+		status = row_supply_status(r, reqs.get(r.supply_request))
+		if status != (r.supply_status or ""):
+			frappe.db.set_value("Project Estimation Supply", r.name, "supply_status", status, update_modified=False)
+
+
+def _editable_estimation(estimation):
+	est = frappe.get_doc("Project Estimation", estimation)
+	est.check_permission("write")
+	if not in_first_state(est):
+		frappe.throw(_("The Supply can change only while the Estimation is in {0}.").format(_(first_state())))
+	return est
+
+
+@frappe.whitelist()
+def supply_line_action(estimation, row, action):
+	"""The Actions menu of a Supply line."""
+	est = _editable_estimation(estimation)
+	line = next((r for r in est.supply or [] if r.name == row), None)
+	if not line:
+		frappe.throw(_("This Supply line is not in {0} any more. Reload the Estimation.").format(estimation))
+	waiting = not line.supplier_quotation and line.supply_request in set(pending_requests(est.name))
+	if action == "cancel":
+		line.is_cancelled = 1
+	elif action == "restore":
+		line.is_cancelled = 0
+	elif action in ("quote_again", "to_manual", "to_supply_chain"):
+		if line.is_cancelled:
+			frappe.throw(_("Restore the line first."))
+		if waiting:
+			frappe.throw(_("This line is waiting at the Supply Chain ({0}).").format(line.supply_request))
+		if action == "quote_again" and (line.price_source == MANUAL or not line.supplier_quotation):
+			frappe.throw(_("Only a priced Supply Chain line can be quoted again."))
+		if action == "to_manual" and line.price_source == MANUAL:
+			frappe.throw(_("This line is already Manual."))
+		if action == "to_supply_chain" and line.price_source != MANUAL:
+			frappe.throw(_("This line is already priced by the Supply Chain."))
+		if action == "to_manual":
+			line.price_source = MANUAL
+		elif action == "to_supply_chain":
+			line.price_source = SUPPLY_CHAIN
+		line.rate, line.supplier_quotation, line.supplier, line.supply_request = 0, None, None, None
+	else:
+		frappe.throw(_("Unknown action {0}").format(action))
+	est.flags.from_supply_chain = True
+	est.save()

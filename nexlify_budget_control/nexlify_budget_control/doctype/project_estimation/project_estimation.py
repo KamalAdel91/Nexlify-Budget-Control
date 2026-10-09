@@ -46,6 +46,7 @@ class ProjectEstimation(Document):
 		self._set_default_currency()
 		self._calculate_equipment_scope_totals()
 		self._reset_changed_supply_prices()
+		self._set_supply_status()
 		self._calculate_estimation()
 		self._validate_workflow_step()
 
@@ -195,7 +196,7 @@ class ProjectEstimation(Document):
 			v.monthly_cost = flt(self._monthly_asset_cost(v, _("Car & Fuels")), 2)
 			v.cost = flt(v.monthly_cost * months, 2)
 		for s in self.supply or []:
-			s.cost = flt(flt(s.rate) * flt(s.qty), 2)
+			s.cost = 0 if s.is_cancelled else flt(flt(s.rate) * flt(s.qty), 2)
 
 		other = 0
 		for oc in self.other_costs or []:
@@ -250,11 +251,13 @@ class ProjectEstimation(Document):
 		old = {r.name: r for r in ((before.get("supply") if before else None) or [])}
 		pending = set(pending_requests(self.name)) if before else set()
 		kept = {r.name for r in self.supply or []}
-		gone = [r.item_code for n, r in old.items() if n not in kept and r.supply_request in pending]
+		gone = [r.item_code for n, r in old.items() if n not in kept and r.supply_request]
 		if gone:
-			frappe.throw(_("These Supply items are waiting at the Supply Chain and can't be removed: {0}").format(", ".join(gone)))
+			frappe.throw(_("These Supply items went to the Supply Chain, so they stay: use Actions > Cancel Line instead of removing them: {0}").format(
+				", ".join(gone)), title=_("Cancel instead"))
 		for row in self.supply or []:
 			prev = old.get(row.name)
+			row.is_cancelled = prev.is_cancelled if prev else 0
 			changed = (not prev or prev.item_code != row.item_code or flt(prev.qty) != flt(row.qty)
 				or (prev.price_source == MANUAL) != (row.price_source == MANUAL))
 			if changed and prev and prev.supply_request in pending:
@@ -275,14 +278,23 @@ class ProjectEstimation(Document):
 		if pending:
 			frappe.throw(_("The Supply is still at the Supply Chain: {0}.").format(", ".join(pending)),
 				title=_("Waiting for Supply Chain"))
-		unpriced = [r.item_code for r in self.supply or [] if r.price_source != MANUAL and not r.supplier_quotation]
-		no_rate = [r.item_code for r in self.supply or [] if r.price_source == MANUAL and flt(r.rate) <= 0]
+		unpriced = [r.item_code for r in self.supply or [] if not r.is_cancelled and r.price_source != MANUAL and not r.supplier_quotation]
+		no_rate = [r.item_code for r in self.supply or [] if not r.is_cancelled and r.price_source == MANUAL and flt(r.rate) <= 0]
 		if no_rate:
 			frappe.throw(_("Enter a rate for these Manual Supply items: {0}").format(", ".join(no_rate)),
 				title=_("Supply not priced"))
 		if unpriced:
 			frappe.throw(_("Send these Supply items to the Supply Chain first: {0}").format(", ".join(unpriced)),
 				title=_("Supply not priced"))
+
+	def _set_supply_status(self):
+		"""The Supply Status column: where each Supply Chain line stands."""
+		from nexlify_budget_control.nexlify_budget_control.supply_chain import row_supply_status
+
+		reqs = {} if self.is_new() else dict(frappe.get_all("Supply Request", filters={"estimation": self.name},
+			fields=["name", "status"], as_list=True))
+		for row in self.supply or []:
+			row.supply_status = row_supply_status(row, reqs.get(row.supply_request))
 
 	def _estimation_categories(self):
 		fields = {
