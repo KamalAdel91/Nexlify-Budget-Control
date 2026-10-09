@@ -38,7 +38,10 @@
   "section_break_dashboard_filters",
   "dashboard_filters",
   "section_break_estimation_project",
-  "show_create_estimation_on_project"
+  "show_create_estimation_on_project",
+  "tab_invoicing",
+  "section_break_invoice_items",
+  "project_invoice_items"
  ],
  "fields": [
   {
@@ -240,11 +243,28 @@
    "fieldtype": "Link",
    "label": "Supply Budget Category",
    "options": "Budget Category"
+  },
+  {
+   "fieldname": "tab_invoicing",
+   "fieldtype": "Tab Break",
+   "label": "Invoicing"
+  },
+  {
+   "description": "The Item put on each Sales Invoice line taken from a Plan's invoicing, by the Project Type.",
+   "fieldname": "section_break_invoice_items",
+   "fieldtype": "Section Break",
+   "label": "Project Invoice Items"
+  },
+  {
+   "fieldname": "project_invoice_items",
+   "fieldtype": "Table",
+   "label": "Project Invoice Items",
+   "options": "Project Invoice Item Rule"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-09 01:56:52.549220",
+ "modified": "2026-10-09 21:15:22.381987",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

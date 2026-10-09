@@ -1,8 +1,7 @@
 {
  "actions": [],
- "allow_rename": 0,
  "autoname": "naming_series:",
- "creation": "2026-09-14 00:00:00.000000",
+ "creation": "2026-09-14 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -15,11 +14,17 @@
   "visits",
   "expected_invoice_date",
   "invoice_percentage",
+  "invoice_amount",
   "invoice_description",
   "computed_section",
   "status",
-  "sales_order",
-  "actual_date"
+  "sales_invoice",
+  "actual_date",
+  "section_break_job_completion",
+  "job_completion",
+  "column_break_job_completion",
+  "completion_date",
+  "completed_by"
  ],
  "fields": [
   {
@@ -101,15 +106,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Pending\nInvoiced",
-   "read_only": 1
-  },
-  {
-   "fieldname": "sales_order",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Sales Order",
-   "options": "Sales Order",
+   "options": "Pending\nReady to Invoice\nInvoiced",
    "read_only": 1
   },
   {
@@ -128,12 +125,52 @@
    "options": ".project.-INV-.##",
    "print_hide": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "invoice_amount",
+   "fieldtype": "Currency",
+   "label": "Invoice Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_job_completion",
+   "fieldtype": "Section Break",
+   "label": "Job Completion"
+  },
+  {
+   "fieldname": "job_completion",
+   "fieldtype": "Attach",
+   "label": "Job Completion",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_job_completion",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "completion_date",
+   "fieldtype": "Date",
+   "label": "Completion Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_by",
+   "fieldtype": "Link",
+   "label": "Completed By",
+   "options": "User",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
- "is_submittable": 0,
  "links": [],
- "modified": "2026-10-08 00:22:18.404778",
+ "modified": "2026-10-09 21:15:23.100810",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Invoicing",
@@ -207,6 +244,7 @@
    "role": "Accounts User"
   }
  ],
+ "row_format": "Dynamic",
  "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",

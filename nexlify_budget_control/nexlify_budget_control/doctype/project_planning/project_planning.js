@@ -979,8 +979,8 @@ function build_invoices_table_html(invoices) {
 	let total = 0;
 	let rows_html = invoices.map(inv => {
 		total += flt(inv.invoice_percentage);
-		let so_html = inv.sales_order
-			? `<a href="/app/sales-order/${inv.sales_order}" class="nrb-link">${inv.sales_order}</a>`
+		let si_html = inv.sales_invoice
+			? `<a href="/app/sales-invoice/${inv.sales_invoice}" class="nrb-link">${inv.sales_invoice}</a>`
 			: `<span class="nrb-muted">-</span>`;
 		let status_class = inv.status === 'Invoiced' ? 'nrb-badge nrb-badge-invoiced' : 'nrb-badge';
 
@@ -991,7 +991,7 @@ function build_invoices_table_html(invoices) {
 				<td class="nrb-text-right">${flt(inv.invoice_percentage).toFixed(2)}%</td>
 				<td>${inv.invoice_description ? frappe.utils.escape_html(inv.invoice_description) : '<span class="nrb-muted">-</span>'}</td>
 				<td>${inv.status ? `<span class="${status_class}">${inv.status}</span>` : '<span class="nrb-muted">-</span>'}</td>
-				<td>${so_html}</td>
+				<td>${si_html}</td>
 				<td>
 					<a href="#" class="nrb-link" onclick="open_invoicing_quick_edit('${inv.name}'); return false;">${__('Edit')}</a>
 					&nbsp;|&nbsp;
@@ -1008,7 +1008,7 @@ function build_invoices_table_html(invoices) {
 					<tr>
 						<th>${__('Invoice')}</th><th>${__('Expected Date')}</th>
 						<th class="nrb-text-right">${__('Percentage')}</th><th>${__('Description')}</th>
-						<th>${__('Status')}</th><th>${__('Sales Order')}</th><th>${__('Actions')}</th>
+						<th>${__('Status')}</th><th>${__('Sales Invoice')}</th><th>${__('Actions')}</th>
 					</tr>
 				</thead>
 				<tbody>${rows_html}</tbody>

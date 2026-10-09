@@ -1135,7 +1135,9 @@ def bulk_create_project_visits(project_planning, rows):
 	return created
 
 
-EXCLUDED_INVOICING_EDIT_FIELDS = {"project_planning", "project"}
+EXCLUDED_INVOICING_EDIT_FIELDS = {"project_planning", "project",
+    # written only by the system (Mark Job Completed, Sales Invoice): never sent back from the edit dialog
+    "status", "invoice_amount", "sales_invoice", "actual_date", "job_completion", "completion_date", "completed_by"}
 
 
 @frappe.whitelist()
@@ -1260,7 +1262,7 @@ def get_project_invoicings(project_planning):
 		filters={"project_planning": project_planning},
 		fields=[
 			"name", "invoice_label", "expected_invoice_date", "invoice_percentage",
-			"invoice_description", "status", "sales_order"
+			"invoice_description", "status", "sales_invoice"
 		],
 		order_by="creation asc",
 	)

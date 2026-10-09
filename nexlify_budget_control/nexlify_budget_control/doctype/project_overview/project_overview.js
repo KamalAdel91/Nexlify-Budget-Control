@@ -236,7 +236,7 @@ function build_invoices_section(invoices) {
 	let total = 0;
 	let rows = invoices.map(inv => {
 		total += flt(inv.invoice_percentage);
-		let so = inv.sales_order ? `<a href="/app/sales-order/${inv.sales_order}" class="npo-link">${inv.sales_order}</a>` : '-';
+		let si = inv.sales_invoice ? `<a href="/app/sales-invoice/${inv.sales_invoice}" class="npo-link">${inv.sales_invoice}</a>` : '-';
 		return `
 			<tr>
 				<td><a href="/app/project-invoicing/${inv.name}" class="npo-link">${frappe.utils.escape_html(inv.invoice_label || inv.name)}</a></td>
@@ -244,14 +244,14 @@ function build_invoices_section(invoices) {
 				<td class="npo-text-right">${flt(inv.invoice_percentage).toFixed(2)}%</td>
 				<td>${frappe.utils.escape_html(inv.invoice_description || '')}</td>
 				<td>${inv.status || ''}</td>
-				<td>${so}</td>
+				<td>${si}</td>
 			</tr>
 		`;
 	}).join('');
 	return title + `
 		<div class="npo-table-wrapper">
 			<table class="npo-table">
-				<thead><tr><th>${__('Invoice')}</th><th>${__('Expected Date')}</th><th class="npo-text-right">${__('%')}</th><th>${__('Description')}</th><th>${__('Status')}</th><th>${__('Sales Order')}</th></tr></thead>
+				<thead><tr><th>${__('Invoice')}</th><th>${__('Expected Date')}</th><th class="npo-text-right">${__('%')}</th><th>${__('Description')}</th><th>${__('Status')}</th><th>${__('Sales Invoice')}</th></tr></thead>
 				<tbody>${rows}</tbody>
 				<tfoot><tr><td colspan="2" class="npo-text-right"><b>${__('Total')}</b></td><td class="npo-text-right"><b>${total.toFixed(2)}%</b></td><td colspan="3"></td></tr></tfoot>
 			</table>
