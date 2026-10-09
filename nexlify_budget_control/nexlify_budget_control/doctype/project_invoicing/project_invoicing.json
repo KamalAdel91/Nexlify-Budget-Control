@@ -18,6 +18,7 @@
   "invoice_description",
   "computed_section",
   "status",
+  "sales_order",
   "sales_invoice",
   "actual_date",
   "section_break_job_completion",
@@ -106,7 +107,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Pending\nReady to Invoice\nInvoiced",
+   "options": "Pending\nReady to Invoice\nOrdered\nInvoiced",
    "read_only": 1
   },
   {
@@ -130,6 +131,7 @@
    "fieldname": "invoice_amount",
    "fieldtype": "Currency",
    "label": "Invoice Amount",
+   "permlevel": 2,
    "read_only": 1
   },
   {
@@ -166,11 +168,19 @@
    "label": "Completed By",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Sales Order",
+   "no_copy": 1,
+   "options": "Sales Order",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-09 21:15:23.100810",
+ "modified": "2026-10-09 23:00:39.225189",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Invoicing",
@@ -242,6 +252,78 @@
    "read": 1,
    "report": 1,
    "role": "Accounts User"
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "permlevel": 2,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "CEO",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "permlevel": 2,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "COO",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "permlevel": 2,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Estimation Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "permlevel": 2,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "permlevel": 2,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "permlevel": 2,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
   }
  ],
  "row_format": "Dynamic",

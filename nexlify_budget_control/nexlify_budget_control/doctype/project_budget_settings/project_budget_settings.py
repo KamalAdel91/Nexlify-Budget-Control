@@ -20,7 +20,7 @@ class ProjectBudgetSettings(Document):
 
 
 	def validate_project_invoice_items(self):
-		"""One default row (no Project Type), each Project Type once, and service Items only."""
+		"""One default row (no Project Type), each Project Type once, and enabled service sales Items only."""
 		seen, defaults = set(), 0
 		for row in self.get("project_invoice_items") or []:
 			if not row.project_type:
@@ -29,7 +29,12 @@ class ProjectBudgetSettings(Document):
 				frappe.throw(_("Row {0}: Project Type {1} is listed more than once").format(row.idx, row.project_type))
 			else:
 				seen.add(row.project_type)
-			if frappe.db.get_value("Item", row.item_code, "is_stock_item"):
+			item = frappe.db.get_value("Item", row.item_code, ["is_sales_item", "is_stock_item", "is_fixed_asset", "disabled"], as_dict=True) or {}
+			if not item.get("is_sales_item") or item.get("disabled"):
+				frappe.throw(_("Row {0}: {1} is not an enabled sales Item (Is Sales Item on).").format(row.idx, row.item_code))
+			if item.get("is_fixed_asset"):
+				frappe.throw(_("Row {0}: {1} is a Fixed Asset. Project invoices take a service Item.").format(row.idx, row.item_code))
+			if item.get("is_stock_item"):
 				frappe.throw(_("Row {0}: {1} is a stock Item. Project invoices take a service Item (Maintain Stock off).").format(
 					row.idx, row.item_code))
 		if defaults > 1:

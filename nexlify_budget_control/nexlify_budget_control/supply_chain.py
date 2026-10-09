@@ -58,18 +58,15 @@ PRICED = "Priced"  # Supply Request.status
 
 @frappe.whitelist()
 def make_supplier_quotation(supply_request):
-	"""Create > Supplier Quotation on a pending Supply Request: its items and quantities, linked to it."""
+	"""Create > Supplier Quotation on a pending Supply Request: its items, each line linked to the request."""
 	req = frappe.get_doc("Supply Request", supply_request)
 	req.check_permission("read")
 	if req.status != PENDING:
 		frappe.throw(_("{0} is {1}: quotations are made while it is {2}.").format(req.name, _(req.status), _(PENDING)))
 	sq = frappe.new_doc("Supplier Quotation")
 	sq.company = req.company
-	sq.custom_supply_request = req.name
-	for r in req.items:
-		name = frappe.db.get_value("Item", r.item_code, "item_name")
-		sq.append("items", {"item_code": r.item_code, "item_name": name, "description": r.description or name,
-			"qty": r.qty, "uom": r.uom, "stock_uom": r.uom, "conversion_factor": 1})
+	for row in supply_request_lines([req.name], req.company):
+		sq.append("items", row)
 	out = sq.as_dict()
 	out["__islocal"] = 1
 	for row in out.get("items") or []:
@@ -78,20 +75,30 @@ def make_supplier_quotation(supply_request):
 
 
 def validate_supplier_quotation(doc, method=None):
-	"""A quotation for a Supply Request is made while the request is pending, and only for its items."""
-	if not doc.get("custom_supply_request"):
+	"""Lines taken from Supply Requests: each request is pending, of the quotation's company, and has the item."""
+	reqs = {i.custom_supply_request for i in doc.items if i.get("custom_supply_request")}
+	if not reqs:
 		return
-	if doc.is_new():
-		doc.custom_supply_status = PENDING
-	if doc.is_new() or getattr(doc, "_action", None) == "submit":
-		status = frappe.db.get_value("Supply Request", doc.custom_supply_request, "status")
-		if status != PENDING:
-			frappe.throw(_("{0} is {1}: it takes no more quotations.").format(doc.custom_supply_request, _(status)))
-	allowed = set(frappe.get_all("Project Estimation Supply", filters={"supply_request": doc.custom_supply_request},
-		pluck="item_code"))
-	extra = sorted({i.item_code for i in doc.items if i.item_code not in allowed})
+	info = {r.name: r for r in frappe.get_all("Supply Request", filters={"name": ["in", list(reqs)]},
+		fields=["name", "status", "company"])}
+	checking = doc.is_new() or getattr(doc, "_action", None) == "submit"
+	for name in sorted(reqs):
+		r = info.get(name)
+		if not r:
+			frappe.throw(_("Supply Request {0} not found.").format(name))
+		if r.company != doc.company:
+			frappe.throw(_("{0} belongs to {1}; this quotation is for {2}.").format(name, r.company, doc.company))
+		if checking and r.status != PENDING:
+			frappe.throw(_("{0} is {1}: it takes no more quotations.").format(name, _(r.status)))
+	allowed = {(x.supply_request, x.item_code) for x in frappe.get_all("Project Estimation Supply",
+		filters={"supply_request": ["in", list(reqs)]}, fields=["supply_request", "item_code"])}
+	extra = sorted({f"{i.item_code} ({i.custom_supply_request})" for i in doc.items
+		if i.get("custom_supply_request") and (i.custom_supply_request, i.item_code) not in allowed})
 	if extra:
-		frappe.throw(_("These items are not in {0}: {1}").format(doc.custom_supply_request, ", ".join(extra)))
+		frappe.throw(_("These items are not in their Supply Request: {0}").format(", ".join(extra)))
+	for i in doc.items:
+		if i.get("custom_supply_request") and not i.get("custom_supply_status"):
+			i.custom_supply_status = PENDING
 
 
 def estimation_rate(item, est):
@@ -100,14 +107,18 @@ def estimation_rate(item, est):
 
 
 def quotation_offers(req, est):
-	"""{item_code: [offer, ...]}, cheapest first: every submitted quotation of the request that prices the item,
-	with its rate in the Estimation's currency."""
+	"""{item_code: [offer, ...]}, cheapest first: every submitted quotation line of the request, priced in the
+	Estimation's currency. One quotation can price several requests; only this request's lines count here."""
+	lines = frappe.get_all("Supplier Quotation Item",
+		filters={"custom_supply_request": req.name, "docstatus": 1, "parenttype": "Supplier Quotation"},
+		fields=["parent", "item_code", "base_net_rate", "conversion_factor"])
+	heads = {q.name: q for q in frappe.get_all("Supplier Quotation", filters={"name": ["in", list({l.parent for l in lines}) or [""]]},
+		fields=["name", "supplier", "supplier_name", "valid_till"])}
 	offers = {}
-	for q in frappe.get_all("Supplier Quotation", filters={"custom_supply_request": req.name, "docstatus": 1},
-			fields=["name", "supplier", "supplier_name", "valid_till"]):
-		for it in frappe.get_doc("Supplier Quotation", q.name).items:
-			offers.setdefault(it.item_code, []).append(frappe._dict(
-				quotation=q.name, supplier=q.supplier, supplier_name=q.supplier_name, valid_till=q.valid_till, rate=estimation_rate(it, est)))
+	for l in lines:
+		q = heads[l.parent]
+		offers.setdefault(l.item_code, []).append(frappe._dict(quotation=q.name, supplier=q.supplier,
+			supplier_name=q.supplier_name, valid_till=q.valid_till, rate=estimation_rate(l, est)))
 	for options in offers.values():
 		options.sort(key=lambda o: o.rate)
 	return offers
@@ -139,9 +150,10 @@ CANCELLED = "Cancelled"  # Supply Request.status
 
 
 def refresh_quotation_status(estimation):
-	"""Supplier Quotation.custom_supply_status, worked out from the data every time (never typed):
-	Pending and Cancelled follow the Supply Request; Selected when a Supply line of the Estimation uses
-	the quotation (Won or Lost once the Opportunity is closed); Not selected otherwise."""
+	"""Supply Status of each Supplier Quotation line, worked out from the data every time (never typed):
+	Pending and Cancelled follow its Supply Request; Selected when the Estimation's line of that request and item
+	uses the quotation (Won or Lost once the Opportunity is closed); Not selected otherwise.
+	The quotation's own Supply Status sums up its lines."""
 	from nexlify_budget_control.nexlify_budget_control.opportunity_rfq import CLOSED_STAGES
 
 	if not estimation:
@@ -149,24 +161,29 @@ def refresh_quotation_status(estimation):
 	reqs = dict(frappe.get_all("Supply Request", filters={"estimation": estimation}, fields=["name", "status"], as_list=True))
 	if not reqs:
 		return
-	used = set(frappe.get_all("Project Estimation Supply",
+	used = {(r.supply_request, r.item_code, r.supplier_quotation) for r in frappe.get_all("Project Estimation Supply",
 		filters={"parent": estimation, "parenttype": "Project Estimation", "supplier_quotation": ["is", "set"], "is_cancelled": 0},
-		pluck="supplier_quotation"))
+		fields=["supply_request", "item_code", "supplier_quotation"])}
 	opportunity = frappe.db.get_value("Project Estimation", estimation, "opportunity")
 	stage = opportunity and frappe.db.get_value("Opportunity", opportunity, "sales_stage")
-	for sq in frappe.get_all("Supplier Quotation", filters={"custom_supply_request": ["in", list(reqs)]},
-			fields=["name", "docstatus", "custom_supply_request", "custom_supply_status"]):
-		req_status = reqs.get(sq.custom_supply_request)
-		if sq.docstatus == 2 or req_status == CANCELLED:
+	touched = set()
+	for l in frappe.get_all("Supplier Quotation Item",
+			filters={"custom_supply_request": ["in", list(reqs)], "parenttype": "Supplier Quotation"},
+			fields=["name", "parent", "item_code", "docstatus", "custom_supply_request", "custom_supply_status"]):
+		req_status = reqs.get(l.custom_supply_request)
+		if l.docstatus == 2 or req_status == CANCELLED:
 			status = "Cancelled"
 		elif req_status == PENDING:
 			status = "Pending"
-		elif sq.name in used:
+		elif (l.custom_supply_request, l.item_code, l.parent) in used:
 			status = "Won" if stage == "Closed Won" else "Lost" if stage in CLOSED_STAGES else "Selected"
 		else:
 			status = "Not selected"
-		if status != sq.custom_supply_status:
-			frappe.db.set_value("Supplier Quotation", sq.name, "custom_supply_status", status, update_modified=False)
+		if status != l.custom_supply_status:
+			frappe.db.set_value("Supplier Quotation Item", l.name, "custom_supply_status", status, update_modified=False)
+		touched.add(l.parent)
+	for quotation in touched:
+		refresh_quotation_header(quotation)
 
 
 def before_quotation_cancel(doc, method=None):
@@ -178,8 +195,9 @@ def before_quotation_cancel(doc, method=None):
 
 
 def on_quotation_change(doc, method=None):
-	if doc.get("custom_supply_request"):
-		refresh_quotation_status(frappe.db.get_value("Supply Request", doc.custom_supply_request, "estimation"))
+	reqs = list({i.custom_supply_request for i in doc.items if i.get("custom_supply_request")})
+	for estimation in set(frappe.get_all("Supply Request", filters={"name": ["in", reqs]}, pluck="estimation")) if reqs else []:
+		refresh_quotation_status(estimation)
 
 
 def on_estimation_update(doc, method=None):
@@ -255,9 +273,13 @@ NOTIFICATIONS = [
 
 def seed_notifications():
 	"""Each Notification is created once per site, then the UI owns it: edit or disable it there."""
+	seed_notification_rules(NOTIFICATIONS)
+
+
+def seed_notification_rules(rules):
 	applied = set(frappe.parse_json(frappe.db.get_default("nexlify_seeded_notifications") or "[]"))
 	changed = False
-	for rule in NOTIFICATIONS:
+	for rule in rules:
 		if rule["name"] in applied:
 			continue
 		if not frappe.db.exists("Notification", rule["name"]):
@@ -370,3 +392,36 @@ def supply_line_action(estimation, row, action):
 		frappe.throw(_("Unknown action {0}").format(action))
 	est.flags.from_supply_chain = True
 	est.save()
+
+
+STATUS_RANK = ("Won", "Selected", "Pending", "Lost", "Not selected", "Cancelled")  # the quotation's summary, first found wins
+
+
+def refresh_quotation_header(quotation):
+	statuses = set(frappe.get_all("Supplier Quotation Item",
+		filters={"parent": quotation, "parenttype": "Supplier Quotation", "custom_supply_request": ["is", "set"]},
+		pluck="custom_supply_status"))
+	status = next((s for s in STATUS_RANK if s in statuses), "")
+	if status != (frappe.db.get_value("Supplier Quotation", quotation, "custom_supply_status") or ""):
+		frappe.db.set_value("Supplier Quotation", quotation, "custom_supply_status", status, update_modified=False)
+
+
+def supply_request_lines(names, company):
+	"""The lines a Supplier Quotation takes from pending Supply Requests of one company."""
+	out = []
+	for req in frappe.get_all("Supply Request", filters={"name": ["in", list(names) or [""]], "status": PENDING, "company": company},
+			fields=["name", "estimation"], order_by="creation asc"):
+		for r in frappe.get_all("Project Estimation Supply",
+				filters={"parent": req.estimation, "parenttype": "Project Estimation", "supply_request": req.name, "is_cancelled": 0},
+				fields=["item_code", "description", "qty", "uom"], order_by="idx asc"):
+			name = frappe.db.get_value("Item", r.item_code, "item_name")
+			out.append({"item_code": r.item_code, "item_name": name, "description": r.description or name, "qty": r.qty,
+				"uom": r.uom, "stock_uom": r.uom, "conversion_factor": 1, "custom_supply_request": req.name})
+	return out
+
+
+@frappe.whitelist()
+def get_supply_request_items(supply_requests, company):
+	"""Get Items From > Supply Request on a Supplier Quotation."""
+	frappe.has_permission("Supplier Quotation", "create", throw=True)
+	return supply_request_lines(frappe.parse_json(supply_requests) or [], company)

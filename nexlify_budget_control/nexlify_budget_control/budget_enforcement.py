@@ -1,22 +1,4 @@
 
-def _validate_project_invoicing_total(project_planning):
-	from frappe.utils import flt
-	invoices = frappe.get_all(
-		"Project Invoicing",
-		filters={"project_planning": project_planning},
-		fields=["invoice_percentage"],
-	)
-	total = sum(flt(i.invoice_percentage) for i in invoices)
-	if total == 0:
-		return
-	if abs(total - 100) > 0.01:
-		frappe.throw(
-			frappe._(
-				"Total Invoice Percentage for this Plan must equal exactly 100%. "
-				"Currently: {0}%"
-			).format(total)
-		)
-
 """
 budget_enforcement.py
 ---------------------
@@ -1186,40 +1168,45 @@ def get_project_invoicing_full(invoice_name):
 
 
 @frappe.whitelist()
-def bulk_update_project_invoicing(rows, deleted=None):
+def bulk_update_project_invoicing(rows, deleted=None, project_planning=None):
+	"""Edit Invoices: saves the changed invoices, adds the new rows of the Plan, deletes the removed ones.
+	Only the fields the dialog may edit are taken (the system's fields stay as they are)."""
 	_assert_records_plan_editable("Project Invoicing", rows, "invoice_name", deleted)
+	if project_planning:
+		_assert_plan_editable(project_planning)
 	import json as _json
 	if isinstance(rows, str):
 		rows = _json.loads(rows)
 	if isinstance(deleted, str):
 		deleted = _json.loads(deleted)
 
-	project_planning = None
+	editable = {f.fieldname for f in frappe.get_meta("Project Invoicing").fields
+		if f.fieldname not in EXCLUDED_INVOICING_EDIT_FIELDS and f.fieldtype not in NON_VALUE_FIELDTYPES}
+	project = project_planning and frappe.db.get_value("Project Planning", project_planning, "project")
+	updated, new_rows = 0, []
 
 	frappe.flags.bulk_invoicing_operation = True
 	try:
 		for row in rows:
-			if not row.get("invoice_name"):
-				continue
-			doc = frappe.get_doc("Project Invoicing", row["invoice_name"])
-			project_planning = project_planning or doc.project_planning
-			for fieldname, value in row.items():
-				if fieldname == "invoice_name":
-					continue
-				doc.set(fieldname, value)
-			doc.save()
+			values = {k: v for k, v in row.items() if k in editable}
+			if row.get("invoice_name"):
+				doc = frappe.get_doc("Project Invoicing", row["invoice_name"])
+				doc.update(values)
+				doc.save()
+				updated += 1
+			elif any(v not in (None, "", 0) for v in values.values()):
+				new_rows.append(values)
+		if new_rows and not project_planning:
+			frappe.throw(_("New invoices need the Plan. Reload the Plan and try again."))
+		for values in new_rows:  # after the edits, so the new invoices are numbered after the existing ones
+			frappe.get_doc({"doctype": "Project Invoicing", "project_planning": project_planning, "project": project, **values}).insert()
 
 		for name in (deleted or []):
-			if not project_planning:
-				project_planning = frappe.db.get_value("Project Invoicing", name, "project_planning")
 			frappe.delete_doc("Project Invoicing", name, ignore_permissions=False)
-
-		if project_planning:
-			_validate_project_invoicing_total(project_planning)
 	finally:
 		frappe.flags.bulk_invoicing_operation = False
 
-	return {"updated": len(rows), "deleted": len(deleted or [])}
+	return {"updated": updated, "created": len(new_rows), "deleted": len(deleted or [])}
 
 
 
@@ -1246,8 +1233,6 @@ def bulk_create_project_invoicing(project_planning, rows):
 			doc = frappe.get_doc(doc_dict)
 			doc.insert()
 			created.append(doc.name)
-
-		_validate_project_invoicing_total(project_planning)
 	finally:
 		frappe.flags.bulk_invoicing_operation = False
 
@@ -1257,15 +1242,23 @@ def bulk_create_project_invoicing(project_planning, rows):
 
 @frappe.whitelist()
 def get_project_invoicings(project_planning):
-	return frappe.get_all(
+	"""The Plan's invoices for its table (never an amount: the Planner doesn't see them). on_sales_invoice
+	tells the table an invoice is already taken by a Sales Invoice (draft or submitted)."""
+	rows = frappe.get_all(
 		"Project Invoicing",
 		filters={"project_planning": project_planning},
 		fields=[
 			"name", "invoice_label", "expected_invoice_date", "invoice_percentage",
-			"invoice_description", "status", "sales_invoice"
+			"invoice_description", "status", "sales_invoice", "job_completion", "completion_date"
 		],
 		order_by="creation asc",
 	)
+	held = set(frappe.get_all("Sales Invoice Item",
+		filters={"custom_project_invoicing": ["in", [r.name for r in rows] or [""]], "docstatus": ["<", 2]},
+		pluck="custom_project_invoicing"))
+	for r in rows:
+		r.on_sales_invoice = r.name in held
+	return rows
 
 
 @frappe.whitelist()

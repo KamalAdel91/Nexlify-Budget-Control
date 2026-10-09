@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import cstr, flt
 
 
 class ProjectInvoicing(Document):
@@ -20,32 +20,26 @@ class ProjectInvoicing(Document):
 		# label follows the name: INV-01, INV-02...
 		if self.name and "-INV-" in self.name:
 			self.invoice_label = "-".join(self.name.split("-")[-2:])
-		if frappe.flags.get("bulk_invoicing_operation"):
-			return
-		self.validate_total_percentage()
+		self._validate_plan_lock()
 
-	def validate_total_percentage(self):
+	def _validate_plan_lock(self):
+		"""A Plan that is approved or waiting for approval keeps its invoices: only the system's fields
+		(status, Job Completion, amount, Sales Invoice) change then. Same lock as the Edit dialogs."""
 		if not self.project_planning:
 			return
-
-		siblings = frappe.get_all(
-			"Project Invoicing",
-			filters={"project_planning": self.project_planning, "name": ["!=", self.name or ""]},
-			fields=["invoice_percentage"],
+		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import (
+			EXCLUDED_INVOICING_EDIT_FIELDS,
+			NON_VALUE_FIELDTYPES,
+			_assert_plan_editable,
 		)
 
-		total = flt(self.invoice_percentage) + sum(flt(i.invoice_percentage) for i in siblings)
-
-		if total == 0:
-			return
-
-		if abs(total - 100) > 0.01:
-			frappe.throw(
-				_(
-					"Total Invoice Percentage for this Plan must equal exactly 100%. "
-					"Currently: {0}%"
-				).format(total)
-			)
+		before = None if self.is_new() else self.get_doc_before_save()
+		if before:
+			fields = [f for f in self.meta.fields if f.fieldname not in EXCLUDED_INVOICING_EDIT_FIELDS
+				and (f.fieldtype in ("Table", "Table MultiSelect") or f.fieldtype not in NON_VALUE_FIELDTYPES) and not f.read_only]
+			if not any(_value(self, f) != _value(before, f) for f in fields):
+				return
+		_assert_plan_editable(self.project_planning)
 
 
 def _ordinal(n):
@@ -54,3 +48,14 @@ def _ordinal(n):
 	else:
 		suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 	return f"{n}{suffix}"
+
+
+def _value(doc, df):
+	"""A field's value, comparable before and after a save (child tables by their links)."""
+	value = doc.get(df.fieldname)
+	if df.fieldtype in ("Table", "Table MultiSelect"):
+		links = [f.fieldname for f in frappe.get_meta(df.options).fields if f.fieldtype == "Link"]
+		return sorted(cstr(r.get(links[0])) for r in value or []) if links else len(value or [])
+	if df.fieldtype in ("Currency", "Float", "Percent", "Int", "Check"):
+		return flt(value)
+	return cstr(value)

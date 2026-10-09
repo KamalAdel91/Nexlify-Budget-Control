@@ -713,11 +713,6 @@ function open_edit_invoices_dialog(frm) {
 		args: { project_planning: frm.doc.name },
 		callback: function(r) {
 			let invoices = r.message || [];
-			if (!invoices.length) {
-				frappe.msgprint(__('No invoices to edit yet.'));
-				return;
-			}
-
 			frappe.call({
 				method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_project_invoicing_editable_fields',
 				callback: function(r2) {
@@ -776,7 +771,7 @@ function build_edit_invoices_dialog(frm, invoices, field_defs) {
 				fieldname: 'invoices',
 				fieldtype: 'Table',
 				label: __('Invoices'),
-				cannot_add_rows: true,
+				cannot_add_rows: false,
 				in_place_edit: false,
 				data: initial_rows,
 				get_data: function() { return initial_rows; },
@@ -795,7 +790,7 @@ function build_edit_invoices_dialog(frm, invoices, field_defs) {
 
 			frappe.call({
 				method: 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.bulk_update_project_invoicing',
-				args: { rows: rows, deleted: deleted_names },
+				args: { rows: rows, deleted: deleted_names, project_planning: frm.doc.name },
 				freeze: true,
 				freeze_message: __('Saving invoices...'),
 				callback: function() {
@@ -993,9 +988,7 @@ function build_invoices_table_html(invoices) {
 				<td>${inv.status ? `<span class="${status_class}">${inv.status}</span>` : '<span class="nrb-muted">-</span>'}</td>
 				<td>${si_html}</td>
 				<td>
-					<a href="#" class="nrb-link" onclick="open_invoicing_quick_edit('${inv.name}'); return false;">${__('Edit')}</a>
-					&nbsp;|&nbsp;
-					<a href="#" class="nrb-link" onclick="window.open('/app/project-invoicing/${inv.name}', '_blank'); return false;">${__('Details')}</a>
+					${nrb_invoice_actions(inv)}<a href="#" class="nrb-link" onclick="window.open('/app/project-invoicing/${inv.name}', '_blank'); return false;">${__('Details')}</a>
 				</td>
 			</tr>
 		`;
@@ -1857,3 +1850,42 @@ function wizard_visit_step(frm, names, index) {
 		on_back: index > 0 ? function() { wizard_visit_step(frm, names, index - 1); } : null,
 	});
 }
+
+// Job Completion, in the Actions of the Plan's invoices: Edit while the Plan can change; once approved,
+// Mark Completed (Pending) or Undo Completion (Ready to Invoice).
+const NRB_JC = 'nexlify_budget_control.nexlify_budget_control.job_completion.';
+
+function nrb_invoice_actions(inv) {
+	const approved = _revenue_budget_frm && _revenue_budget_frm.doc.docstatus === 1;
+	const link = (fn, label, title) => `<a href="#" class="nrb-link" title="${title || label}" onclick="${fn}('${inv.name}'); return false;">${label}</a>&nbsp;|&nbsp;`;
+	if (!approved) return link('open_invoicing_quick_edit', __('Edit'));
+	if (inv.status === 'Pending') return link('nrb_mark_job_completed', __('Complete'), __('Mark the job completed (upload the Job Completion)'));
+	if (inv.status === 'Ready to Invoice' && !inv.on_sales_invoice) return link('nrb_undo_job_completed', __('Undo'), __('Undo the Job Completion'));
+	return '';
+}
+
+window.nrb_mark_job_completed = function(name) {
+	const frm = _revenue_budget_frm;
+	const d = new frappe.ui.Dialog({
+		title: __('Mark Job Completed'),
+		fields: [
+			{ fieldtype: 'Attach', fieldname: 'job_completion', label: __('Job Completion'), reqd: 1 },
+			{ fieldtype: 'Date', fieldname: 'completion_date', label: __('Completion Date'), reqd: 1, default: frappe.datetime.get_today() },
+		],
+		primary_action_label: __('Mark Completed'),
+		primary_action(values) {
+			frappe.xcall(NRB_JC + 'mark_job_completed', Object.assign({ invoicing: name }, values)).then(() => {
+				d.hide();
+				frappe.show_alert({ message: __('Ready to Invoice'), indicator: 'green' });
+				render_invoices_table(frm);
+			});
+		},
+	});
+	d.show();
+};
+
+window.nrb_undo_job_completed = function(name) {
+	frappe.confirm(__('Undo the Job Completion of this invoice? It goes back to Pending.'), () => {
+		frappe.xcall(NRB_JC + 'undo_job_completed', { invoicing: name }).then(() => render_invoices_table(_revenue_budget_frm));
+	});
+};

@@ -80,6 +80,7 @@ doctype_js = {
         "Expense Claim": "public/js/budget_check.js",
         "Project": "public/js/project.js",
         "Project Estimation": "public/js/project_estimation.js",
+        "Supplier Quotation": "public/js/supplier_quotation.js",
 }
 
 fixtures = [
@@ -212,6 +213,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.merge_standard_into_custom_perms",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 	"nexlify_budget_control.nexlify_budget_control.supply_chain.seed_notifications",
+	"nexlify_budget_control.nexlify_budget_control.job_completion.seed_notifications",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
@@ -227,6 +229,7 @@ after_install = [
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 	"nexlify_budget_control.nexlify_budget_control.supply_chain.seed_notifications",
+	"nexlify_budget_control.nexlify_budget_control.job_completion.seed_notifications",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 ]
 
