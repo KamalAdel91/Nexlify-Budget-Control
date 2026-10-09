@@ -8,6 +8,7 @@ from frappe import _
 from frappe.utils import flt
 
 PENDING = "Pending"  # Supply Request.status, set by its Workflow (Update Field)
+MANUAL = "Manual"  # Project Estimation Supply.price_source: typed by the estimator, never sent
 
 
 def first_state():
@@ -31,7 +32,7 @@ def pending_requests(estimation):
 def rows_to_send(est):
 	"""Supply lines with no price that are not already waiting in a pending request."""
 	pending = set(pending_requests(est.name))
-	return [r for r in est.get("supply") or [] if not r.supplier_quotation and r.supply_request not in pending]
+	return [r for r in est.get("supply") or [] if r.price_source != MANUAL and not r.supplier_quotation and r.supply_request not in pending]
 
 
 @frappe.whitelist()

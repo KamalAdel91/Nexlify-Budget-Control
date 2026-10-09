@@ -498,6 +498,7 @@
    "read_only": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "supply_section",
    "fieldtype": "Section Break",
    "label": "Supply"
@@ -553,7 +554,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-09 03:20:57.877701",
+ "modified": "2026-10-09 03:32:24.874055",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

@@ -241,11 +241,11 @@ class ProjectEstimation(Document):
 				{"crew_day_cost": crew, "manpower_cost": cost, "total_price": price, "unit_price": unit}, update_modified=False)
 
 	def _reset_changed_supply_prices(self):
-		"""A Supply price comes only from the Supply Chain: a new line, or a changed item or quantity, is quoted again."""
+		"""A Supply price comes from the Supply Chain, or is typed for a Manual line: a new line, or a changed item, quantity or source, is priced again."""
 		if self.flags.from_supply_chain or (self.is_new() and self.amended_from):
 			return
 		before = None if self.is_new() else self.get_doc_before_save()
-		from nexlify_budget_control.nexlify_budget_control.supply_chain import pending_requests
+		from nexlify_budget_control.nexlify_budget_control.supply_chain import MANUAL, pending_requests
 
 		old = {r.name: r for r in ((before.get("supply") if before else None) or [])}
 		pending = set(pending_requests(self.name)) if before else set()
@@ -255,24 +255,31 @@ class ProjectEstimation(Document):
 			frappe.throw(_("These Supply items are waiting at the Supply Chain and can't be removed: {0}").format(", ".join(gone)))
 		for row in self.supply or []:
 			prev = old.get(row.name)
-			changed = not prev or prev.item_code != row.item_code or flt(prev.qty) != flt(row.qty)
+			changed = (not prev or prev.item_code != row.item_code or flt(prev.qty) != flt(row.qty)
+				or (prev.price_source == MANUAL) != (row.price_source == MANUAL))
 			if changed and prev and prev.supply_request in pending:
-				frappe.throw(_("Row {0}: {1} is waiting at the Supply Chain ({2}), so it can't change until it is returned or the request is cancelled.").format(
+				frappe.throw(_("Row {0}: {1} is waiting at the Supply Chain ({2}), so it can't change until its prices are sent or the request is cancelled.").format(
 					row.idx, prev.item_code, prev.supply_request))
-			if changed:
+			if row.price_source == MANUAL:
+				row.supplier_quotation, row.supplier, row.supply_request = None, None, None
+			elif changed:
 				row.rate, row.supplier_quotation, row.supplier, row.supply_request = 0, None, None, None
 			else:
 				row.rate, row.supplier_quotation, row.supply_request = prev.rate, prev.supplier_quotation, prev.supply_request
 
 	def _validate_supply_ready(self):
 		"""The Supply goes out only after the Supply Chain priced every line."""
-		from nexlify_budget_control.nexlify_budget_control.supply_chain import pending_requests
+		from nexlify_budget_control.nexlify_budget_control.supply_chain import MANUAL, pending_requests
 
 		pending = [] if self.is_new() else pending_requests(self.name)
 		if pending:
 			frappe.throw(_("The Supply is still at the Supply Chain: {0}.").format(", ".join(pending)),
 				title=_("Waiting for Supply Chain"))
-		unpriced = [r.item_code for r in self.supply or [] if not r.supplier_quotation]
+		unpriced = [r.item_code for r in self.supply or [] if r.price_source != MANUAL and not r.supplier_quotation]
+		no_rate = [r.item_code for r in self.supply or [] if r.price_source == MANUAL and flt(r.rate) <= 0]
+		if no_rate:
+			frappe.throw(_("Enter a rate for these Manual Supply items: {0}").format(", ".join(no_rate)),
+				title=_("Supply not priced"))
 		if unpriced:
 			frappe.throw(_("Send these Supply items to the Supply Chain first: {0}").format(", ".join(unpriced)),
 				title=_("Supply not priced"))

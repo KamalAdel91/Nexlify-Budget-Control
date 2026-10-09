@@ -985,16 +985,25 @@ function nx_sort_trade_rows(frm, table) {
 	frm.doc[table] = sorted;
 }
 
-// Supply: the price comes only from the Supply Chain, so a new item or quantity has to be quoted again.
+// Supply: a Supply Chain line is priced by its quotation, so a new item or quantity is quoted again;
+// a Manual line keeps the rate the estimator typed. Changing the source starts the price over.
 frappe.ui.form.on('Project Estimation Supply', {
 	item_code: pes_supply_changed,
 	qty: pes_supply_changed,
+	price_source(frm, cdt, cdn) {
+		frappe.model.set_value(cdt, cdn, { rate: 0, supplier_quotation: '' });
+		pes_recalculate(frm);
+	},
+	rate(frm) {
+		pes_recalculate(frm);
+	},
 });
 
 function pes_supply_changed(frm, cdt, cdn) {
 	let row = locals[cdt][cdn];
-	if (flt(row.rate) || row.supplier_quotation) {
-		frappe.model.set_value(cdt, cdn, { rate: 0, supplier_quotation: '' });
+	let manual = row.price_source === 'Manual';
+	if (row.supplier_quotation || (!manual && flt(row.rate))) {
+		frappe.model.set_value(cdt, cdn, manual ? { supplier_quotation: '' } : { rate: 0, supplier_quotation: '' });
 	}
 	pes_recalculate(frm);
 }
@@ -1014,7 +1023,7 @@ function pes_supply_chain(frm) {
 			let links = pending.map(n => `<a href="/app/supply-request/${encodeURIComponent(n)}">${frappe.utils.escape_html(n)}</a>`);
 			frm.set_intro(__('Waiting for the Supply Chain: {0}', [links.join(', ')]), 'orange');
 		}
-		let to_send = (frm.doc.supply || []).filter(r => !r.supplier_quotation && !pending.includes(r.supply_request));
+		let to_send = (frm.doc.supply || []).filter(r => r.price_source !== 'Manual' && !r.supplier_quotation && !pending.includes(r.supply_request));
 		if (!to_send.length || frm.doc.docstatus !== 0) return;
 		frm.add_custom_button(__('Send to Supply Chain'), () => {
 			if (frm.is_dirty()) {
