@@ -231,6 +231,7 @@ class NexlifyCeoDashboard {
 				<div>${this.render_budget()}</div>
 				<div>${this.render_attention()}</div>
 			</div>
+			${this.render_hand_offs()}
 			${this.render_visits()}
 			${this.render_manpower()}
 			${this.render_invoicing()}
@@ -473,6 +474,53 @@ class NexlifyCeoDashboard {
 			<div ${this.link_attrs("Budget Violation Log")} style="margin-top:4px;">${this.n_(v.open, "{0} open violation", "{0} open violations")}${types ? ` — ${types}` : ""}</div>
 		</div>`;
 		return this.section(__("Budget health"), __("{0}% used", [b.totals.pct]), `<div class="nx-box">${rows}${foot}</div>`);
+	}
+
+	// ---------- hand-offs (Hand-off Log) ----------
+	hand_off_days(v) {
+		return v == null ? "—" : __("{0} days", [(Math.round(v * 10) / 10).toLocaleString()]);
+	}
+
+	render_hand_offs() {
+		const h = this.data.hand_offs;
+		if (!h) return "";
+		const note = [__("{0} waiting", [h.total]), h.overdue ? __("{0} overdue", [h.overdue]) : null,
+			this.n_(h.revisions_this_month, "{0} revision this month", "{0} revisions this month")].filter(Boolean).join(" · ");
+		const teams = !h.teams.length
+			? `<div class="nx-empty">${__("Nothing is waiting on anyone.")}</div>`
+			: `<div class="nx-row nx-queue-row nx-head">
+					<span>${__("Waiting on")}</span><span class="nx-right">${__("Now")}</span>
+					<span class="nx-right">${__("Overdue")}</span><span class="nx-right">${__("Average")}</span>
+				</div>` + h.teams.map((t) => `
+				<div class="nx-row nx-queue-row" ${this.link_attrs("Hand-off Log", null, { is_open: 1, waiting_on: t.team })}>
+					<span class="nx-ellipsis"><b>${this.esc(__(t.team))}</b></span>
+					<span class="nx-right">${t.waiting}</span>
+					<span class="nx-right" style="color:${t.overdue ? "var(--red-500)" : "var(--text-muted)"}">${t.overdue}</span>
+					<span class="nx-right">${this.hand_off_days(t.avg_days)}</span>
+				</div>`).join("");
+		const pill = (r) => {
+			const d = Math.floor(r.duration_days || 0);
+			return `<span class="indicator-pill ${r.is_overdue ? "red" : d ? "orange" : "gray"}">${d ? this.n_(d, "{0} day", "{0} days") : __("Today")}</span>`;
+		};
+		const oldest = !h.oldest.length
+			? `<div class="nx-empty">${__("Nothing is waiting on anyone.")}</div>`
+			: `<div class="nx-row nx-queue-row nx-head">
+					<span>${__("Document")}</span><span class="nx-right nx-hide-sm">${__("Waiting on")}</span>
+					<span class="nx-right nx-hide-sm">${__("Target")}</span><span class="nx-right">${__("Waiting")}</span>
+				</div>` + h.oldest.map((r) => `
+				<div class="nx-row nx-queue-row" ${this.link_attrs(r.reference_doctype, r.reference_name)}>
+					<span class="nx-ellipsis"><b>${this.esc(r.reference_name)}</b> · ${this.esc(__(r.stage))}
+						<div class="nx-muted nx-ellipsis">${this.esc(__(r.reference_doctype))}${r.project ? ` · ${this.esc(r.project_name || r.project)}` : ""}</div></span>
+					<span class="nx-right nx-hide-sm">${this.esc(__(r.waiting_on))}</span>
+					<span class="nx-right nx-hide-sm">${r.target_days ? this.n_(r.target_days, "{0} day", "{0} days") : "—"}</span>
+					<span class="nx-right">${pill(r)}</span>
+				</div>`).join("");
+		const query = new URLSearchParams(h.report_filters || {}).toString();
+		const report = `<a href="/app/query-report/${encodeURIComponent("Pipeline Status")}${query ? "?" + query : ""}">${__("Pipeline Status")} →</a>`;
+		return `<div class="nx-grid-2">
+				<div>${this.section(__("Hand-offs by team"), note, `<div class="nx-box">${teams}</div>`)}</div>
+				<div>${this.section(__("Waiting the longest"), report, `<div class="nx-box">${oldest}</div>`)}</div>
+			</div>`;
 	}
 
 	render_attention() {
