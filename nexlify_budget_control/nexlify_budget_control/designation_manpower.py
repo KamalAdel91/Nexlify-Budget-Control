@@ -22,7 +22,7 @@ def seed_manpower_categories():
 
 
 def validate_designation(doc, method=None):
-    if not doc.get("is_project_site_designation"):
+    if doc.get("is_project_site_designation") != "Yes":
         doc.manpower_category = None
         return
     if not doc.get("manpower_category"):
@@ -30,3 +30,19 @@ def validate_designation(doc, method=None):
             _("Manpower Category is required for Project / Site designations."),
             title=_("Missing Manpower Category"),
         )
+
+
+@frappe.whitelist()
+def convert_project_site_flag(dry_run=1):
+	"""Once per site, after Is Project Site Designation became Yes / No: the old 1 / 0 become Yes / No.
+	dry_run=1 only counts. Goes to the Cleanup list once every site has run it."""
+	from frappe.utils import cint
+
+	frappe.only_for("System Manager")
+	rows = frappe.db.sql("""select is_project_site_designation as v, count(*) as n from `tabDesignation`
+		where is_project_site_designation in ('0', '1') group by is_project_site_designation""", as_dict=True)
+	if not cint(dry_run):
+		frappe.db.sql("""update `tabDesignation` set is_project_site_designation =
+			if(is_project_site_designation = '1', 'Yes', 'No') where is_project_site_designation in ('0', '1')""")
+		frappe.db.commit()
+	return {"1 -> Yes" if r.v == "1" else "0 -> No": r.n for r in rows}
