@@ -239,8 +239,16 @@ after_install = [
 boot_session = "nexlify_budget_control.nexlify_budget_control.manpower.boot_session"
 
 override_doctype_dashboards = {
-    "Opportunity": "nexlify_budget_control.nexlify_budget_control.dashboards.opportunity_dashboard",
-    "Project": "nexlify_budget_control.nexlify_budget_control.dashboards.project_dashboard",
+    "Opportunity": ["nexlify_budget_control.nexlify_budget_control.dashboards.opportunity_dashboard", "nexlify_budget_control.nexlify_budget_control.dashboards.opportunity_connections"],
+    "Project": ["nexlify_budget_control.nexlify_budget_control.dashboards.project_dashboard", "nexlify_budget_control.nexlify_budget_control.dashboards.project_connections"],
+    "Project Estimation": "nexlify_budget_control.nexlify_budget_control.dashboards.project_estimation_connections",
+    "Supply Request": "nexlify_budget_control.nexlify_budget_control.dashboards.supply_request_connections",
+    "Project Planning Scope": "nexlify_budget_control.nexlify_budget_control.dashboards.project_planning_scope_connections",
+    "Project Visits": "nexlify_budget_control.nexlify_budget_control.dashboards.project_visits_connections",
+    "Project Invoicing": "nexlify_budget_control.nexlify_budget_control.dashboards.project_invoicing_connections",
+    "Sales Order": "nexlify_budget_control.nexlify_budget_control.dashboards.sales_order_connections",
+    "Sales Invoice": "nexlify_budget_control.nexlify_budget_control.dashboards.sales_invoice_connections",
+    "Supplier Quotation": "nexlify_budget_control.nexlify_budget_control.dashboards.supplier_quotation_connections",
 }
 
 app_home = "/alsa-projects"
