@@ -23,8 +23,11 @@ doc_events = {
     "Designation": {
         "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
     },
+	"Project Budget Settings": {
+		"on_update": "nexlify_budget_control.nexlify_budget_control.project_life.refresh_open_stages",
+	},
 	"*": {
-		"before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference", "on_change": "nexlify_budget_control.nexlify_budget_control.hand_off.on_change"
+		"before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference", "on_change": "nexlify_budget_control.nexlify_budget_control.project_life.on_change"
 	},
 	"Material Request": {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_submit",
@@ -70,7 +73,7 @@ app_include_css = ["/assets/nexlify_budget_control/css/nexlify_budget_control.cs
 
 app_include_js = [
 	"/assets/nexlify_budget_control/js/manpower_order.js",
-	"/assets/nexlify_budget_control/js/hand_off.js",
+	"/assets/nexlify_budget_control/js/project_life.js",
 	"/assets/nexlify_budget_control/js/global_project_filter.js",
 	"/assets/nexlify_budget_control/js/disable_project_cost_center_autofetch.js"]
 
@@ -222,7 +225,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
-    "nexlify_budget_control.nexlify_budget_control.hand_off.seed_rules",
+    "nexlify_budget_control.nexlify_budget_control.project_life.seed_rules",
 ]
 
 auto_cancel_exempted_doctypes = [
@@ -238,7 +241,7 @@ after_install = [
 	"nexlify_budget_control.nexlify_budget_control.job_completion.seed_notifications",
 	"nexlify_budget_control.nexlify_budget_control.process_map.process_map.seed_process_map",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
-    "nexlify_budget_control.nexlify_budget_control.hand_off.seed_rules",
+    "nexlify_budget_control.nexlify_budget_control.project_life.seed_rules",
 ]
 
 boot_session = "nexlify_budget_control.nexlify_budget_control.manpower.boot_session"
@@ -276,6 +279,5 @@ add_to_apps_screen = [
 
 scheduler_events = {
     "cron": {
-        "*/15 * * * *": ["nexlify_budget_control.nexlify_budget_control.hand_off.sync"],
     },
 }

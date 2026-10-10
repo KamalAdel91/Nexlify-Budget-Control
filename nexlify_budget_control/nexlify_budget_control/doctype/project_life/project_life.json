@@ -1,0 +1,219 @@
+{
+ "actions": [],
+ "autoname": "PL-.#####",
+ "creation": "2026-10-10 22:00:23.113863",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_now",
+  "current_stage",
+  "waiting_on",
+  "waiting_since",
+  "column_break_now",
+  "current_doctype",
+  "current_name",
+  "open_stages",
+  "late_stages",
+  "section_project",
+  "opportunity",
+  "project",
+  "customer",
+  "column_break_project",
+  "company",
+  "started_on",
+  "last_event_on",
+  "title",
+  "section_stages",
+  "stages"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_now",
+   "fieldtype": "Section Break",
+   "label": "Where It Is Now"
+  },
+  {
+   "bold": 1,
+   "fieldname": "current_stage",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Now At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "waiting_on",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Waiting On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "waiting_since",
+   "fieldtype": "Datetime",
+   "label": "Waiting Since",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_now",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "current_doctype",
+   "fieldtype": "Link",
+   "label": "Document Type",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "current_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Document",
+   "options": "current_doctype",
+   "read_only": 1
+  },
+  {
+   "fieldname": "open_stages",
+   "fieldtype": "Int",
+   "label": "Open Stages",
+   "read_only": 1
+  },
+  {
+   "fieldname": "late_stages",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Late Stages",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_project",
+   "fieldtype": "Section Break",
+   "label": "Project"
+  },
+  {
+   "fieldname": "opportunity",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Opportunity",
+   "options": "Opportunity",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_project",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "started_on",
+   "fieldtype": "Datetime",
+   "label": "Started On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_event_on",
+   "fieldtype": "Datetime",
+   "label": "Last Event On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_stages",
+   "fieldtype": "Section Break",
+   "label": "Stages"
+  },
+  {
+   "fieldname": "stages",
+   "fieldtype": "Table",
+   "label": "Stages",
+   "options": "Project Life Stage",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-10 22:00:23.113863",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Project Life",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "CEO"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "COO"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Estimation Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Planning Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Supply Chain Manager"
+  }
+ ],
+ "search_fields": "opportunity,project,customer",
+ "show_title_field_in_link": 1,
+ "sort_field": "last_event_on",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 0
+}

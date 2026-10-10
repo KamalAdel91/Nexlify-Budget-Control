@@ -59,6 +59,7 @@ import calendar
 import json
 
 import frappe
+from nexlify_budget_control.nexlify_budget_control.project_life import record as record_project_life
 from frappe import _
 from frappe.utils import flt, getdate, get_traceback
 from nexlify_budget_control.nexlify_budget_control.budget_utils import (
@@ -501,6 +502,7 @@ def _open_overview_for_plan(plan, contract_value):
         "workflow_state": "Pending COO Approval",
         "pending_since": frappe.utils.now_datetime(),
     })
+    record_project_life("Project Overview", name)
     update_overview_stored_numbers(name)
     if frappe.db.get_value("Project", plan.project, "custom_project_overview") != name:
         frappe.db.set_value("Project", plan.project, "custom_project_overview", name, update_modified=False)

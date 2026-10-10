@@ -4,6 +4,7 @@
 """Supply Chain hand-off: the Estimation sends its unpriced Supply lines in a Supply Request."""
 
 import frappe
+from nexlify_budget_control.nexlify_budget_control.project_life import record as record_project_life
 from frappe import _
 from frappe.utils import flt
 
@@ -235,6 +236,7 @@ def cancel_pending_requests(estimation):
 		if state:
 			values["workflow_state"] = state
 		frappe.db.set_value("Supply Request", name, values)
+		record_project_life("Supply Request", name)
 		frappe.get_doc("Supply Request", name).add_comment("Info", _("Cancelled: the Estimation {0} was cancelled.").format(estimation))
 	refresh_quotation_status(estimation)
 	sync_supply_status(estimation)

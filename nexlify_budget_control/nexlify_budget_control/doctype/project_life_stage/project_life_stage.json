@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "creation": "2026-10-10 22:00:23.113863",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_doctype",
+  "reference_name",
+  "stage",
+  "waiting_on",
+  "entered_on",
+  "duration_days",
+  "is_late",
+  "column_break_stage",
+  "previous_stage",
+  "next_stage",
+  "is_open",
+  "target_days",
+  "due_on",
+  "section_people",
+  "entered_by",
+  "left_on",
+  "left_by",
+  "is_backfilled"
+ ],
+ "fields": [
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Document Type",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Document",
+   "options": "reference_doctype",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "stage",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Stage",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "waiting_on",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Waiting On",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "entered_on",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Entered On",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "duration_days",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Days",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "is_late",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Late",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_stage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "previous_stage",
+   "fieldtype": "Data",
+   "label": "Previous Stage",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_stage",
+   "fieldtype": "Data",
+   "label": "Next Stage",
+   "read_only": 1
+  },
+  {
+   "fieldname": "is_open",
+   "fieldtype": "Check",
+   "label": "Open",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "target_days",
+   "fieldtype": "Int",
+   "label": "Target (days)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "due_on",
+   "fieldtype": "Datetime",
+   "label": "Due On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_people",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "entered_by",
+   "fieldtype": "Link",
+   "label": "Entered By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "left_on",
+   "fieldtype": "Datetime",
+   "label": "Left On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "left_by",
+   "fieldtype": "Link",
+   "label": "Left By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "is_backfilled",
+   "fieldtype": "Check",
+   "label": "From History",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-10 22:00:23.113863",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Project Life Stage",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
