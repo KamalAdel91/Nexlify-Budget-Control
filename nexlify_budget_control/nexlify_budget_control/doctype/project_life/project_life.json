@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "PL-.#####",
+ "autoname": ".ABBR.-PLF-.#####",
  "creation": "2026-10-10 22:00:23.113863",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -165,7 +165,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-10 22:00:23.113863",
+ "modified": "2026-10-11 02:28:41.473519",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Life",
