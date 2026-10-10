@@ -34,11 +34,11 @@
    "hidden": 0,
    "icon": "truck",
    "link_to": "Supply Chain",
-   "link_type": "Sidebar",
+   "link_type": "Workspace",
    "title": "Supply Chain"
   }
  ],
- "modified": "2026-10-09 02:34:27.973675",
+ "modified": "2026-10-10 21:36:45.267368",
  "modified_by": "Administrator",
  "name": "nexlify_budget_control",
  "owner": "Administrator",
