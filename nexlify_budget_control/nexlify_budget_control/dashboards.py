@@ -48,7 +48,7 @@ def opportunity_connections(data):
 
 def project_connections(data):
     """Project"""
-    return _add(data, "ALSA", {'Supply Request': 'project', 'Project Planning Scope': 'project', 'Budget Violation Log': 'project'}, near="Project Estimation")
+    return _add(data, "ALSA", {'Supply Request': 'project', 'Project Equipment Scope': 'project', 'Project Planning Scope': 'project', 'Budget Violation Log': 'project'}, near="Project Estimation")
 
 
 def project_estimation_connections(data):

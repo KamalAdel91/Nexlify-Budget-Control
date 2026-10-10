@@ -120,6 +120,9 @@ def _entered(doctype, name, field, stage, after=None):
 
 def sync():
 	"""Every 15 minutes (scheduler), and once by hand when the log starts on a site."""
+	from nexlify_budget_control.nexlify_budget_control.project_links import sync_project_links
+
+	sync_project_links()  # the Project on documents made before it, and on their log rows
 	for doctype in TRACKED:
 		field = _stage_field(doctype)
 		for d in frappe.get_all(doctype, fields=["name", field, "creation", "owner", "modified", "modified_by"]):

@@ -49,7 +49,7 @@ doc_events = {
 	"Project Estimation": {
 		"on_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_submit", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_submit"],
 		"on_cancel": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_cancel", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancel"],
-		"on_update": ["nexlify_budget_control.nexlify_budget_control.supply_chain.on_estimation_update", "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancelled_draft"],
+		"on_update": ["nexlify_budget_control.nexlify_budget_control.supply_chain.on_estimation_update", "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancelled_draft", "nexlify_budget_control.nexlify_budget_control.project_links.sync_project_links"],
 		"on_update_after_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract"]
 	},
 	"Supplier Quotation": {"validate": "nexlify_budget_control.nexlify_budget_control.supply_chain.validate_supplier_quotation", "before_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_cancel", "before_update_after_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_update", "on_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change", "on_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change"},
@@ -60,9 +60,9 @@ doc_events = {
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
 	},
 	"Project": {
-		"after_insert": "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.link_estimation_to_new_project",
+		"after_insert": ["nexlify_budget_control.nexlify_budget_control.opportunity_rfq.link_estimation_to_new_project", "nexlify_budget_control.nexlify_budget_control.project_links.sync_project_links"],
 		"validate": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.validate_project_dates",
-		"on_update": "nexlify_budget_control.nexlify_budget_control.project_sync.on_project_update"
+		"on_update": ["nexlify_budget_control.nexlify_budget_control.project_sync.on_project_update", "nexlify_budget_control.nexlify_budget_control.project_links.sync_project_links"]
 	}
 }
 
