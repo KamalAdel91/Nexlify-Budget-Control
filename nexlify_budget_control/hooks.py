@@ -73,6 +73,7 @@ app_include_css = ["/assets/nexlify_budget_control/css/nexlify_budget_control.cs
 
 app_include_js = [
 	"/assets/nexlify_budget_control/js/manpower_order.js",
+	"/assets/nexlify_budget_control/js/process_map.js",
 	"/assets/nexlify_budget_control/js/project_life.js",
 	"/assets/nexlify_budget_control/js/global_project_filter.js",
 	"/assets/nexlify_budget_control/js/disable_project_cost_center_autofetch.js"]

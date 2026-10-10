@@ -1,8 +1,9 @@
-"""Business Process Map: the Custom HTML Block on the ALSA Projects workspace.
+"""Business Process Map: the Custom HTML Block on the ALSA Projects and team workspaces, and the map on the Project
+Life form.
 
-The block's HTML, CSS and JS live in this folder and are copied into the Custom HTML Block on every
-migrate. The steps live in steps.json. Every status the map shows is read from the Workflow
-definitions or from our status constants, never typed into the map.
+The block's HTML, CSS and JS live in this folder and are copied into the Custom HTML Block on every migrate; the
+drawing itself is public/js/process_map.js, shared with the Project Life form. The steps live in steps.json. Every
+status the map shows is read from the Workflow definitions or from our status constants, never typed into the map.
 """
 
 import json
@@ -108,3 +109,92 @@ def _ceo_limit(wf):
 		if match:
 			return f"{float(match.group(1).replace('_', '').replace(',', '')):,.0f}"
 	return HIDDEN_LIMIT
+
+
+def _from_states(ref, workflows):
+	"""The stages a step works in: those its action leaves (from the Workflow), or the status constant given."""
+	if ref.get("constant"):
+		try:
+			return {frappe.get_attr(ref["constant"])}
+		except (ImportError, AttributeError):
+			return set()
+	wf = workflows.get(ref.get("workflow"))
+	if not wf or ref.get("initial"):
+		return set()
+	return {r.state for r in wf.transitions if r.action == ref.get("action") and ref.get("allowed") in (None, r.allowed)}
+
+
+def _step_progress(step, rows, workflows):
+	"""One step for one project: done when its document reaches the stage the step leads to ("done", else "status"),
+	started when it entered the stage the step works in ("from", else the one the action leaves). A step done once per
+	document ("each": Supply Requests, invoices) is done when every document still going has reached it."""
+	done_ref = step.get("done") or step.get("status") or {}
+	status, doctype = _resolve(done_ref, workflows)
+	done_states = {s for s in status.split(" or ") if s}
+	from_states = _from_states(step.get("from") or done_ref, workflows)
+	mine = [r for r in rows if r.reference_doctype == doctype]
+	reached, last = {}, {}
+	for r in mine:
+		last[r.reference_name] = r
+		if r.stage in done_states and r.reference_name not in reached:
+			reached[r.reference_name] = r.entered_on
+	# a document that ended elsewhere (cancelled) without reaching the step does not count
+	docs = [n for n, r in last.items() if n in reached or r.is_open]
+	if from_states:
+		started = next((r.entered_on for r in mine if r.stage in from_states), None)
+	else:
+		started = mine[0].entered_on if mine else None
+	if step.get("each"):
+		done = bool(docs) and all(n in reached for n in docs)
+		finished = max(reached[n] for n in docs) if done else None
+		count = sum(1 for n in docs if n in reached)
+	else:
+		done = bool(reached)
+		finished = min(reached.values()) if done else None
+		count = len(reached)
+	return {"state": None, "done": done, "started": started, "finished": finished, "reached": count, "total": len(docs),
+		"open": [{"reference_name": n, "stage": r.stage, "waiting_on": r.waiting_on, "entered_on": r.entered_on,
+			"due_on": r.due_on, "is_scheduled": r.is_scheduled} for n, r in last.items() if r.is_open]}
+
+
+def _step_states(raw, progress, life_open):
+	"""done; skipped (an optional step, or a once-per-document step with no document, passed by a later one); done
+	before the records start (passed by a later step, never reached); now (the first step still to do, while the
+	project has an open stage); part done; not yet."""
+	later = [False] * len(progress)
+	seen = False
+	for i in range(len(progress) - 1, -1, -1):
+		later[i] = seen
+		seen = seen or progress[i]["done"] or progress[i]["reached"] > 0
+	now_given = False
+	for s, p, passed in zip(raw, progress, later):
+		if p["done"]:
+			p["state"] = "done"
+		elif passed and (s.get("optional") or (s.get("each") and not p["total"])):
+			p["state"] = "skipped"
+		elif passed and not p["reached"] and not p["open"]:
+			p["state"] = "done"
+		elif life_open and not now_given:
+			p["state"], now_given = "now", True
+		else:
+			p["state"] = "part" if (p["reached"] or p["open"]) else "todo"
+
+
+@frappe.whitelist()
+def get_life_map(life):
+	"""The map with one project's progress on each step."""
+	from nexlify_budget_control.nexlify_budget_control.project_life import LIFE, STAGE
+
+	frappe.has_permission(LIFE, "read", doc=life, throw=True)
+	data = get_process_map()
+	raw = json.loads(_read("steps.json"))["steps"]
+	refs = [r for s in raw for r in (s.get("status"), s.get("done"), s.get("from")) if r]
+	workflows = _workflows({r["workflow"] for r in refs if r.get("workflow")})
+	rows = frappe.get_all(STAGE, filters={"parent": life, "parenttype": LIFE},
+		fields=["reference_doctype", "reference_name", "stage", "waiting_on", "is_open", "entered_on", "due_on", "is_scheduled"],
+		order_by="entered_on asc, idx asc")
+	progress = [_step_progress(s, rows, workflows) for s in raw]
+	_step_states(raw, progress, any(r.is_open for r in rows))
+	for step, p in zip(data["steps"], progress):
+		step["progress"] = p
+	return data

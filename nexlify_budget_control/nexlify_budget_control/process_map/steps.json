@@ -1,12 +1,36 @@
 {
 	"teams": [
-		{"name": "Sales", "color": "#2563EB"},
-		{"name": "Estimation", "color": "#0D9488", "workspace": "Estimation"},
-		{"name": "Supply Chain", "color": "#D97706", "workspace": "Supply Chain"},
-		{"name": "Planning", "color": "#7C3AED", "workspace": "Planning"},
-		{"name": "COO", "color": "#EA580C"},
-		{"name": "CEO", "color": "#DB2777"},
-		{"name": "Finance", "color": "#16A34A"}
+		{
+			"name": "Sales",
+			"color": "#2563EB"
+		},
+		{
+			"name": "Estimation",
+			"color": "#0D9488",
+			"workspace": "Estimation"
+		},
+		{
+			"name": "Supply Chain",
+			"color": "#D97706",
+			"workspace": "Supply Chain"
+		},
+		{
+			"name": "Planning",
+			"color": "#7C3AED",
+			"workspace": "Planning"
+		},
+		{
+			"name": "COO",
+			"color": "#EA580C"
+		},
+		{
+			"name": "CEO",
+			"color": "#DB2777"
+		},
+		{
+			"name": "Finance",
+			"color": "#16A34A"
+		}
 	],
 	"steps": [
 		{
@@ -20,7 +44,10 @@
 			],
 			"receives": "Customer request",
 			"hands_to": "Estimation",
-			"status": {"workflow": "Project Estimation Workflow", "initial": 1},
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"initial": 1
+			},
 			"open": "Opportunity"
 		},
 		{
@@ -34,8 +61,15 @@
 			],
 			"receives": "RFQ from Sales",
 			"hands_to": "Supply Chain, for supply prices",
-			"status": {"workflow": "Project Estimation Workflow", "initial": 1},
-			"open": "Project Estimation"
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"initial": 1
+			},
+			"open": "Project Estimation",
+			"done": {
+				"workflow": "Project Estimation Workflow",
+				"action": "Send to Sales"
+			}
 		},
 		{
 			"team": "Supply Chain",
@@ -48,8 +82,15 @@
 			"note": "The Estimation can't go to Sales while any Supply Request is still pending.",
 			"receives": "Supply Request from Estimation",
 			"hands_to": "Estimation",
-			"status": {"constant": "nexlify_budget_control.nexlify_budget_control.supply_chain.PRICED", "doctype": "Supply Request"},
-			"open": "Supply Request"
+			"status": {
+				"constant": "nexlify_budget_control.nexlify_budget_control.supply_chain.PRICED",
+				"doctype": "Supply Request"
+			},
+			"open": "Supply Request",
+			"each": 1,
+			"from": {
+				"constant": "nexlify_budget_control.nexlify_budget_control.supply_chain.PENDING"
+			}
 		},
 		{
 			"team": "Estimation",
@@ -61,7 +102,10 @@
 			],
 			"receives": "Prices from Supply Chain",
 			"hands_to": "Sales",
-			"status": {"workflow": "Project Estimation Workflow", "action": "Send to Sales"},
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"action": "Send to Sales"
+			},
 			"open": "Project Estimation"
 		},
 		{
@@ -75,7 +119,10 @@
 			"note": "Closed Opportunities are locked and can't be edited.",
 			"receives": "Priced Estimation",
 			"hands_to": "Estimation",
-			"status": {"workflow": "Project Estimation Workflow", "action": "ReceiveContract"},
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"action": "ReceiveContract"
+			},
 			"open": "Opportunity"
 		},
 		{
@@ -83,12 +130,15 @@
 			"title": "Contract review and handover",
 			"todo": [
 				"Review the signed contract",
-				"Upload the Contract (No Prices)",
+				"Upload the contract copy for Planning",
 				"Click Handover to Planning"
 			],
 			"receives": "Signed contract from Sales",
 			"hands_to": "Planning",
-			"status": {"workflow": "Project Estimation Workflow", "action": "Handover to Planning"},
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"action": "Handover to Planning"
+			},
 			"open": "Project Estimation"
 		},
 		{
@@ -99,10 +149,12 @@
 				"Set the invoice dates and percentages",
 				"Click Send for Approval: the Overview goes to the COO"
 			],
-			"note": "Planning never sees any amount.",
-			"receives": "Contract without prices",
+			"receives": "Contract from Estimation",
 			"hands_to": "COO",
-			"status": {"workflow": "Project Planning Approval", "action": "Send for Approval"},
+			"status": {
+				"workflow": "Project Planning Approval",
+				"action": "Send for Approval"
+			},
 			"open": "Project Planning"
 		},
 		{
@@ -114,7 +166,11 @@
 			],
 			"receives": "Overview from Planning",
 			"hands_to": "CEO for contracts over {ceo_limit}, otherwise Planning",
-			"status": {"workflow": "Project Overview Approval", "action": "Approve", "allowed": "COO"},
+			"status": {
+				"workflow": "Project Overview Approval",
+				"action": "Approve",
+				"allowed": "COO"
+			},
 			"open": "Project Overview"
 		},
 		{
@@ -127,7 +183,11 @@
 			],
 			"receives": "Overview approved by the COO",
 			"hands_to": "Planning",
-			"status": {"workflow": "Project Overview Approval", "action": "Approve", "allowed": "CEO"},
+			"status": {
+				"workflow": "Project Overview Approval",
+				"action": "Approve",
+				"allowed": "CEO"
+			},
 			"open": "Project Overview"
 		},
 		{
@@ -141,8 +201,15 @@
 			],
 			"receives": "Approved project",
 			"hands_to": "Finance",
-			"status": {"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.READY", "doctype": "Project Invoicing"},
-			"open": "Project Invoicing"
+			"status": {
+				"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.READY",
+				"doctype": "Project Invoicing"
+			},
+			"open": "Project Invoicing",
+			"each": 1,
+			"from": {
+				"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.PENDING"
+			}
 		},
 		{
 			"team": "Finance",
@@ -153,8 +220,15 @@
 			],
 			"receives": "Draft Sales Order from Planning",
 			"hands_to": "Customer",
-			"status": {"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.INVOICED", "doctype": "Project Invoicing"},
-			"open": "Sales Order"
+			"status": {
+				"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.INVOICED",
+				"doctype": "Project Invoicing"
+			},
+			"open": "Sales Order",
+			"each": 1,
+			"from": {
+				"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.READY"
+			}
 		}
 	]
 }
