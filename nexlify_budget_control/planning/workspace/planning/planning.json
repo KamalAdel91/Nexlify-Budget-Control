@@ -6,9 +6,14 @@
    "label": "Visits per Month"
   }
  ],
- "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Planning</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Draft Plans\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Plans Returned by the COO\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Plans Waiting for Approval\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Visits This Month\", \"col\": 3}}, {\"id\": \"ch0\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Visits per Month\", \"col\": 12}}, {\"id\": \"izPbwBY5Pl\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Hand-offs</b></span>\", \"col\": 12}}, {\"id\": \"WST4aFOwW3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Pipeline Status\", \"col\": 3}}, {\"id\": \"LutpnfOOJu\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Overdue in Planning\", \"col\": 4}}, {\"id\": \"sQABXKbLxp\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Invoices Past Expected Date\", \"col\": 4}}]",
+ "content": "[{\"id\":\"OeirEqNjQH\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Process</b></span>\",\"col\":12}},{\"id\":\"wJSPJMmPYk\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Business Process Map\",\"col\":12}},{\"id\":\"hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Planning</b></span>\",\"col\":12}},{\"id\":\"nc0\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Draft Plans\",\"col\":3}},{\"id\":\"nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Plans Returned by the COO\",\"col\":3}},{\"id\":\"nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Plans Waiting for Approval\",\"col\":3}},{\"id\":\"nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Visits This Month\",\"col\":3}},{\"id\":\"ch0\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Visits per Month\",\"col\":12}},{\"id\":\"izPbwBY5Pl\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Hand-offs</b></span>\",\"col\":12}},{\"id\":\"WST4aFOwW3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Pipeline Status\",\"col\":3}},{\"id\":\"LutpnfOOJu\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Overdue in Planning\",\"col\":4}},{\"id\":\"sQABXKbLxp\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Invoices Past Expected Date\",\"col\":4}}]",
  "creation": "2026-09-24 16:21:23.080405",
- "custom_blocks": [],
+ "custom_blocks": [
+  {
+   "custom_block_name": "Business Process Map",
+   "label": "Business Process Map"
+  }
+ ],
  "docstatus": 0,
  "doctype": "Workspace",
  "hide_custom": 0,
@@ -18,7 +23,7 @@
  "label": "Planning",
  "link_type": "DocType",
  "links": [],
- "modified": "2026-10-10 07:54:11.389432",
+ "modified": "2026-10-10 21:19:54.864320",
  "modified_by": "Administrator",
  "module": "Planning",
  "name": "Planning",

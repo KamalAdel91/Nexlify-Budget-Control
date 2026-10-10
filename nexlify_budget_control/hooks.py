@@ -218,6 +218,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 	"nexlify_budget_control.nexlify_budget_control.supply_chain.seed_notifications",
 	"nexlify_budget_control.nexlify_budget_control.job_completion.seed_notifications",
+	"nexlify_budget_control.nexlify_budget_control.process_map.process_map.seed_process_map",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
@@ -235,6 +236,7 @@ after_install = [
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 	"nexlify_budget_control.nexlify_budget_control.supply_chain.seed_notifications",
 	"nexlify_budget_control.nexlify_budget_control.job_completion.seed_notifications",
+	"nexlify_budget_control.nexlify_budget_control.process_map.process_map.seed_process_map",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
     "nexlify_budget_control.nexlify_budget_control.hand_off.seed_rules",
 ]

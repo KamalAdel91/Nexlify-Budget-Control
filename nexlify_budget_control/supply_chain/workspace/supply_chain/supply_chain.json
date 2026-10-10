@@ -1,8 +1,13 @@
 {
  "charts": [],
- "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Supply Chain</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Supply Requests Pending\", \"col\": 4}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Supply Requests Priced This Month\", \"col\": 4}}, {\"id\": \"jjmo36Ih0n\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Hand-offs</b></span>\", \"col\": 12}}, {\"id\": \"DTZbmvhCh2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Pipeline Status\", \"col\": 3}}, {\"id\": \"XWGuZhqNNK\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Overdue Supply Requests\", \"col\": 4}}, {\"id\": \"HP2Z6mtX8g\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Average Days to Price\", \"col\": 4}}]",
+ "content": "[{\"id\":\"BsS0nXpb7s\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Process</b></span>\",\"col\":12}},{\"id\":\"IPlaEyHm4d\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Business Process Map\",\"col\":12}},{\"id\":\"hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Supply Chain</b></span>\",\"col\":12}},{\"id\":\"nc0\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Supply Requests Pending\",\"col\":4}},{\"id\":\"nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Supply Requests Priced This Month\",\"col\":4}},{\"id\":\"jjmo36Ih0n\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Hand-offs</b></span>\",\"col\":12}},{\"id\":\"DTZbmvhCh2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Pipeline Status\",\"col\":3}},{\"id\":\"XWGuZhqNNK\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Overdue Supply Requests\",\"col\":4}},{\"id\":\"HP2Z6mtX8g\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Average Days to Price\",\"col\":4}}]",
  "creation": "2026-10-09 02:34:19.291670",
- "custom_blocks": [],
+ "custom_blocks": [
+  {
+   "custom_block_name": "Business Process Map",
+   "label": "Business Process Map"
+  }
+ ],
  "docstatus": 0,
  "doctype": "Workspace",
  "hide_custom": 0,
@@ -12,7 +17,7 @@
  "label": "Supply Chain",
  "link_type": "DocType",
  "links": [],
- "modified": "2026-10-10 07:55:59.975976",
+ "modified": "2026-10-10 21:19:54.864491",
  "modified_by": "Administrator",
  "module": "Supply Chain",
  "name": "Supply Chain",
