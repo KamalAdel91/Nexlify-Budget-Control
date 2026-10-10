@@ -106,7 +106,11 @@
 				"workflow": "Project Estimation Workflow",
 				"action": "Send to Sales"
 			},
-			"open": "Project Estimation"
+			"open": "Project Estimation",
+			"note": "Sales receives the selling price only.",
+			"policy": {
+				"note": "Sales receives the selling price only: the cost, the margin and the cost breakdown stay with Estimation."
+			}
 		},
 		{
 			"team": "Sales",
@@ -117,13 +121,16 @@
 				"Set the Opportunity to Closed Won and attach the signed contract: the Estimation moves to contract review by itself"
 			],
 			"note": "Closed Opportunities are locked and can't be edited.",
-			"receives": "Priced Estimation",
+			"receives": "Selling price from Estimation",
 			"hands_to": "Estimation",
 			"status": {
 				"workflow": "Project Estimation Workflow",
 				"action": "ReceiveContract"
 			},
-			"open": "Opportunity"
+			"open": "Opportunity",
+			"policy": {
+				"receives": "Selling price only, without the cost or the margin"
+			}
 		},
 		{
 			"team": "Estimation",
@@ -139,7 +146,14 @@
 				"workflow": "Project Estimation Workflow",
 				"action": "Handover to Planning"
 			},
-			"open": "Project Estimation"
+			"open": "Project Estimation",
+			"policy": {
+				"todo": [
+					"Review the signed contract",
+					"Upload the Contract (No Prices)",
+					"Click Handover to Planning"
+				]
+			}
 		},
 		{
 			"team": "Planning",
@@ -155,7 +169,11 @@
 				"workflow": "Project Planning Approval",
 				"action": "Send for Approval"
 			},
-			"open": "Project Planning"
+			"open": "Project Planning",
+			"policy": {
+				"note": "Planning never sees any amount.",
+				"receives": "Contract without prices"
+			}
 		},
 		{
 			"team": "COO",

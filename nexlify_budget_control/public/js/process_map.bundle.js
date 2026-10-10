@@ -248,6 +248,7 @@ window.nexlify_process_map = (() => {
 					<div class="pm-grp">
 						<div class="pm-gt" data-act="step" data-i="${o.i}"><span class="pm-mini" style="background:${c}">${o.i + 1}</span>${esc(o.s.title)}</div>
 						${todo(o.s.todo, c)}
+						${o.s.note ? `<div class="pm-note">${ICON.info}<span>${esc(o.s.note)}</span></div>` : ""}
 					</div>`).join("")}
 				</div>`;
 			marks();

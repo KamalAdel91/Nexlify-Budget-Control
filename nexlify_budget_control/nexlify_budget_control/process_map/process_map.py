@@ -42,9 +42,15 @@ def seed_process_map():
 
 
 @frappe.whitelist()
-def get_process_map():
-	"""The steps from steps.json, each with the status it leaves its document in."""
+def get_process_map(workspace=None):
+	"""The steps from steps.json, each with the status it leaves its document in. On a team's own workspace the
+	policy text is left out for everyone: that screen is the team's."""
 	data = json.loads(_read("steps.json"))
+	full = _sees_amounts() and not _team_workspace(data, workspace)
+	for step in data["steps"]:
+		policy = step.pop("policy", None)
+		if policy and full:
+			step.update(policy)
 	names = {s["status"]["workflow"] for s in data["steps"] if s.get("status", {}).get("workflow")}
 	workflows = _workflows(names | {CEO_LIMIT_WORKFLOW})
 	for step in data["steps"]:
@@ -98,11 +104,22 @@ def _resolve(ref, workflows):
 	return " or ".join(states), wf.doctype
 
 
-def _ceo_limit(wf):
-	"""The CEO limit from the Overview workflow condition, only for users who may read the contract value."""
+def _team_workspace(data, workspace):
+	norm = lambda v: re.sub(r"[-_\s]+", " ", str(v or "")).strip().lower()
+	return bool(workspace) and any(norm(t["workspace"]) == norm(workspace) for t in data["teams"] if t.get("workspace"))
+
+
+def _sees_amounts():
+	"""Whoever may read the contract value sees the company's policy on the map: the CEO limit and the
+	policy text of the steps. Decided here, so the policy text never reaches anyone else's browser."""
 	meta = frappe.get_meta(CEO_LIMIT_DOCTYPE)
 	field = meta.get_field(CEO_LIMIT_FIELD)
-	if not wf or not field or field.permlevel not in meta.get_permlevel_access("read"):
+	return bool(field) and field.permlevel in meta.get_permlevel_access("read")
+
+
+def _ceo_limit(wf):
+	"""The CEO limit from the Overview workflow condition, only for users who may read the contract value."""
+	if not wf or not _sees_amounts():
 		return HIDDEN_LIMIT
 	for row in wf.transitions:
 		match = re.search(rf"{CEO_LIMIT_FIELD}\s*>\s*([\d_,.]+)", row.condition or "")
