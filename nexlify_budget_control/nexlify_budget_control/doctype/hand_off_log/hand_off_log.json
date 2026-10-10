@@ -1,0 +1,231 @@
+{
+ "actions": [],
+ "autoname": "HOL-.######",
+ "creation": "2026-10-10 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_doctype",
+  "reference_name",
+  "column_break_ref",
+  "stage",
+  "waiting_on",
+  "is_open",
+  "section_break_context",
+  "project",
+  "opportunity",
+  "column_break_context",
+  "customer",
+  "company",
+  "section_break_timing",
+  "entered_on",
+  "entered_by",
+  "duration_days",
+  "column_break_timing",
+  "left_on",
+  "left_by",
+  "next_stage",
+  "is_backfilled"
+ ],
+ "fields": [
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Document Type",
+   "options": "DocType",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Document",
+   "options": "reference_doctype",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_ref",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stage",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Stage",
+   "read_only": 1
+  },
+  {
+   "description": "Roles. Empty: nobody waits (the end of the road).",
+   "fieldname": "waiting_on",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Waiting On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "is_open",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Waiting",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_break_context",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "opportunity",
+   "fieldtype": "Link",
+   "label": "Opportunity",
+   "options": "Opportunity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_context",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_timing",
+   "fieldtype": "Section Break",
+   "label": "Timing"
+  },
+  {
+   "fieldname": "entered_on",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Entered On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "entered_by",
+   "fieldtype": "Link",
+   "label": "Entered By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "description": "Fixed when the stage is left; refreshed every 15 minutes while it is open.",
+   "fieldname": "duration_days",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Days in Stage",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_timing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "left_on",
+   "fieldtype": "Datetime",
+   "label": "Left On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "left_by",
+   "fieldtype": "Link",
+   "label": "Left By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_stage",
+   "fieldtype": "Data",
+   "label": "Next Stage",
+   "read_only": 1
+  },
+  {
+   "description": "Opened when the log started, from the time the Version shows.",
+   "fieldname": "is_backfilled",
+   "fieldtype": "Check",
+   "label": "From Version History",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-10 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Hand-off Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "CEO"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "COO"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Estimation Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Planning Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Supply Chain Manager"
+  }
+ ],
+ "sort_field": "entered_on",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "reference_name",
+ "track_changes": 0
+}

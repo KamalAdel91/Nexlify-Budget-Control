@@ -5,6 +5,7 @@
 The Planner never sees an amount: invoice_amount is on permlevel 2 and never sent to the Plan."""
 
 import frappe
+from nexlify_budget_control.nexlify_budget_control.hand_off import record as record_hand_off
 from frappe import _
 from frappe.utils import flt, getdate, nowdate
 
@@ -191,12 +192,14 @@ def on_sales_order_update(doc, method=None):
 def on_sales_order_submit(doc, method=None):
 	for name in _linked(doc):
 		frappe.db.set_value("Project Invoicing", name, {"status": ORDERED, "sales_order": doc.name})
+		record_hand_off("Project Invoicing", name)
 
 
 def on_sales_order_cancel(doc, method=None):
 	for name in _linked(doc):
 		if frappe.db.get_value("Project Invoicing", name, "status") == ORDERED:
 			frappe.db.set_value("Project Invoicing", name, "status", READY)
+			record_hand_off("Project Invoicing", name)
 
 
 def validate_sales_invoice(doc, method=None):
@@ -210,12 +213,14 @@ def validate_sales_invoice(doc, method=None):
 def on_sales_invoice_submit(doc, method=None):
 	for name in _linked(doc):
 		frappe.db.set_value("Project Invoicing", name, {"status": INVOICED, "sales_invoice": doc.name, "actual_date": doc.posting_date})
+		record_hand_off("Project Invoicing", name)
 
 
 def on_sales_invoice_cancel(doc, method=None):
 	for name in _linked(doc):
 		if frappe.db.get_value("Project Invoicing", name, "sales_invoice") == doc.name:
 			frappe.db.set_value("Project Invoicing", name, {"status": ORDERED, "sales_invoice": None, "actual_date": None})
+			record_hand_off("Project Invoicing", name)
 
 
 def _hold_state(value):

@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from nexlify_budget_control.nexlify_budget_control.hand_off import record as record_hand_off
 from frappe import _
 from frappe.model.document import Document
 
@@ -111,6 +112,7 @@ class ProjectOverview(Document):
 			plan = self.revenue_budget
 			if plan and frappe.db.get_value("Project Planning", plan, "docstatus") == 0:
 				frappe.db.set_value("Project Planning", plan, {"status": "Draft", "rejection_reason": self.return_reason})
+				record_hand_off("Project Planning", plan)
 				frappe.get_doc("Project Planning", plan).add_comment("Comment", msg)
 		else:
 			msg = _("Returned to the COO by {0}: {1}").format(who, reason)

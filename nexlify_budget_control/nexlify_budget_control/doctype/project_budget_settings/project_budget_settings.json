@@ -41,7 +41,10 @@
   "show_create_estimation_on_project",
   "tab_invoicing",
   "section_break_invoice_items",
-  "project_invoice_items"
+  "project_invoice_items",
+  "tab_hand_offs",
+  "section_break_hand_off_rules",
+  "hand_off_rules"
  ],
  "fields": [
   {
@@ -260,11 +263,28 @@
    "fieldtype": "Table",
    "label": "Project Invoice Items",
    "options": "Project Invoice Item Rule"
+  },
+  {
+   "fieldname": "tab_hand_offs",
+   "fieldtype": "Tab Break",
+   "label": "Hand-offs"
+  },
+  {
+   "fieldname": "section_break_hand_off_rules",
+   "fieldtype": "Section Break",
+   "label": "Who a stage waits on",
+   "description": "By default a stage waits on the roles allowed a step out of it in its Workflow (Cancel and System Manager aside). A row here wins over that, and is the only source for documents without a Workflow (Project Invoicing)."
+  },
+  {
+   "fieldname": "hand_off_rules",
+   "fieldtype": "Table",
+   "label": "Waiting Rules",
+   "options": "Hand-off Waiting Rule"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-09 21:15:22.381987",
+ "modified": "2026-10-10 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",
