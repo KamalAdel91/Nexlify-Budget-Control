@@ -53,6 +53,8 @@ doc_events = {
 		"on_update_after_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_update", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_contract"]
 	},
 	"Supplier Quotation": {"validate": "nexlify_budget_control.nexlify_budget_control.supply_chain.validate_supplier_quotation", "before_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_cancel", "before_update_after_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.before_quotation_update", "on_submit": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change", "on_cancel": "nexlify_budget_control.nexlify_budget_control.supply_chain.on_quotation_change"},
+	"Sales Order": {"validate": "nexlify_budget_control.nexlify_budget_control.job_completion.validate_sales_order", "on_update": "nexlify_budget_control.nexlify_budget_control.job_completion.on_sales_order_update", "on_submit": "nexlify_budget_control.nexlify_budget_control.job_completion.on_sales_order_submit", "on_cancel": "nexlify_budget_control.nexlify_budget_control.job_completion.on_sales_order_cancel"},
+	"Sales Invoice": {"on_update": "nexlify_budget_control.nexlify_budget_control.job_completion.attach_invoicing_documents", "validate": "nexlify_budget_control.nexlify_budget_control.job_completion.validate_sales_invoice", "on_submit": "nexlify_budget_control.nexlify_budget_control.job_completion.on_sales_invoice_submit", "on_cancel": "nexlify_budget_control.nexlify_budget_control.job_completion.on_sales_invoice_cancel"},
 	"Project Planning": {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_submit",
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_planning_cancel"
@@ -81,6 +83,7 @@ doctype_js = {
         "Project": "public/js/project.js",
         "Project Estimation": "public/js/project_estimation.js",
         "Supplier Quotation": "public/js/supplier_quotation.js",
+        "Sales Order": "public/js/sales_order.js",
 }
 
 fixtures = [
@@ -172,7 +175,7 @@ fixtures = [
 					"In Planning",
 					"Pending COO Approval",
 					"Pending CEO Approval",
-					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled", "Pending", "Priced", "Cancelled Draft"
+					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled", "Pending", "Priced", "Cancelled Draft", "On Hold by Planning", "Submitted"
 				]
 			]
 		]
@@ -187,7 +190,7 @@ fixtures = [
 					"Send for Approval",
 					"Approve",
 					"Return to Planning",
-					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel", "Send Prices"
+					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel", "Send Prices", "Submit"
 				]
 			]
 		]
@@ -200,7 +203,7 @@ fixtures = [
 				"in",
 				[
 					"Project Overview Approval",
-					"Project Planning Approval", "Project Estimation Workflow", "Supply Request Workflow"
+					"Project Planning Approval", "Project Estimation Workflow", "Supply Request Workflow", "Sales Order Workflow"
 				]
 			]
 		]

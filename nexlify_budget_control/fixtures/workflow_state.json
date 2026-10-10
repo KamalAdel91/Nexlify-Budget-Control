@@ -111,9 +111,27 @@
   "docstatus": 0,
   "doctype": "Workflow State",
   "icon": null,
-  "modified": "2026-10-09 03:20:57.810447",
+  "modified": "2026-10-10 05:20:45.553714",
   "name": "Cancelled Draft",
-  "style": "Inverse",
+  "style": "Danger",
   "workflow_state_name": "Cancelled Draft"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": null,
+  "modified": "2026-10-10 00:12:43.702997",
+  "name": "On Hold by Planning",
+  "style": "Danger",
+  "workflow_state_name": "On Hold by Planning"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": null,
+  "modified": "2026-10-10 00:12:43.747432",
+  "name": "Submitted",
+  "style": "Primary",
+  "workflow_state_name": "Submitted"
  }
 ]

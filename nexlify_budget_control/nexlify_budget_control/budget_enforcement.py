@@ -1119,7 +1119,7 @@ def bulk_create_project_visits(project_planning, rows):
 
 EXCLUDED_INVOICING_EDIT_FIELDS = {"project_planning", "project",
     # written only by the system (Mark Job Completed, Sales Invoice): never sent back from the edit dialog
-    "status", "invoice_amount", "sales_invoice", "actual_date", "job_completion", "completion_date", "completed_by"}
+    "status", "invoice_amount", "sales_order", "sales_invoice", "actual_date", "job_completion", "completion_date", "completed_by"}
 
 
 @frappe.whitelist()
@@ -1242,23 +1242,16 @@ def bulk_create_project_invoicing(project_planning, rows):
 
 @frappe.whitelist()
 def get_project_invoicings(project_planning):
-	"""The Plan's invoices for its table (never an amount: the Planner doesn't see them). on_sales_invoice
-	tells the table an invoice is already taken by a Sales Invoice (draft or submitted)."""
-	rows = frappe.get_all(
+	"""The Plan's invoices for its table (never an amount: the Planner doesn't see them)."""
+	return frappe.get_all(
 		"Project Invoicing",
 		filters={"project_planning": project_planning},
 		fields=[
 			"name", "invoice_label", "expected_invoice_date", "invoice_percentage",
-			"invoice_description", "status", "sales_invoice", "job_completion", "completion_date"
+			"invoice_description", "status", "sales_order", "sales_invoice", "job_completion", "completion_date"
 		],
 		order_by="creation asc",
 	)
-	held = set(frappe.get_all("Sales Invoice Item",
-		filters={"custom_project_invoicing": ["in", [r.name for r in rows] or [""]], "docstatus": ["<", 2]},
-		pluck="custom_project_invoicing"))
-	for r in rows:
-		r.on_sales_invoice = r.name in held
-	return rows
 
 
 @frappe.whitelist()

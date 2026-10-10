@@ -1860,7 +1860,7 @@ function nrb_invoice_actions(inv) {
 	const link = (fn, label, title) => `<a href="#" class="nrb-link" title="${title || label}" onclick="${fn}('${inv.name}'); return false;">${label}</a>&nbsp;|&nbsp;`;
 	if (!approved) return link('open_invoicing_quick_edit', __('Edit'));
 	if (inv.status === 'Pending') return link('nrb_mark_job_completed', __('Complete'), __('Mark the job completed (upload the Job Completion)'));
-	if (inv.status === 'Ready to Invoice' && !inv.on_sales_invoice) return link('nrb_undo_job_completed', __('Undo'), __('Undo the Job Completion'));
+	if (inv.status === 'Ready to Invoice') return link('nrb_undo_job_completed', __('Undo'), __('Undo the Job Completion'));
 	return '';
 }
 
