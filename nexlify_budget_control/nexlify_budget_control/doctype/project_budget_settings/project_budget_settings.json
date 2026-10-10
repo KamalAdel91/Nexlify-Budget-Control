@@ -44,7 +44,10 @@
   "project_invoice_items",
   "tab_hand_offs",
   "section_break_hand_off_rules",
-  "hand_off_rules"
+  "hand_off_rules",
+  "section_break_hand_off_targets",
+  "default_target_days",
+  "hand_off_targets"
  ],
  "fields": [
   {
@@ -280,11 +283,29 @@
    "fieldtype": "Table",
    "label": "Waiting Rules",
    "options": "Hand-off Waiting Rule"
+  },
+  {
+   "fieldname": "section_break_hand_off_targets",
+   "fieldtype": "Section Break",
+   "label": "When a stage is overdue"
+  },
+  {
+   "fieldname": "default_target_days",
+   "fieldtype": "Int",
+   "label": "Default Target (days)",
+   "default": "3",
+   "description": "A stage still waiting after this many days is Overdue, unless a Stage Target says otherwise."
+  },
+  {
+   "fieldname": "hand_off_targets",
+   "fieldtype": "Table",
+   "label": "Stage Targets",
+   "options": "Hand-off Stage Target"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 12:00:00.000000",
+ "modified": "2026-10-10 07:54:11.389432",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

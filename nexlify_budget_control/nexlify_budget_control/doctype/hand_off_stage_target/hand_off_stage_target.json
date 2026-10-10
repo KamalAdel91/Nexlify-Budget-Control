@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "creation": "2026-10-10 07:54:11.389432",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "document_type",
+  "stage",
+  "target_days"
+ ],
+ "fields": [
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Document Type",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "stage",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Stage",
+   "reqd": 1
+  },
+  {
+   "description": "0: never overdue.",
+   "fieldname": "target_days",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Target (days)"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-10 07:54:11.389432",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Hand-off Stage Target",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
