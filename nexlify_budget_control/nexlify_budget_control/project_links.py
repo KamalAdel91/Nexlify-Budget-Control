@@ -25,8 +25,31 @@ def sync_project_links(doc=None, method=None):
 		frappe.db.sql(f"""update `tab{doctype}` d join `tabProject Estimation` e on e.name = d.`{link}`
 			set d.project = e.project
 			where ifnull(e.project, '') != '' and ifnull(d.project, '') != e.project{narrow}""", values)
+	# Supplier Quotation: each line takes the Project of its Supply Request; the quotation takes it when all its lines
+	# are of one Project (one quotation may cover several Supply Requests, of several Projects)
+	frappe.db.sql("""update `tabSupplier Quotation Item` i join `tabSupply Request` sr on sr.name = i.custom_supply_request
+		set i.project = sr.project
+		where ifnull(sr.project, '') != '' and ifnull(i.project, '') != sr.project""")
+	frappe.db.sql("""update `tabSupplier Quotation` sq join (
+			select parent, min(project) project, count(distinct project) projects from `tabSupplier Quotation Item`
+			where ifnull(project, '') != '' group by parent) x on x.parent = sq.name
+		set sq.project = x.project
+		where x.projects = 1 and ifnull(sq.project, '') != x.project""")
 	for doctype in TRACKED:
 		frappe.db.sql(f"""update `tab{LOG}` l join `tab{doctype}` d on d.name = l.reference_name
 			set l.project = d.project
 			where l.reference_doctype = %(doctype)s and ifnull(d.project, '') != '' and ifnull(l.project, '') != d.project""",
 			{"doctype": doctype})
+
+
+def fill_supplier_quotation(doc, method=None):
+	"""Supplier Quotation validate: the Project of each line from its Supply Request, and the quotation's when all its
+	lines are of one Project. Lines without a Supply Request keep what was typed."""
+	for item in doc.items:
+		if item.get("custom_supply_request"):
+			project = frappe.db.get_value("Supply Request", item.custom_supply_request, "project")
+			if project:
+				item.project = project
+	projects = {item.project for item in doc.items if item.get("project")}
+	if len(projects) == 1:
+		doc.project = projects.pop()

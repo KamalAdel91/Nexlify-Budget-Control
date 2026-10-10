@@ -48,7 +48,7 @@ def opportunity_connections(data):
 
 def project_connections(data):
     """Project"""
-    return _add(data, "ALSA", {'Supply Request': 'project', 'Project Equipment Scope': 'project', 'Project Planning Scope': 'project', 'Budget Violation Log': 'project'}, near="Project Estimation")
+    return _add(data, "ALSA", {'Supply Request': 'project', 'Supplier Quotation': 'project', 'Project Equipment Scope': 'project', 'Project Planning Scope': 'project', 'Budget Violation Log': 'project'}, near="Project Estimation")
 
 
 def project_estimation_connections(data):
@@ -88,4 +88,13 @@ def sales_invoice_connections(data):
 
 def supplier_quotation_connections(data):
     """Supplier Quotation"""
-    return _add(data, "ALSA", {'Supply Request': 'supplier_quotation', 'Project Estimation': 'supplier_quotation'})
+    # The Supply Requests on this quotation's own lines (custom_supply_request): one quotation may cover several
+    data = _add(data, "ALSA", {'Project Estimation': 'supplier_quotation'})
+    data.setdefault("internal_links", {})["Supply Request"] = ["items", "custom_supply_request"]
+    group = next((g for g in data["transactions"] if "Project Estimation" in g.get("items", [])), None)
+    if group is None:
+        group = {"label": frappe._("ALSA"), "items": []}
+        data["transactions"].append(group)
+    if "Supply Request" not in group["items"]:
+        group["items"].insert(0, "Supply Request")
+    return data
