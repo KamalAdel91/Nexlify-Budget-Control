@@ -3,7 +3,7 @@
 
 """
 Permissions that this app's own roles need on doctypes owned by other apps
-(ERPNext / HRMS). Applied automatically after every migrate (idempotent).
+(ERPNext / HRMS), and on our own doctypes where a site's Custom DocPerm hides the JSON permissions. Applied automatically after every migrate (idempotent).
 Permissions for ERPNext's default roles are managed from the UI, not here.
 """
 
@@ -26,6 +26,8 @@ APP_ROLE_PERMISSIONS = [
     ("Supplier Quotation", SUPPLY_CHAIN, ["read", "write", "create", "submit", "cancel", "amend", "report", "print", "email"]),
     ("Supplier", SUPPLY_CHAIN, ["read", "write", "create", "report"]),
     ("Item", SUPPLY_CHAIN, ["read", "write", "create", "report"]),
+    # COO / CEO approve the selling price: the workflow action saves the Estimation
+    ("Project Estimation", ["COO", "CEO"], ["read", "write"]),
 ]
 
 

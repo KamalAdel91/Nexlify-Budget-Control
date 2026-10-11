@@ -137,7 +137,7 @@
 			"hands_to": "Estimation",
 			"status": {
 				"workflow": "Project Estimation Workflow",
-				"action": "ReceiveContract"
+				"action": "Receive Signed Contract"
 			},
 			"open": "Opportunity",
 			"policy": {

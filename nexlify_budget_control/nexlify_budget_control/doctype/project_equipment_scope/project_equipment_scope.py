@@ -16,8 +16,11 @@ class ProjectEquipmentScope(Document):
 	def _lock_while_with_sales(self):
 		if frappe.flags.nexlify_rfq_scope_sync:
 			return
-		if frappe.db.get_value("Project Estimation", self.cost_budget, "workflow_state") == "Sent to Sales":
-			frappe.throw(_("The Estimation {0} is with Sales. Sales can send it back with Request Revision.").format(self.cost_budget))
+		from nexlify_budget_control.nexlify_budget_control import estimation_flow as flow
+
+		state = frappe.db.get_value("Project Estimation", self.cost_budget, "workflow_state")
+		if state in flow.price_locked():
+			frappe.throw(_("The prices of Estimation {0} are locked while it is {1}.").format(self.cost_budget, _(state)))
 
 	def before_submit(self):
 		self._check_cost_budget_still_draft()

@@ -48,6 +48,7 @@ class ProjectEstimation(Document):
 		self._reset_changed_supply_prices()
 		self._set_supply_status()
 		self._calculate_estimation()
+		self._set_approval_level()
 		self._validate_workflow_step()
 
 	def before_submit(self):
@@ -82,15 +83,41 @@ class ProjectEstimation(Document):
 		if not self.details:
 			frappe.throw(_("Budget Details cannot be empty. Add Team Daily Rates / Other Costs, or a manual budget row."))
 
+	def _set_approval_level(self):
+		"""Who approves the selling price before Sales gets it: limits in Project Budget Settings, in company currency."""
+		settings = frappe.get_cached_doc("Project Budget Settings")
+		price = flt(self.total_price) * flt(self.conversion_rate or 1)
+		coo, ceo = flt(settings.coo_approval_limit), flt(settings.ceo_approval_limit)
+		self.approval_level = "CEO" if ceo and price > ceo else "COO" if coo and price > coo else ""
+
 	def _validate_workflow_step(self):
-		"""Sent to Sales: the prices are checked first, then locked while Sales has them."""
-		if self.workflow_state != "Sent to Sales":
-			return
+		"""The prices are checked when they leave Draft (for approval or to Sales), then locked until the Estimation is
+		back in Draft (Reprice, Request Revision or a Return). A Return from the approval needs its reason."""
+		from nexlify_budget_control.nexlify_budget_control import estimation_flow as flow
+
 		before = None if self.is_new() else self.get_doc_before_save()
-		if not before or before.get("workflow_state") != "Sent to Sales":
+		prev = before.get("workflow_state") if before else None
+		locked = flow.price_locked()
+		if self.workflow_state in locked and prev not in locked:
+			settings = frappe.get_cached_doc("Project Budget Settings")
+			if not (flt(settings.coo_approval_limit) and flt(settings.ceo_approval_limit)):
+				frappe.throw(_("Set the COO and CEO approval limits in Project Budget Settings."))
 			self._validate_ready()
-		elif not frappe.flags.nexlify_rfq_scope_sync:
-			frappe.throw(_("The Estimation is with Sales. Sales can send it back with Request Revision."))
+			self.return_reason = None
+		elif (self.workflow_state in locked and prev == self.workflow_state
+				and not frappe.flags.nexlify_rfq_scope_sync and not self.flags.nexlify_flow_save):
+			frappe.throw(_("The prices are locked while the Estimation is {0}.").format(_(self.workflow_state)))
+		if prev in flow.pending() and self.workflow_state in flow.draft() and not (self.return_reason or "").strip():
+			frappe.throw(_("Enter the reason for returning it."))
+
+	def on_update(self):
+		"""A Return from the approval is written on the Estimation, with its reason."""
+		from nexlify_budget_control.nexlify_budget_control import estimation_flow as flow
+
+		before = self.get_doc_before_save()
+		if before and before.get("workflow_state") in flow.pending() and self.workflow_state in flow.draft():
+			self.add_comment("Comment", _("Returned to Estimation by {0}: {1}").format(
+				frappe.utils.get_fullname(frappe.session.user), frappe.utils.escape_html(self.return_reason or "")))
 
 	def _scope_rows_with_roles(self):
 		if self.is_new():
@@ -444,3 +471,17 @@ class ProjectEstimation(Document):
 			self.currency = frappe.get_cached_value(
 				"Company", self.company, "default_currency"
 			)
+
+
+@frappe.whitelist()
+def set_return_reason(name, reason):
+	"""Saves the reason before a Return action (apply_workflow reloads the doc from the database)."""
+	from nexlify_budget_control.nexlify_budget_control import estimation_flow as flow
+
+	frappe.has_permission("Project Estimation", "write", doc=name, throw=True)
+	reason = (reason or "").strip()
+	if not reason:
+		frappe.throw(_("Enter the reason for returning it."))
+	if frappe.db.get_value("Project Estimation", name, "workflow_state") not in flow.pending():
+		frappe.throw(_("The Estimation is not waiting for approval."))
+	frappe.db.set_value("Project Estimation", name, "return_reason", reason, update_modified=False)

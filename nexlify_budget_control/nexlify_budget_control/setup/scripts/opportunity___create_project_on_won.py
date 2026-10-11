@@ -1,9 +1,6 @@
 # Check if the stage is updated to 'Closed Won'
 if doc.sales_stage == "Closed Won":
 
-    # Closed Won needs the Estimation sent to Sales (checked only when the stage changes to Closed Won)
-    if doc.has_value_changed("sales_stage") and doc.custom_estimation_status != "Sent to Sales":
-        frappe.throw("The Opportunity can be Closed Won only after its Estimation is sent to Sales.")
     
     # 1. Backend Validation: Secure database against empty values
     if not doc.custom_closing_date:
@@ -44,4 +41,4 @@ if doc.sales_stage == "Closed Won":
         doc.custom_project = project.name  # keep in-memory doc in sync too
 
         # 6. The Plan opens when the Estimation team hands the project over to Planning.
-        frappe.msgprint(f"Success: A new project has been created: <b>{project.project_name}</b>. The Estimation is back with the Estimation team for the Contract Review.")
+        frappe.msgprint(f"Success: A new project has been created: <b>{project.project_name}</b>. The Estimation is back with the Estimation team for the Handover to Planning.")

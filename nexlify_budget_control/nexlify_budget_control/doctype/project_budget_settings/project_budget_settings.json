@@ -47,7 +47,10 @@
   "project_life_rules",
   "section_break_project_life_targets",
   "default_target_days",
-  "project_life_targets"
+  "project_life_targets",
+  "estimation_approval_section",
+  "coo_approval_limit",
+  "ceo_approval_limit"
  ],
  "fields": [
   {
@@ -273,10 +276,10 @@
    "label": "Project Life"
   },
   {
+   "description": "By default a stage waits on the roles allowed a step out of it in its Workflow (Cancel and System Manager aside). A row here wins over that, and is the only source for documents without a Workflow (Project Invoicing).",
    "fieldname": "section_break_project_life_rules",
    "fieldtype": "Section Break",
-   "label": "Who a stage waits on",
-   "description": "By default a stage waits on the roles allowed a step out of it in its Workflow (Cancel and System Manager aside). A row here wins over that, and is the only source for documents without a Workflow (Project Invoicing)."
+   "label": "Who a stage waits on"
   },
   {
    "fieldname": "project_life_rules",
@@ -290,22 +293,41 @@
    "label": "When a stage is overdue"
   },
   {
+   "default": "3",
+   "description": "A stage still waiting after this many days is Overdue, unless a Stage Target says otherwise.",
    "fieldname": "default_target_days",
    "fieldtype": "Int",
-   "label": "Default Target (days)",
-   "default": "3",
-   "description": "A stage still waiting after this many days is Overdue, unless a Stage Target says otherwise."
+   "label": "Default Target (days)"
   },
   {
    "fieldname": "project_life_targets",
    "fieldtype": "Table",
    "label": "Stage Targets",
    "options": "Project Life Stage Target"
+  },
+  {
+   "fieldname": "estimation_approval_section",
+   "fieldtype": "Section Break",
+   "label": "Estimation Approval"
+  },
+  {
+   "default": "100000",
+   "description": "Selling price (company currency) above which the COO approves the Estimation before it goes to Sales",
+   "fieldname": "coo_approval_limit",
+   "fieldtype": "Currency",
+   "label": "COO Approval Above"
+  },
+  {
+   "default": "250000",
+   "description": "Selling price (company currency) above which the CEO also approves, after the COO",
+   "fieldname": "ceo_approval_limit",
+   "fieldtype": "Currency",
+   "label": "CEO Approval Above"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 22:00:23.113863",
+ "modified": "2026-10-12 00:57:57.222510",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

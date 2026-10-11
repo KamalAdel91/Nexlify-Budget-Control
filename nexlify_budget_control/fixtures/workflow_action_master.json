@@ -44,20 +44,6 @@
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-10-03 23:34:37.519376",
-  "name": "Receive Contract",
-  "workflow_action_name": "Receive Contract"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow Action Master",
-  "modified": "2026-10-03 23:34:37.523326",
-  "name": "Resume Contract Review",
-  "workflow_action_name": "Resume Contract Review"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow Action Master",
   "modified": "2026-10-03 23:34:37.527468",
   "name": "Handover to Planning",
   "workflow_action_name": "Handover to Planning"
@@ -82,5 +68,54 @@
   "modified": "2026-10-10 00:12:43.758998",
   "name": "Submit",
   "workflow_action_name": "Submit"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Return to Estimation",
+  "workflow_action_name": "Return to Estimation"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Send Contract",
+  "workflow_action_name": "Send Contract"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Request Changes",
+  "workflow_action_name": "Request Changes"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Reprice",
+  "workflow_action_name": "Reprice"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Accept Contract",
+  "workflow_action_name": "Accept Contract"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Receive Signed Contract",
+  "workflow_action_name": "Receive Signed Contract"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Mark Lost",
+  "workflow_action_name": "Mark Lost"
  }
 ]

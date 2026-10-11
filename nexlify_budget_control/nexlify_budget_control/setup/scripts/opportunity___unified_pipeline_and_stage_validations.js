@@ -10,8 +10,8 @@ frappe.ui.form.on('Opportunity', {
         // Re-render the visual track layout to reflect any status modification
         render_dynamic_stage_bar(frm);
 
-        // Closed Won needs the Estimation sent to Sales (Estimation Status = Sent to Sales)
-        if (frm.doc.sales_stage === "Closed Won" && frm.doc.custom_estimation_status !== "Sent to Sales") {
+        // Closed Won needs the contract accepted by the Estimation team (server checks it too)
+        if (frm.doc.sales_stage === "Closed Won" && !((window.__nx_est_groups || {}).agreed || []).includes(frm.doc.custom_estimation_status)) {
             // Back to the stage saved in the database; other unsaved changes stay
             if (frm.is_new()) {
                 frm.doc.sales_stage = frappe.meta.get_docfield('Opportunity', 'sales_stage').default || null;
@@ -27,7 +27,7 @@ frappe.ui.form.on('Opportunity', {
             frappe.msgprint({
                 title: __('Estimation Required'),
                 indicator: 'red',
-                message: __('The Opportunity can be Closed Won only after its Estimation is sent to Sales. Estimation Status: {0}',
+                message: __('The Opportunity can be Closed Won only after the Estimation team accepts the contract. Estimation Status: {0}',
                     [__(frm.doc.custom_estimation_status || 'Not Sent')]),
                 primary_action: {
                     label: __('Go to RFQ'),
@@ -385,7 +385,7 @@ function render_dynamic_stage_bar(frm) {
 
         // Estimation status, shown next to the amount
         const est_status = d.custom_estimation_status || 'Not Sent';
-        const est_class = { 'Sent to Sales': 'is-green', 'Contract Review': 'is-orange', 'Handed Over': 'is-green', 'Draft': 'is-orange' }[est_status] || 'is-gray';
+        const est_class = nx_est_class(est_status);
         const est_sub = d.custom_estimation ? esc(d.custom_estimation) : __('Not linked yet');
 
         const ICON = {
@@ -543,4 +543,12 @@ function nexlify_discard_stage(frm) {
     }
     frm.doc.sales_stage = frappe.meta.get_docfield('Opportunity', 'sales_stage').default || null;
     frm.refresh_field('sales_stage');
+}
+
+// Estimation status colour from the Workflow state groups (loaded by opportunity_rfq.js)
+function nx_est_class(status) {
+    const g = window.__nx_est_groups;
+    if (!g || !status || status === 'Not Sent') return 'is-gray';
+    if ([...g.with_sales, ...g.agreed, ...g.won, ...g.handed_over].includes(status)) return 'is-green';
+    return g.lost.includes(status) ? 'is-gray' : 'is-orange';
 }

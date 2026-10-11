@@ -24,3 +24,31 @@ frappe.ui.form.on('Project Estimation', {
         });
     }
 });
+
+// Return to Estimation (COO / CEO) needs a reason
+frappe.ui.form.on('Project Estimation', {
+	before_workflow_action(frm) {
+		const action = frm.selected_workflow_action || '';
+		if (!action.startsWith('Return')) return;
+		return new Promise((resolve, reject) => {
+			frappe.dom.unfreeze();
+			let done = false;
+			const d = new frappe.ui.Dialog({
+				title: __(action),
+				fields: [{ fieldname: 'reason', fieldtype: 'Small Text', label: __('Reason'), reqd: 1 }],
+				primary_action_label: __(action),
+				primary_action(v) {
+					done = true;
+					d.hide();
+					frappe.call({
+						method: 'nexlify_budget_control.nexlify_budget_control.doctype.project_estimation.project_estimation.set_return_reason',
+						args: { name: frm.doc.name, reason: v.reason },
+						freeze: true
+					}).then(() => { frappe.dom.freeze(); resolve(); }, () => reject());
+				}
+			});
+			d.onhide = () => { if (!done) reject(); };
+			d.show();
+		});
+	}
+});

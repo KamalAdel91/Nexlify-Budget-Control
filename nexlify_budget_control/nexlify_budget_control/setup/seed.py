@@ -38,7 +38,8 @@ def _hash(text):
 def update_scripts_once():
 	"""Puts the app's version of the Server / Client Scripts listed in script_updates.json on this site,
 	only when the site still has the old version (or none). A script edited in the UI is left alone
-	and an Error Log explains why. Each version is applied once per site."""
+	and an Error Log explains why (on every migrate until replace_if_hash covers it). Each version is applied once
+	per site."""
 	base = os.path.dirname(__file__)
 	path = os.path.join(base, "script_updates.json")
 	if not os.path.exists(path):
@@ -66,6 +67,7 @@ def update_scripts_once():
 					title=f"Nexlify: {dt} not updated",
 					message=f"{dt} '{name}' was changed on this site, so the app did not replace it. "
 					f"The app's version is in nexlify_budget_control/setup/{item['file']}.")
+				continue
 		applied.add(key)
 		changed = True
 	if changed:

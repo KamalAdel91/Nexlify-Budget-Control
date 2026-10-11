@@ -17,8 +17,9 @@ doc_events = {
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_project_type",
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_rfq_lock",
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_closed_lock",
+            "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_won_ready",
         ],
-        "on_update": ["nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_opportunity_won", "nexlify_budget_control.nexlify_budget_control.supply_chain.on_opportunity_update", "nexlify_budget_control.nexlify_budget_control.project_life.on_opportunity_update"],
+        "on_update": ["nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_opportunity_closed", "nexlify_budget_control.nexlify_budget_control.supply_chain.on_opportunity_update", "nexlify_budget_control.nexlify_budget_control.project_life.on_opportunity_update"],
     },
     "Designation": {
         "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
@@ -180,7 +181,7 @@ fixtures = [
 					"In Planning",
 					"Pending COO Approval",
 					"Pending CEO Approval",
-					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled", "Pending", "Priced", "Cancelled Draft", "On Hold by Planning", "Submitted"
+					"Approved", "Sent to Sales", "Contract Review", "Handed Over", "Cancelled", "Pending", "Priced", "Cancelled Draft", "On Hold by Planning", "Submitted", "Changes Requested", "Contract Agreed", "Won", "Lost"
 				]
 			]
 		]
@@ -195,7 +196,7 @@ fixtures = [
 					"Send for Approval",
 					"Approve",
 					"Return to Planning",
-					"Return to COO", "Send to Sales", "Request Revision", "Receive Contract", "Resume Contract Review", "Handover to Planning", "Cancel", "Send Prices", "Submit"
+					"Return to COO", "Send to Sales", "Request Revision", "Return to Estimation", "Send Contract", "Request Changes", "Reprice", "Accept Contract", "Receive Signed Contract", "Mark Lost", "Handover to Planning", "Cancel", "Send Prices", "Submit"
 				]
 			]
 		]

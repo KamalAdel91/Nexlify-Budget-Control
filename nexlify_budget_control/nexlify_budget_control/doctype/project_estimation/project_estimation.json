@@ -73,9 +73,12 @@
   "margin_amount",
   "total_price",
   "price_per_day",
+  "approval_level",
+  "notes_to_sales",
   "other_cost_total",
   "workflow_state",
-  "is_cancelled_draft"
+  "is_cancelled_draft",
+  "return_reason"
  ],
  "fields": [
   {
@@ -312,6 +315,21 @@
    "read_only": 1
   },
   {
+   "description": "Set from the selling price and the limits in Project Budget Settings",
+   "fieldname": "approval_level",
+   "fieldtype": "Select",
+   "label": "Approval Needed",
+   "options": "\nCOO\nCEO",
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "description": "Goes to Sales with the price",
+   "fieldname": "notes_to_sales",
+   "fieldtype": "Small Text",
+   "label": "Notes to Sales"
+  },
+  {
    "collapsible": 1,
    "fieldname": "accommodation_section",
    "fieldtype": "Section Break",
@@ -523,6 +541,12 @@
    "label": "Cancelled Draft",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "return_reason",
+   "fieldtype": "Small Text",
+   "label": "Return Reason",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -554,7 +578,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-09 21:27:52.301389",
+ "modified": "2026-10-12 01:04:05.487513",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

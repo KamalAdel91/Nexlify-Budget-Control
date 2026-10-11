@@ -65,9 +65,9 @@ function nexlify_render_estimation_view(frm) {
 	frappe.call({
 		method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.get_estimation_for_opportunity',
 		args: { opportunity: frm.doc.name },
-		callback(r) {
+		callback(r) { nexlify_est_states().then((g) => {
 			const d = r.message || {};
-			const pill = { 'Sent to Sales': 'green', 'Contract Review': 'orange', 'Handed Over': 'green', 'Draft': 'orange' }[d.status] || 'gray';
+			const pill = !d.status ? 'gray' : [...g.with_sales, ...g.agreed, ...g.won, ...g.handed_over].includes(d.status) ? 'green' : g.lost.includes(d.status) ? 'gray' : 'orange';
 			const money = v => format_currency(v, d.currency);
 			const sub = d.estimation ? __('Estimation {0}', [esc(d.estimation)]) : __('No Estimation yet');
 			const head = (right) => `<div class="nx-rfq-head">
@@ -81,7 +81,7 @@ function nexlify_render_estimation_view(frm) {
 				field.$wrapper.html(`<div class="nx-rfq-card">${head()}<div class="nx-empty"><b>${msg[0]}</b>${msg[1]}</div></div>`);
 				return;
 			}
-			const revise = (d.status === 'Sent to Sales' && !['Closed Won', 'Closed Lost'].includes(frm.doc.sales_stage))
+			const revise = (g.with_sales.includes(d.status) && !['Closed Won', 'Closed Lost'].includes(frm.doc.sales_stage))
 				? `<button class="btn btn-xs btn-default nx-request-revision" style="margin-left:8px">${__('Request Revision')}</button>` : '';
 			const body = (d.rows || []).map(x => `<tr>
 				<td>${esc(x.equipment || '')}</td>
@@ -97,6 +97,7 @@ function nexlify_render_estimation_view(frm) {
 					<tfoot><tr><td colspan="3" class="nx-num">${__('Total')}</td><td class="nx-num">${money(d.total)}</td></tr></tfoot>
 				</table></div></div>`);
 			field.$wrapper.find('.nx-request-revision').on('click', () => nexlify_request_revision(frm));
+		});
 		},
 	});
 }
@@ -160,11 +161,15 @@ function nexlify_request_revision(frm) {
 	}, __('Request Revision'), __('Send Back'));
 }
 
-// A closed Opportunity (won or lost) is read only. The Signed Contract stays open while the Estimation is in Contract Review.
+// A closed Opportunity (won or lost) is read only. The Signed Contract stays open while the Estimation is Won (before the Handover).
 function nexlify_lock_closed(frm) {
+	nexlify_est_states().then((g) => nexlify_lock_closed_with(frm, g));
+}
+
+function nexlify_lock_closed_with(frm, g) {
 	const closed = ['Closed Won', 'Closed Lost', 'Closed Lost to Competition'].includes(frm.doc.sales_stage);
 	if (frm.is_new() || !closed || frappe.user.has_role('System Manager')) return;
-	const contract_open = frm.doc.custom_estimation_status === 'Contract Review';
+	const contract_open = g.won.includes(frm.doc.custom_estimation_status);
 	(frm.meta.fields || []).forEach(df => {
 		if (frappe.model.no_value_type.includes(df.fieldtype) && !frappe.model.table_fields.includes(df.fieldtype)) return;
 		if (contract_open && df.fieldname === 'custom_signed_contract') return;
@@ -172,4 +177,13 @@ function nexlify_lock_closed(frm) {
 	});
 	if (!contract_open) frm.disable_save();
 	frm.dashboard.set_headline_alert(__('This Opportunity is {0} and cannot be changed.', [__(frm.doc.sales_stage)]), 'gray');
+}
+
+// The Estimation Workflow states by group, read from the Workflow on the server, loaded once per page.
+function nexlify_est_states() {
+	if (!window.__nx_est_states) {
+		window.__nx_est_states = frappe.xcall('nexlify_budget_control.nexlify_budget_control.estimation_flow.get_state_groups')
+			.then((g) => (window.__nx_est_groups = g));
+	}
+	return window.__nx_est_states;
 }

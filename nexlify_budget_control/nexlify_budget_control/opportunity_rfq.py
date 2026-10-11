@@ -2,7 +2,8 @@ import frappe
 from frappe import _
 from frappe.utils import flt, nowdate
 
-LOCKED_STATUSES = ('Draft', 'Sent to Sales', 'Contract Review', 'Handed Over', 'Cancelled')
+from nexlify_budget_control.nexlify_budget_control import estimation_flow as flow
+
 
 
 @frappe.whitelist()
@@ -38,7 +39,7 @@ def validate_project_type(doc, method=None):
 	if doc.get("custom_project_type") != MAINTENANCE_PROJECT_TYPE and doc.get("custom_maintenance_type"):
 		doc.custom_maintenance_type = None
 	before = doc.get_doc_before_save()
-	if not before or (before.get("custom_estimation_status") or "Not Sent") not in LOCKED_STATUSES:
+	if not before or (before.get("custom_estimation_status") or "Not Sent") not in flow.rfq_locked():
 		return
 	for f, label_field in (("custom_project_type", "custom_project_type"), ("custom_maintenance_type", "custom_maintenance_type"),
 			("custom_locations_summary", "custom_project_locations")):
@@ -68,7 +69,7 @@ def refresh_fetches(doc, method=None):
 def validate_rfq_lock(doc, method=None):
 	"""Once sent to Estimation, the RFQ Items cannot change."""
 	before = doc.get_doc_before_save()
-	if not before or (before.get("custom_estimation_status") or "Not Sent") not in LOCKED_STATUSES:
+	if not before or (before.get("custom_estimation_status") or "Not Sent") not in flow.rfq_locked():
 		return
 	if _rfq_rows(doc) != _rfq_rows(before):
 		frappe.throw(_("The RFQ Items were sent to Estimation {0} and cannot be changed.").format(before.custom_estimation))
@@ -161,7 +162,7 @@ def get_estimation_for_opportunity(opportunity):
 	frappe.has_permission("Opportunity", "read", doc=opportunity, throw=True)
 	est, status = frappe.db.get_value("Opportunity", opportunity, ["custom_estimation", "custom_estimation_status"])
 	status = status or "Not Sent"
-	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in SALES_VISIBLE:
+	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.sales_visible():
 		return {"estimation": est, "status": status, "submitted": False, "rows": [], "total": 0, "currency": None}
 	e = frappe.db.get_value("Project Estimation", est, ["total_price", "currency"], as_dict=True)
 	rows = frappe.get_all("Project Equipment Scope", filters={"cost_budget": est, "docstatus": ["<", 2]},
@@ -231,7 +232,6 @@ def get_project_estimation_status(project):
 	return frappe.db.get_value("Project Estimation", est, "docstatus") if est else None
 
 
-SALES_VISIBLE = ("Sent to Sales", "Contract Review", "Handed Over")
 
 # Source doctype -> (doctype that fetches from it, its link field). The fetched fields come from the meta.
 FETCH_LINKS = {
@@ -247,16 +247,21 @@ def share_signed_contract(doc, method=None):
 		attach_file_copy(doc.signed_contract, doc.doctype, doc.name, "signed_contract")
 
 
-def on_opportunity_won(doc, method=None):
-	"""Closed Won with the signed contract: the Estimation goes back to the Estimation team for the Contract Review."""
-	if doc.sales_stage != "Closed Won" or not doc.has_value_changed("sales_stage") or not doc.get("custom_estimation"):
+def on_opportunity_closed(doc, method=None):
+	"""Closed Won (with the signed contract) moves the agreed Estimation to Won, back with the Estimation team for the
+	Handover. A lost deal marks the Estimation Lost while it is still before the win."""
+	if doc.sales_stage not in CLOSED_STAGES or not doc.has_value_changed("sales_stage") or not doc.get("custom_estimation"):
 		return
-	if frappe.db.get_value("Project Estimation", doc.custom_estimation, "workflow_state") != "Sent to Sales":
+	state = frappe.db.get_value("Project Estimation", doc.custom_estimation, "workflow_state")
+	if doc.sales_stage == "Closed Won":
+		action = flow.RECEIVE_SIGNED_CONTRACT if state in flow.agreed() else None
+	else:
+		action = flow.MARK_LOST if state in flow.left_by(flow.MARK_LOST) else None
+	if not action:
 		return
 	from frappe.model.workflow import apply_workflow
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator
-	est = frappe.get_doc("Project Estimation", doc.custom_estimation).as_dict()
-	_run_as_administrator(apply_workflow, est, "Receive Contract")
+	_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", doc.custom_estimation).as_dict(), action)
 
 
 @frappe.whitelist()
@@ -270,11 +275,11 @@ def request_estimation_revision(opportunity, reason):
 	if opp.sales_stage in ("Closed Won", "Closed Lost"):
 		frappe.throw(_("The Opportunity is closed."))
 	est = opp.get("custom_estimation")
-	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") != "Sent to Sales":
+	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.with_sales():
 		frappe.throw(_("The Estimation is not with Sales."))
 	from frappe.model.workflow import apply_workflow
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator
-	_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", est).as_dict(), "Request Revision")
+	_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", est).as_dict(), flow.REQUEST_REVISION)
 	note = _("Revision requested by {0}: {1}").format(frappe.utils.get_fullname(), frappe.utils.escape_html(reason))
 	frappe.get_doc("Project Estimation", est).add_comment("Comment", note)
 	opp.add_comment("Comment", note)
@@ -319,7 +324,7 @@ def _rows(doc, df):
 
 
 def validate_closed_lock(doc, method=None):
-	"""A closed Opportunity (won or lost) cannot change. Only the Signed Contract may be replaced while the Estimation is in Contract Review."""
+	"""A closed Opportunity (won or lost) cannot change. Only the Signed Contract may be replaced while the Estimation is Won (before the Handover)."""
 	if doc.is_new() or "System Manager" in frappe.get_roles():
 		return
 	before = doc.get_doc_before_save()
@@ -327,7 +332,7 @@ def validate_closed_lock(doc, method=None):
 		return
 	from frappe.model import no_value_fields, table_fields
 	allowed = set()
-	if doc.get("custom_estimation") and frappe.db.get_value("Project Estimation", doc.custom_estimation, "workflow_state") == "Contract Review":
+	if doc.get("custom_estimation") and frappe.db.get_value("Project Estimation", doc.custom_estimation, "workflow_state") in flow.won():
 		allowed.add("custom_signed_contract")
 	changed = []
 	for df in doc.meta.fields:
@@ -351,3 +356,14 @@ def on_estimation_cancelled_draft(doc, method=None):
 
 	release_opportunity(doc, cancelled=True)
 	cancel_pending_requests(doc.name)
+
+
+def validate_won_ready(doc, method=None):
+	"""Closed Won only after the Estimation team accepted the contract; the signed contract comes with the Closed Won."""
+	if doc.sales_stage != "Closed Won" or not doc.has_value_changed("sales_stage"):
+		return
+	est = doc.get("custom_estimation")
+	state = frappe.db.get_value("Project Estimation", est, "workflow_state") if est else None
+	if state not in flow.agreed():
+		frappe.throw(_("The Opportunity can be Closed Won only after the Estimation team accepts the contract. Estimation Status: {0}").format(
+			_(state or "Not Sent")), title=_("Contract not agreed"))

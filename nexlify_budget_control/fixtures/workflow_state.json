@@ -133,5 +133,41 @@
   "name": "Submitted",
   "style": "Primary",
   "workflow_state_name": "Submitted"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Changes Requested",
+  "style": "Warning",
+  "workflow_state_name": "Changes Requested"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Contract Agreed",
+  "style": "Success",
+  "workflow_state_name": "Contract Agreed"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Won",
+  "style": "Success",
+  "workflow_state_name": "Won"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-12 01:04:05.487513",
+  "name": "Lost",
+  "style": "Danger",
+  "workflow_state_name": "Lost"
  }
 ]

@@ -17,7 +17,8 @@
    "a6c27063c7b4aa7a9c920a83926d76dc",
    "bbf223665933c0e56bddb75082e1842c",
    "913b6892ca1aee11e93c4c181fa94ec7",
-   "d30bcfd8b3de0671b1b196dbcb772297"
+   "d30bcfd8b3de0671b1b196dbcb772297",
+   "c26916b1ecdc68088f3ce443445f9a2e"
   ]
  },
  {
@@ -40,7 +41,21 @@
    "7ae2d95993a8476bb7ba7a1e5e80a394",
    "7c238b59eb9914ac30fd9d2d8ab30d7b",
    "6ab3601708994be98143428496643bbc",
-   "bdaace77852e2fbf45768d01e2012653"
+   "bdaace77852e2fbf45768d01e2012653",
+   "efe76d349d7184b3f7d09ff0bacb41d3"
+  ]
+ },
+ {
+  "doctype": "Server Script",
+  "name": "Opportunity - Stage Rules",
+  "file": "scripts/opportunity___stage_rules.py",
+  "fields": {
+   "script_type": "DocType Event",
+   "reference_doctype": "Opportunity",
+   "doctype_event": "Before Save"
+  },
+  "replace_if_hash": [
+   "384a08c60ae3d6d5c809a035c9d4ac91"
   ]
  }
 ]
