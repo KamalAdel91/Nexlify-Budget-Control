@@ -16,6 +16,7 @@
   "invoice_percentage",
   "invoice_amount",
   "invoice_description",
+  "invoice_type",
   "computed_section",
   "status",
   "sales_order",
@@ -95,6 +96,13 @@
    "fieldtype": "Small Text",
    "label": "Invoice Description",
    "reqd": 1
+  },
+  {
+   "description": "Down Payment: ready to invoice once the Plan is approved, without a Job Completion. Can be set later, while the invoice is Pending.",
+   "fieldname": "invoice_type",
+   "fieldtype": "Select",
+   "label": "Invoice Type",
+   "options": "\nJob Completion\nDown Payment"
   },
   {
    "fieldname": "computed_section",
@@ -180,7 +188,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-09 23:00:39.225189",
+ "modified": "2026-10-12 01:35:21.759666",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Invoicing",

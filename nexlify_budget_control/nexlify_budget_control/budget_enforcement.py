@@ -391,6 +391,8 @@ def on_project_planning_submit(doc, method=None):
     pointed at this document. Mirrors on_project_estimation_submit.
     """
     _submit_planning_scope(doc.name)
+    from nexlify_budget_control.nexlify_budget_control.job_completion import ready_down_payments
+    ready_down_payments(doc.name)
 
     if not doc.project:
         return

@@ -10,6 +10,7 @@ from frappe import _
 from frappe.utils import flt, getdate, nowdate
 
 PENDING, READY, INVOICED = "Pending", "Ready to Invoice", "Invoiced"  # Project Invoicing.status
+JOB_COMPLETION, DOWN_PAYMENT = "Job Completion", "Down Payment"  # Project Invoicing.invoice_type
 
 
 def _invoice_of_approved_plan(invoicing):
@@ -20,15 +21,9 @@ def _invoice_of_approved_plan(invoicing):
 	return doc
 
 
-@frappe.whitelist()
-def mark_job_completed(invoicing, job_completion, completion_date=None):
-	"""Pending -> Ready to Invoice, with the Job Completion file. The amount is fixed now, and a Draft Sales Order
-	is made for it (or the one an Undo put on hold comes back)."""
-	doc = _invoice_of_approved_plan(invoicing)
-	if doc.status != PENDING:
-		frappe.throw(_("{0} is {1}, not {2}.").format(doc.invoice_label or doc.name, _(doc.status), _(PENDING)))
-	if not job_completion:
-		frappe.throw(_("Attach the Job Completion first."))
+def make_ready(doc, job_completion=None, completion_date=None, save=True):
+	"""Pending -> Ready to Invoice. The amount is fixed now, and a Draft Sales Order is made for it (or the one an
+	Undo put on hold comes back). A Job Completion brings its file; a Down Payment needs none."""
 	revenue = flt(frappe.db.get_value("Project", doc.project, "custom_planned_revenue"))
 	if not revenue:
 		frappe.throw(_("The Project {0} has no contract value (Planned Revenue).").format(doc.project))
@@ -40,8 +35,33 @@ def mark_job_completed(invoicing, job_completion, completion_date=None):
 		"invoice_amount": flt(revenue * flt(doc.invoice_percentage) / 100, 2),
 	})
 	doc.sales_order = _prepare_sales_order(doc)
-	doc.save(ignore_permissions=True)  # the Planner may mark it; the amount and the order are the system's, unseen
+	if save:
+		doc.save(ignore_permissions=True)  # the amount and the order are the system's, unseen by Planning
+
+
+@frappe.whitelist()
+def mark_job_completed(invoicing, job_completion, completion_date=None):
+	"""Pending -> Ready to Invoice with the Job Completion file, for a Job Completion invoice."""
+	doc = _invoice_of_approved_plan(invoicing)
+	if doc.status != PENDING:
+		frappe.throw(_("{0} is {1}, not {2}.").format(doc.invoice_label or doc.name, _(doc.status), _(PENDING)))
+	if doc.invoice_type == DOWN_PAYMENT:
+		frappe.throw(_("{0} is a Down Payment: it is ready to invoice once the Plan is approved.").format(doc.invoice_label or doc.name))
+	if doc.invoice_type != JOB_COMPLETION:
+		frappe.throw(_("Set the Invoice Type of {0} first.").format(doc.invoice_label or doc.name))
+	if not job_completion:
+		frappe.throw(_("Attach the Job Completion first."))
+	make_ready(doc, job_completion, completion_date)
 	return doc.status
+
+
+def ready_down_payments(project_planning):
+	"""Down Payments are ready to invoice as soon as the Plan is approved, without a Job Completion."""
+	if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 1:
+		return
+	for name in frappe.get_all("Project Invoicing", filters={"project_planning": project_planning, "status": PENDING,
+			"invoice_type": DOWN_PAYMENT}, pluck="name"):
+		make_ready(frappe.get_doc("Project Invoicing", name))
 
 
 @frappe.whitelist()
@@ -50,6 +70,8 @@ def undo_job_completed(invoicing):
 	doc = _invoice_of_approved_plan(invoicing)
 	if doc.status != READY:
 		frappe.throw(_("{0} is {1}: only an invoice Ready to Invoice can go back.").format(doc.invoice_label or doc.name, _(doc.status)))
+	if doc.invoice_type == DOWN_PAYMENT:
+		frappe.throw(_("{0} is a Down Payment: it was made ready by the Plan approval and cannot go back.").format(doc.invoice_label or doc.name))
 	if doc.sales_order and frappe.db.get_value("Sales Order", doc.sales_order, "docstatus") == 0:
 		_set_hold(doc.sales_order, True)
 		frappe.get_doc("Sales Order", doc.sales_order).add_comment(
@@ -68,7 +90,7 @@ NOTIFICATIONS = [
 		"condition": 'doc.status == "Ready to Invoice"',
 		"channel": "Email", "send_system_notification": 1,
 		"subject": "Ready to invoice: {{ doc.invoice_label or doc.name }} of {{ doc.project }} (Sales Order {{ doc.sales_order or '' }})",
-		"message": """<p>The job of <b>{{ doc.invoice_label or doc.name }}</b> is completed. Its Draft Sales Order is ready for you to review and submit.</p>
+		"message": """{% if doc.invoice_type == "Down Payment" %}<p>The down payment <b>{{ doc.invoice_label or doc.name }}</b> is ready to invoice: the Plan is approved. Its Draft Sales Order is ready for you to review and submit.</p>{% else %}<p>The job of <b>{{ doc.invoice_label or doc.name }}</b> is completed. Its Draft Sales Order is ready for you to review and submit.</p>{% endif %}
 <table>
 <tr><td>Project</td><td><b>{{ doc.project }}</b></td></tr>
 <tr><td>Customer</td><td>{{ doc.customer or "" }}</td></tr>

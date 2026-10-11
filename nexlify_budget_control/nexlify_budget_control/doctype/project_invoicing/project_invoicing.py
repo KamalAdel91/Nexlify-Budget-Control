@@ -21,10 +21,11 @@ class ProjectInvoicing(Document):
 		if self.name and "-INV-" in self.name:
 			self.invoice_label = "-".join(self.name.split("-")[-2:])
 		self._validate_plan_lock()
+		self._validate_invoice_type()
 
 	def _validate_plan_lock(self):
 		"""A Plan that is approved or waiting for approval keeps its invoices: only the system's fields
-		(status, Job Completion, amount, Sales Invoice) change then. Same lock as the Edit dialogs."""
+		(status, Job Completion, amount, Sales Invoice) change then, and the Invoice Type while Pending. Same lock as the Edit dialogs."""
 		if not self.project_planning:
 			return
 		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import (
@@ -35,11 +36,24 @@ class ProjectInvoicing(Document):
 
 		before = None if self.is_new() else self.get_doc_before_save()
 		if before:
-			fields = [f for f in self.meta.fields if f.fieldname not in EXCLUDED_INVOICING_EDIT_FIELDS
+			fields = [f for f in self.meta.fields if f.fieldname not in EXCLUDED_INVOICING_EDIT_FIELDS and f.fieldname != "invoice_type"
 				and (f.fieldtype in ("Table", "Table MultiSelect") or f.fieldtype not in NON_VALUE_FIELDTYPES) and not f.read_only]
 			if not any(_value(self, f) != _value(before, f) for f in fields):
 				return
 		_assert_plan_editable(self.project_planning)
+
+	def _validate_invoice_type(self):
+		"""The Invoice Type changes only while Pending. A Down Payment on an approved Plan is ready to invoice at once."""
+		from nexlify_budget_control.nexlify_budget_control.job_completion import DOWN_PAYMENT, PENDING, make_ready
+
+		before = None if self.is_new() else self.get_doc_before_save()
+		if not before or before.get("invoice_type") == self.invoice_type:
+			return
+		if before.get("status") != PENDING:
+			frappe.throw(_("The Invoice Type changes only while the invoice is Pending."))
+		if (self.invoice_type == DOWN_PAYMENT and self.status == PENDING and self.project_planning
+				and frappe.db.get_value("Project Planning", self.project_planning, "docstatus") == 1):
+			make_ready(self, save=False)
 
 
 def _ordinal(n):
