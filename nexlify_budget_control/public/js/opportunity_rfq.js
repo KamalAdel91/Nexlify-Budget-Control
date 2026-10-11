@@ -85,7 +85,8 @@ function nexlify_render_estimation_view(frm) {
 				? `<button class="btn btn-xs btn-default nx-request-revision" style="margin-left:8px">${__('Request Revision')}</button>` : '';
 			const can_send = [...g.with_sales, ...g.changes_requested].includes(d.status)
 				&& !['Closed Won', 'Closed Lost', 'Closed Lost to Competition'].includes(frm.doc.sales_stage);
-			const send = can_send ? `<button class="btn btn-xs btn-primary nx-send-contract" style="margin-left:8px">${__('Send Contract')}</button>` : '';
+			const send = can_send ? `<button class="btn btn-xs btn-default nx-make-quotation" style="margin-left:8px">${__('Make Quotation')}</button>`
+				+ `<button class="btn btn-xs btn-primary nx-send-contract" style="margin-left:8px">${__('Send Contract')}</button>` : '';
 			const notes = d.notes ? `<div style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--subtle-fg, #f8f8f8);font-size:13px"><div class="nx-rfq-sub">${__('Notes from Estimation')}</div>${esc(d.notes)}</div>` : '';
 			const rounds = (d.rounds || []).length ? `<div style="margin:12px 0 0"><div class="nx-rfq-sub">${__('Contract rounds')}</div>`
 				+ d.rounds.map(r => `<div style="font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border-color, #ededed)"><b>${__('Round {0}', [r.round_no])}</b> · ${esc(__(r.event || ''))} · ${esc(r.by_name || '')} · ${frappe.datetime.str_to_user(r.sent_on)}${r.comment ? `<div class="text-muted">${esc(r.comment)}</div>` : ''}</div>`).join('') + '</div>' : '';
@@ -104,6 +105,8 @@ function nexlify_render_estimation_view(frm) {
 				</table></div>${notes}${rounds}</div>`);
 			field.$wrapper.find('.nx-request-revision').on('click', () => nexlify_request_revision(frm));
 			field.$wrapper.find('.nx-send-contract').on('click', () => nexlify_send_contract(frm));
+			field.$wrapper.find('.nx-make-quotation').on('click', () => frappe.model.open_mapped_doc({
+				method: 'erpnext.crm.doctype.opportunity.opportunity.make_quotation', frm }));
 		});
 		},
 	});

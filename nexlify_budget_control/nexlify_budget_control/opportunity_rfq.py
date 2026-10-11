@@ -431,3 +431,36 @@ def send_contract(opportunity, contract, quotation, comment=None):
 	if (comment or "").strip():
 		note += ": " + frappe.utils.escape_html(comment.strip())
 	opp.add_comment("Comment", note)
+
+
+@frappe.whitelist()
+def make_quotation(source_name, target_doc=None):
+	"""Create > Quotation on an Opportunity: ERPNext's mapping (party, company, default taxes), then one line per
+	Equipment Scope of the approved Estimation, priced as Estimation priced it. Sales may change the prices."""
+	from erpnext.crm.doctype.opportunity.opportunity import make_quotation as erpnext_make_quotation
+	from nexlify_budget_control.nexlify_budget_control.job_completion import item_for_project_type
+
+	opp = frappe.get_doc("Opportunity", source_name)
+	est = opp.get("custom_estimation")
+	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.left_by(flow.SEND_CONTRACT):
+		frappe.throw(_("The Quotation is made once the Estimation prices are with Sales."), title=_("No prices yet"))
+	e = frappe.db.get_value("Project Estimation", est, ["currency", "conversion_rate"], as_dict=True)
+	item = item_for_project_type(opp.get("custom_project_type"))
+	uom = frappe.db.get_value("Item", item, "stock_uom")
+	described = {r.equipment: (r.description or "").strip() for r in opp.get("custom_rfq_items") or []}
+
+	q = erpnext_make_quotation(source_name, target_doc)
+	q.opportunity = opp.name
+	q.ignore_pricing_rule = 1
+	q.currency = e.currency
+	q.conversion_rate = flt(e.conversion_rate) or 1
+	q.set("items", [])
+	for r in frappe.get_all("Project Equipment Scope", filters={"cost_budget": est, "docstatus": ["<", 2]},
+			fields=["equipment", "quantity", "unit_price"], order_by="creation"):
+		q.append("items", {"item_code": item, "item_name": r.equipment,
+			"description": described.get(r.equipment) or r.equipment, "qty": flt(r.quantity),
+			"uom": uom, "stock_uom": uom, "conversion_factor": 1,
+			"price_list_rate": flt(r.unit_price), "rate": flt(r.unit_price), "discount_percentage": 0})
+	q.run_method("set_missing_values")
+	q.run_method("calculate_taxes_and_totals")
+	return q

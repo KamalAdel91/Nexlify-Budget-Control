@@ -283,3 +283,8 @@ scheduler_events = {
     "cron": {
     },
 }
+
+# Create > Quotation on an Opportunity fills the lines from the approved Estimation
+override_whitelisted_methods = {
+	"erpnext.crm.doctype.opportunity.opportunity.make_quotation": "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.make_quotation",
+}

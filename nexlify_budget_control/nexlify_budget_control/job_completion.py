@@ -110,9 +110,8 @@ def plan_editable(project_planning):
 ORDERED = "Ordered"  # Project Invoicing.status, once its Sales Order is submitted
 
 
-def _invoice_item(project):
-	"""The Item of a project's invoices: the Project Invoice Items row of its Project Type, else the default row."""
-	project_type = frappe.db.get_value("Project", project, "project_type")
+def item_for_project_type(project_type):
+	"""The Item for a Project Type (invoices and quotations): its Project Invoice Items row, else the default row."""
 	rows = frappe.get_all("Project Invoice Item Rule", filters={"parenttype": "Project Budget Settings"},
 		fields=["project_type", "item_code"])
 	item = next((r.item_code for r in rows if project_type and r.project_type == project_type), None) or next(
@@ -120,6 +119,11 @@ def _invoice_item(project):
 	if not item:
 		frappe.throw(_("Set the Project Invoice Items in Project Budget Settings (Invoicing)."))
 	return item
+
+
+def _invoice_item(project):
+	"""The Item of a project's invoices, by its Project Type."""
+	return item_for_project_type(frappe.db.get_value("Project", project, "project_type"))
 
 
 def _prepare_sales_order(doc):

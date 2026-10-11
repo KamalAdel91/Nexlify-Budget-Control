@@ -290,13 +290,16 @@ class ProjectEstimation(Document):
 		self.budget_difference = flt(self.budget_details_total - flt(self.total_cost), 2)
 
 	def _store_equipment_scope_prices(self, include_submitted=False):
-		"""Stores each equipment's crew day cost, manpower cost and its share of the price (same formulas as the form)."""
+		"""Stores each equipment's crew day cost, manpower cost and its share of the price (same formulas as the form).
+		The line price is the rounded unit price times the quantity, and the Estimation price is the sum of the lines
+		(the rounding goes to the margin), so the approval, the Sales view and the Quotation show the same number."""
 		if self.is_new():
 			return
 		flt = frappe.utils.flt
 		rates = self._day_rates()
 		manpower = flt(self.manpower_cost)
 		statuses = [0, 1] if include_submitted else [0]
+		line_total = 0
 		for r in frappe.get_all("Project Equipment Scope",
 				filters={"cost_budget": self.name, "docstatus": ["in", statuses]}, fields=["name", "quantity", "total_days"]):
 			roles = frappe.get_all("Project Equipment Scope Role",
@@ -305,8 +308,15 @@ class ProjectEstimation(Document):
 			cost = flt(flt(r.total_days) * crew, 2)
 			price = flt(flt(self.total_price) * cost / manpower, 2) if manpower else 0
 			unit = flt(price / flt(r.quantity), 2) if flt(r.quantity) else 0
+			if flt(r.quantity):
+				price = flt(unit * flt(r.quantity), 2)
+			line_total += price
 			frappe.db.set_value("Project Equipment Scope", r.name,
 				{"crew_day_cost": crew, "manpower_cost": cost, "total_price": price, "unit_price": unit}, update_modified=False)
+		if line_total and abs(line_total - flt(self.total_price)) >= 0.005:
+			self.total_price = flt(line_total, 2)
+			self.margin_amount = flt(self.total_price - flt(self.total_cost), 2)
+			self.price_per_day = flt(self.total_price / flt(self.total_work_days), 2) if flt(self.total_work_days) else 0
 
 	def _reset_changed_supply_prices(self):
 		"""A Supply price comes from the Supply Chain, or is typed for a Manual line: a new line, or a changed item, quantity or source, is priced again."""
