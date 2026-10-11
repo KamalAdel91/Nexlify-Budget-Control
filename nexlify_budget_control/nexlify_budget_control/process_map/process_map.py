@@ -78,6 +78,12 @@ def _workflows(names):
 	return out
 
 
+def _actions(ref):
+	"""The actions a step reference names: one action, or a list of them."""
+	action = ref.get("action")
+	return set(action) if isinstance(action, list) else {action}
+
+
 def _resolve(ref, workflows):
 	"""(status, doctype) for a step: a status constant, a workflow's first state, or where an action leads."""
 	if ref.get("constant"):
@@ -99,7 +105,7 @@ def _resolve(ref, workflows):
 		return (first[0] if first else ""), wf.doctype
 	states = []
 	for row in wf.transitions:
-		if row.action == ref.get("action") and ref.get("allowed") in (None, row.allowed) and row.next_state not in states:
+		if row.action in _actions(ref) and ref.get("allowed") in (None, row.allowed) and row.next_state not in states:
 			states.append(row.next_state)
 	return " or ".join(states), wf.doctype
 
@@ -129,22 +135,26 @@ def _ceo_limit(wf):
 
 
 def _from_states(ref, workflows):
-	"""The stages a step works in: those its action leaves (from the Workflow), or the status constant given."""
+	"""The stages a step works in: those its action leaves (from the Workflow), those another action reaches
+	("reached_by"), or the status constant given."""
 	if ref.get("constant"):
 		try:
 			return {frappe.get_attr(ref["constant"])}
 		except (ImportError, AttributeError):
 			return set()
 	wf = workflows.get(ref.get("workflow"))
+	if wf and ref.get("reached_by"):
+		return {r.next_state for r in wf.transitions if r.action == ref["reached_by"]}
 	if not wf or ref.get("initial"):
 		return set()
-	return {r.state for r in wf.transitions if r.action == ref.get("action") and ref.get("allowed") in (None, r.allowed)}
+	return {r.state for r in wf.transitions if r.action in _actions(ref) and ref.get("allowed") in (None, r.allowed)}
 
 
 def _step_progress(step, rows, workflows):
 	"""One step for one project: done when its document reaches the stage the step leads to ("done", else "status"),
 	started when it entered the stage the step works in ("from", else the one the action leaves). A step done once per
-	document ("each": Supply Requests, invoices) is done when every document still going has reached it. A document
+	document ("each": Supply Requests, invoices) is done when every document still going has reached it. An "exact" step
+	(the price approvals) counts only a document that reached that stage from the step's own stage, not another way. A document
 	still open counts as open for the step only while it stands in the stage the step works in or leads to, so a
 	document that has moved on (or was recorded only from a later stage) does not hold an earlier step open."""
 	done_ref = step.get("done") or step.get("status") or {}
@@ -155,7 +165,7 @@ def _step_progress(step, rows, workflows):
 	reached, last = {}, {}
 	for r in mine:
 		last[r.reference_name] = r
-		if r.stage in done_states and r.reference_name not in reached:
+		if r.stage in done_states and r.reference_name not in reached and (not step.get("exact") or r.previous_stage in from_states):
 			reached[r.reference_name] = r.entered_on
 	# a document that ended elsewhere (cancelled) without reaching the step does not count
 	docs = [n for n, r in last.items() if n in reached or r.is_open]
@@ -168,7 +178,10 @@ def _step_progress(step, rows, workflows):
 		finished = max(reached[n] for n in docs) if done else None
 		count = sum(1 for n in docs if n in reached)
 	else:
-		done = bool(reached)
+		# back in the step (a revision, a Return, a Reprice): not done until it leaves again
+		redo = [n for n, r in last.items() if r.is_open and r.stage in from_states
+			and n in reached and r.entered_on > reached[n]]
+		done = bool(reached) and not redo
 		finished = min(reached.values()) if done else None
 		count = len(reached)
 	# What happened in the step: entering the stage it works in, leaving it, reaching the stage it leads to
@@ -189,7 +202,7 @@ def _step_states(raw, progress, life_open, outcome=None):
 	seen = False
 	for i in range(len(progress) - 1, -1, -1):
 		later[i] = seen
-		seen = seen or progress[i]["done"] or progress[i]["reached"] > 0
+		seen = seen or progress[i]["done"] or progress[i]["reached"] > 0 or bool(progress[i]["open"])
 	now_given = False
 	for s, p, passed in zip(raw, progress, later):
 		if p["done"]:

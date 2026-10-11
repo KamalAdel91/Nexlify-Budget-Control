@@ -61,11 +61,12 @@
 			"todo": [
 				"Fill the cost sections: Equipment scope, Team daily rates, Accommodation, Test equipment, Car and fuels, Supply, Other costs",
 				"Set the margin and check the total cost and price",
+				"Click Send to Sales, or Send for Approval when the price needs the COO / CEO",
 				"For each Supply line choose the Price Source: Supply Chain or Manual",
 				"Not going ahead? Cancel it: the RFQ goes back to Sales and the Estimation stays as history"
 			],
 			"receives": "RFQ from Sales",
-			"hands_to": "Supply Chain, for supply prices",
+			"hands_to": "COO / CEO when the price needs approval, otherwise Sales",
 			"status": {
 				"workflow": "Project Estimation Workflow",
 				"initial": 1
@@ -73,7 +74,10 @@
 			"open": "Project Estimation",
 			"done": {
 				"workflow": "Project Estimation Workflow",
-				"action": "Send to Sales"
+				"action": [
+					"Send to Sales",
+					"Send for Approval"
+				]
 			},
 			"short": "Pricing",
 			"phase": "Pricing"
@@ -102,47 +106,106 @@
 			"phase": "Pricing"
 		},
 		{
-			"team": "Estimation",
-			"title": "Send to Sales",
+			"team": "COO",
+			"title": "Approve the price",
+			"optional": 1,
 			"todo": [
-				"Make sure every supply price is back",
-				"Review the final price",
-				"Click Send to Sales"
+				"Needed only when the selling price is over the COO limit",
+				"Review the price",
+				"Approve, or Return to Estimation with a reason"
 			],
-			"receives": "Prices from Supply Chain",
+			"receives": "Price from Estimation",
+			"hands_to": "CEO when over the CEO limit, otherwise Sales",
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"action": "Approve",
+				"allowed": "COO"
+			},
+			"open": "Project Estimation",
+			"short": "Price",
+			"phase": "Pricing",
+			"exact": 1
+		},
+		{
+			"team": "CEO",
+			"title": "Approve the price",
+			"optional": 1,
+			"todo": [
+				"Needed only when the selling price is over the CEO limit",
+				"Approve, or Return to Estimation with a reason"
+			],
+			"receives": "Price approved by the COO",
 			"hands_to": "Sales",
 			"status": {
 				"workflow": "Project Estimation Workflow",
-				"action": "Send to Sales"
+				"action": "Approve",
+				"allowed": "CEO"
 			},
 			"open": "Project Estimation",
-			"note": "Sales receives the selling price only.",
-			"policy": {
-				"note": "Sales receives the selling price only: the cost, the margin and the cost breakdown stay with Estimation."
+			"short": "Price",
+			"phase": "Pricing",
+			"exact": 1
+		},
+		{
+			"team": "Sales",
+			"title": "Quote and send the contract",
+			"todo": [
+				"Click Make Quotation in the price card: the lines come with the Estimation prices",
+				"Send the Quotation to the customer",
+				"Customer changed the scope? Click Request Revision",
+				"When the customer sends the contract, click Send Contract and attach it: the Quotation goes with it"
+			],
+			"note": "The notes from Estimation show in the price card.",
+			"receives": "Selling price from Estimation",
+			"hands_to": "Estimation",
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"action": "Send Contract"
 			},
-			"short": "Send",
-			"phase": "Pricing"
+			"open": "Opportunity",
+			"policy": {
+				"receives": "Selling price only, without the cost or the margin"
+			},
+			"short": "Quote",
+			"phase": "Contract",
+			"also": [
+				"opportunity"
+			]
+		},
+		{
+			"team": "Estimation",
+			"title": "Review the contract",
+			"todo": [
+				"Open the contract and the Quotation in Contract Rounds",
+				"Request Changes with a comment, or Accept Contract",
+				"The price must change? Click Reprice: it goes back through approval"
+			],
+			"receives": "Contract and Quotation from Sales",
+			"hands_to": "Sales",
+			"status": {
+				"workflow": "Project Estimation Workflow",
+				"action": "Accept Contract"
+			},
+			"open": "Project Estimation",
+			"short": "Contract",
+			"phase": "Contract"
 		},
 		{
 			"team": "Sales",
 			"title": "Win the deal",
 			"todo": [
-				"Send the quote to the customer",
-				"If the customer changes the scope, click Request Revision to send it back to Estimation",
-				"Set the Opportunity to Closed Won and attach the signed contract: the Estimation moves to contract review by itself",
+				"Get the contract signed",
+				"Set the Opportunity to Closed Won and attach the signed contract: the Estimation comes back to Estimation for the Handover",
 				"If the customer says no, set Closed Lost: the project's life ends here"
 			],
 			"note": "Closed Opportunities are locked and can't be edited.",
-			"receives": "Selling price from Estimation",
+			"receives": "Contract agreed by Estimation",
 			"hands_to": "Estimation",
 			"status": {
 				"workflow": "Project Estimation Workflow",
 				"action": "Receive Signed Contract"
 			},
 			"open": "Opportunity",
-			"policy": {
-				"receives": "Selling price only, without the cost or the margin"
-			},
 			"short": "Win",
 			"phase": "Contract",
 			"also": [
@@ -152,10 +215,9 @@
 		},
 		{
 			"team": "Estimation",
-			"title": "Contract review and handover",
+			"title": "Hand over to Planning",
 			"todo": [
-				"Review the signed contract",
-				"Upload the contract copy for Planning",
+				"Upload the contract and the Quotation for Planning",
 				"Click Handover to Planning"
 			],
 			"receives": "Signed contract from Sales",
@@ -167,13 +229,16 @@
 			"open": "Project Estimation",
 			"policy": {
 				"todo": [
-					"Review the signed contract",
-					"Upload the Contract (No Prices)",
+					"Upload the Contract (No Prices) and the Quotation (No Prices)",
 					"Click Handover to Planning"
 				]
 			},
 			"short": "Handover",
-			"phase": "Contract"
+			"phase": "Contract",
+			"from": {
+				"workflow": "Project Estimation Workflow",
+				"reached_by": "Receive Signed Contract"
+			}
 		},
 		{
 			"team": "Planning",
@@ -181,6 +246,7 @@
 			"todo": [
 				"Build the Plan",
 				"Set the invoice dates and percentages",
+				"Set each invoice's type: Down Payment or Job Completion (can be set later)",
 				"Click Send for Approval: the Overview goes to the COO"
 			],
 			"receives": "Contract from Estimation",
@@ -192,7 +258,7 @@
 			"open": "Project Planning",
 			"policy": {
 				"note": "Planning never sees any amount.",
-				"receives": "Contract without prices"
+				"receives": "Contract and Quotation without prices"
 			},
 			"short": "Plan",
 			"phase": "Approval"
@@ -238,8 +304,8 @@
 			"team": "Planning",
 			"title": "Job completion",
 			"todo": [
-				"When the work for an invoice is done, mark its line as completed",
-				"Upload the Job Completion file",
+				"Down Payments are ready to invoice once the Plan is approved",
+				"For a Job Completion invoice, when the work is done mark its line as completed and upload the Job Completion file",
 				"The system creates a Draft Sales Order for Finance",
 				"Undo puts that Sales Order on hold instead of deleting it"
 			],

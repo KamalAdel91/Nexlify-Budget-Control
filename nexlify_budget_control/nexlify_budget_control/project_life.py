@@ -40,6 +40,11 @@ SEEDS = (
 	("nexlify_project_life_targets_seeded", "targets", (("Project Invoicing", "Pending", 0),)),
 	# ... and is due on its Expected Invoice Date
 	("nexlify_project_life_invoice_due_seeded", "due", (("Project Invoicing", "Pending", "expected_invoice_date"),)),
+	# The system takes these steps for Sales (Send Contract, Closed Won), so name who waits
+	("nexlify_project_life_contract_rules_seeded", "rules", (
+		("Project Estimation", "Changes Requested", "Sales User"),
+		("Project Estimation", "Contract Agreed", "Sales User"),
+	)),
 )
 
 
