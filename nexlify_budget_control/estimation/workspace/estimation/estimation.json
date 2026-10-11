@@ -6,7 +6,7 @@
    "label": "Estimations per Month"
   }
  ],
- "content": "[{\"id\":\"vhxSezvvXw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Process</b></span>\",\"col\":12}},{\"id\":\"vGf2htnWHe\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Business Process Map\",\"col\":12}},{\"id\":\"hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Estimation</b></span>\",\"col\":12}},{\"id\":\"nc0\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Draft Estimations\",\"col\":3}},{\"id\":\"nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Estimations Missing Contract\",\"col\":3}},{\"id\":\"nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Estimations Submitted This Month\",\"col\":3}},{\"id\":\"ch0\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Estimations per Month\",\"col\":12}},{\"id\":\"7jujtdi5KJ\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Hand-offs</b></span>\",\"col\":12}},{\"id\":\"rVZp2FI76e\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Pipeline Status\",\"col\":3}},{\"id\":\"eTPZ0MiQJb\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Waiting on Sales\",\"col\":4}},{\"id\":\"gZHE6LZqpG\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Overdue in Estimation\",\"col\":4}},{\"id\":\"y4mWbf5ceU\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Revisions This Month\",\"col\":4}}]",
+ "content": "[{\"id\":\"vhxSezvvXw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Process</b></span>\",\"col\":12}},{\"id\":\"vGf2htnWHe\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Business Process Map\",\"col\":12}},{\"id\":\"hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Estimation</b></span>\",\"col\":12}},{\"id\":\"nc0\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Draft Estimations\",\"col\":3}},{\"id\":\"nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Estimations Missing Contract\",\"col\":3}},{\"id\":\"nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Estimations Submitted This Month\",\"col\":3}},{\"id\":\"ch0\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Estimations per Month\",\"col\":12}},{\"id\":\"7jujtdi5KJ\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Project Life</b></span>\",\"col\":12}},{\"id\":\"rVZp2FI76e\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Pipeline Status\",\"col\":3}},{\"id\":\"eTPZ0MiQJb\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Waiting on Sales\",\"col\":4}},{\"id\":\"gZHE6LZqpG\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Overdue in Estimation\",\"col\":4}},{\"id\":\"y4mWbf5ceU\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Revisions This Month\",\"col\":4}}]",
  "creation": "2026-09-24 16:23:52.335618",
  "custom_blocks": [
   {
@@ -23,7 +23,7 @@
  "label": "Estimation",
  "link_type": "DocType",
  "links": [],
- "modified": "2026-10-10 21:19:54.863965",
+ "modified": "2026-10-11 03:41:32.423468",
  "modified_by": "Administrator",
  "module": "Estimation",
  "name": "Estimation",
@@ -68,7 +68,7 @@
    "doc_view": "",
    "label": "Pipeline Status",
    "link_to": "Pipeline Status",
-   "report_ref_doctype": "Hand-off Log",
+   "report_ref_doctype": "Project Life",
    "stats_filter": "[]",
    "type": "Report"
   }

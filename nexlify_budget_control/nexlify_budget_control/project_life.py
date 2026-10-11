@@ -344,3 +344,23 @@ def get_life_for(doctype, name):
 		return None
 	frappe.has_permission(doctype, "read", doc=name, throw=True)
 	return frappe.db.get_value(LIFE, {field: name})
+
+
+@frappe.whitelist()
+def remove_hand_off_leftovers(dry_run=1):
+	"""Once per site after Project Life replaced the Hand-off Log: what the migrate does not remove by itself.
+	dry_run=1 only lists them. Goes to the Cleanup list once every site has run it."""
+	frappe.only_for("System Manager")
+	found = {
+		"number_cards": [n for n in ("Overdue Hand-offs",) if frappe.db.exists("Number Card", n)],
+		"defaults": [k for k in ("nexlify_hand_off_rules_seeded", "nexlify_hand_off_plan_approval_seeded",
+			"nexlify_hand_off_targets_seeded") if frappe.db.get_default(k)],
+		"doctypes_still_there": [d for d in ("Hand-off Log", "Hand-off Waiting Rule", "Hand-off Stage Target") if frappe.db.exists("DocType", d)],
+	}
+	if not cint(dry_run):
+		for name in found["number_cards"]:
+			frappe.db.delete("Number Card", {"name": name})
+		for key in found["defaults"]:
+			frappe.defaults.clear_default(key=key)
+		frappe.db.commit()
+	return found

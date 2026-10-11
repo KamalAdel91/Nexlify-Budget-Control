@@ -1,10 +1,9 @@
 """Project on the documents made before their Project exists.
 
 Once the Project is set on the Estimation, its Supply Requests and Equipment Scopes (project fetch_from the
-Estimation) take it, and so do the Hand-off Log rows of every tracked document. fetch_from only fills a field when its
+Estimation) take it, and so does the Project Life of its Opportunity. fetch_from only fills a field when its
 own document is saved, and these are not saved again when the Project comes, so the fetch is refreshed here: the
-Estimation stays the only source. Runs after a Project is made or saved, after an Estimation is saved, and in the
-Hand-off sync every 15 minutes."""
+Estimation stays the only source. Runs after a Project is made or saved, and after an Estimation is saved."""
 
 import frappe
 
@@ -13,9 +12,7 @@ FROM_ESTIMATION = (("Supply Request", "estimation"), ("Project Equipment Scope",
 
 
 def sync_project_links(doc=None, method=None):
-	"""doc: a Project or an Estimation narrows the documents refreshed; none (sync, bench execute) does them all."""
-	from nexlify_budget_control.nexlify_budget_control.hand_off import LOG, TRACKED
-
+	"""doc: a Project or an Estimation narrows the documents refreshed; none (bench execute) does them all."""
 	narrow, values = "", {}
 	if doc is not None and doc.doctype == "Project":
 		narrow, values = " and e.project = %(project)s", {"project": doc.name}
@@ -35,11 +32,10 @@ def sync_project_links(doc=None, method=None):
 			where ifnull(project, '') != '' group by parent) x on x.parent = sq.name
 		set sq.project = x.project
 		where x.projects = 1 and ifnull(sq.project, '') != x.project""")
-	for doctype in TRACKED:
-		frappe.db.sql(f"""update `tab{LOG}` l join `tab{doctype}` d on d.name = l.reference_name
-			set l.project = d.project
-			where l.reference_doctype = %(doctype)s and ifnull(d.project, '') != '' and ifnull(l.project, '') != d.project""",
-			{"doctype": doctype})
+	# Project Life: the Project of its Opportunity's Estimation
+	frappe.db.sql(f"""update `tabProject Life` l join `tabProject Estimation` e on e.opportunity = l.opportunity
+		set l.project = e.project
+		where ifnull(e.project, '') != '' and ifnull(l.project, '') = ''{narrow}""", values)
 
 
 def fill_supplier_quotation(doc, method=None):

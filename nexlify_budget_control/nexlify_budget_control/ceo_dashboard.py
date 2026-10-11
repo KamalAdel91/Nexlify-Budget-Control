@@ -11,7 +11,6 @@ from frappe.utils import add_days, cint, date_diff, flt, getdate, today
 
 OV = "Project Overview"
 OPEN_VIOLATIONS_CARD = "Open Budget Violations"
-HAND_OFF_LOG = "Hand-off Log"
 
 
 @frappe.whitelist()
@@ -208,7 +207,7 @@ def get_ceo_dashboard_data(company=None, project=None, extra_filters=None):
         "visits": vm["visits"],
         "manpower": vm["manpower"],
         "invoicing": inv,
-        "hand_offs": _hand_offs(company, project, extra_filters),
+        "project_life": _project_life(company, project, extra_filters),
     }
 
 
@@ -399,14 +398,16 @@ def _permitted_projects():
     return [p for p in frappe.get_list(OV, pluck="project", limit_page_length=0) if p]
 
 
-def _hand_offs(company, project, extra_filters):
-    """The Hand-offs section, from the Hand-off Log: what waits on whom now, how late, how long each team takes,
-    and the longest waits. An Estimation has no project before its Project exists: the company filter keeps its
-    rows (the log has the company); a project filter, or an extra filter, does not."""
-    from frappe.model.workflow import get_workflow_name
-    from frappe.utils import get_first_day, today
+def _project_life(company, project, extra_filters):
+    """The Project Life section: what waits on whom now, how late, how long each team takes, and the longest waits.
+    An Estimation has no project before its Project exists: the company filter keeps its Project Life (it has the
+    company); a project filter, or an extra filter, does not. Overdue and the days of an open stage are worked out now."""
+    from frappe.utils import now_datetime
 
-    if not frappe.has_permission(HAND_OFF_LOG, "read"):
+    from nexlify_budget_control.nexlify_budget_control.project_life import LIFE
+    from nexlify_budget_control.nexlify_budget_control.project_life_dashboard import days_so_far, is_overdue, is_waiting, lives, revisions, stages
+
+    if not frappe.has_permission(LIFE, "read"):
         return None
     base = {}
     if company:
@@ -414,19 +415,25 @@ def _hand_offs(company, project, extra_filters):
     names = _filtered_projects(None, project, extra_filters)
     if names is not None:
         base["project"] = ["in", list(names) or [""]]
+    life_names, now = lives(base), now_datetime()
 
-    open_rows = frappe.get_list(HAND_OFF_LOG, filters={**base, "is_open": 1}, fields=["waiting_on", "is_overdue"], limit_page_length=0)
-    closed = frappe.get_list(HAND_OFF_LOG, filters={**base, "is_open": 0, "is_backfilled": 0, "waiting_on": ["is", "set"]},
-        fields=["waiting_on", "duration_days"], limit_page_length=0)
+    open_rows = stages(life_names, {"is_open": 1}, fields=["parent", "reference_doctype", "reference_name", "stage",
+        "waiting_on", "entered_on", "due_on", "is_open", "is_scheduled", "target_days"])
+    closed = stages(life_names, {"is_open": 0, "is_backfilled": 0, "waiting_on": ["is", "set"]}, fields=["waiting_on", "duration_days"])
+    open_rows = [r for r in open_rows if is_waiting(r, now)]
+    for r in open_rows:
+        r["is_overdue"] = 1 if is_overdue(r, now) else 0
+        r["duration_days"] = days_so_far(r, now)
     teams = {}
 
     def team(name):
         return teams.setdefault(name, {"team": name, "waiting": 0, "overdue": 0, "avg_days": None, "sum": 0.0, "n": 0})
 
     for r in open_rows:
-        t = team(r.waiting_on)
-        t["waiting"] += 1
-        t["overdue"] += cint(r.is_overdue)
+        if r.waiting_on:
+            t = team(r.waiting_on)
+            t["waiting"] += 1
+            t["overdue"] += r["is_overdue"]
     for r in closed:
         t = team(r.waiting_on)
         t["sum"] += flt(r.duration_days)
@@ -437,18 +444,14 @@ def _hand_offs(company, project, extra_filters):
                     "avg_days": flt(t["sum"] / t["n"], 2) if t["n"] else None})
     out.sort(key=lambda t: (-t["overdue"], -t["waiting"], t["team"] or ""))
 
-    # A revision: an Estimation back at the first state of its Workflow, coming from another stage
-    workflow = get_workflow_name("Project Estimation")
-    states = frappe.get_cached_doc("Workflow", workflow).states if workflow else []
-    revisions = len(frappe.get_list(HAND_OFF_LOG, filters={**base, "reference_doctype": "Project Estimation",
-        "stage": states[0].state, "previous_stage": ["is", "set"], "entered_on": [">=", get_first_day(today())]},
-        pluck="name", limit_page_length=0)) if states else 0
-
-    oldest = frappe.get_list(HAND_OFF_LOG, filters={**base, "is_open": 1}, fields=["reference_doctype", "reference_name",
-        "project", "stage", "waiting_on", "duration_days", "target_days", "is_overdue"], order_by="duration_days desc", limit_page_length=10)
+    oldest = sorted(open_rows, key=lambda r: -r["duration_days"])[:10]
+    heads = dict(frappe.get_all(LIFE, filters={"name": ["in", list({r.parent for r in oldest}) or [""]]},
+        fields=["name", "project"], as_list=True))
+    for r in oldest:
+        r["project"] = heads.get(r.parent)
     titles = dict(frappe.get_all("Project", filters={"name": ["in", list({r.project for r in oldest if r.project}) or [""]]},
         fields=["name", "project_name"], as_list=True))
     for r in oldest:
         r["project_name"] = titles.get(r.project)
-    return {"total": len(open_rows), "overdue": sum(cint(r.is_overdue) for r in open_rows), "revisions_this_month": revisions,
+    return {"total": len(open_rows), "overdue": sum(r["is_overdue"] for r in open_rows), "revisions_this_month": revisions(life_names),
             "teams": out, "oldest": oldest, "report_filters": {k: v for k, v in (("company", company), ("project", project)) if v}}

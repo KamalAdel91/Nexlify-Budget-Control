@@ -231,7 +231,7 @@ class NexlifyCeoDashboard {
 				<div>${this.render_budget()}</div>
 				<div>${this.render_attention()}</div>
 			</div>
-			${this.render_hand_offs()}
+			${this.render_project_life()}
 			${this.render_visits()}
 			${this.render_manpower()}
 			${this.render_invoicing()}
@@ -476,13 +476,13 @@ class NexlifyCeoDashboard {
 		return this.section(__("Budget health"), __("{0}% used", [b.totals.pct]), `<div class="nx-box">${rows}${foot}</div>`);
 	}
 
-	// ---------- hand-offs (Hand-off Log) ----------
-	hand_off_days(v) {
+	// ---------- Project Life: who the stages wait on ----------
+	stage_days(v) {
 		return v == null ? "—" : __("{0} days", [(Math.round(v * 10) / 10).toLocaleString()]);
 	}
 
-	render_hand_offs() {
-		const h = this.data.hand_offs;
+	render_project_life() {
+		const h = this.data.project_life;
 		if (!h) return "";
 		const note = [__("{0} waiting", [h.total]), h.overdue ? __("{0} overdue", [h.overdue]) : null,
 			this.n_(h.revisions_this_month, "{0} revision this month", "{0} revisions this month")].filter(Boolean).join(" · ");
@@ -492,11 +492,11 @@ class NexlifyCeoDashboard {
 					<span>${__("Waiting on")}</span><span class="nx-right">${__("Now")}</span>
 					<span class="nx-right">${__("Overdue")}</span><span class="nx-right">${__("Average")}</span>
 				</div>` + h.teams.map((t) => `
-				<div class="nx-row nx-queue-row" ${this.link_attrs("Hand-off Log", null, { is_open: 1, waiting_on: t.team })}>
+				<div class="nx-row nx-queue-row" style="cursor:pointer" onclick="frappe.set_route('query-report', 'Pipeline Status', { waiting_on: '${this.esc(t.team)}' })">
 					<span class="nx-ellipsis"><b>${this.esc(__(t.team))}</b></span>
 					<span class="nx-right">${t.waiting}</span>
 					<span class="nx-right" style="color:${t.overdue ? "var(--red-500)" : "var(--text-muted)"}">${t.overdue}</span>
-					<span class="nx-right">${this.hand_off_days(t.avg_days)}</span>
+					<span class="nx-right">${this.stage_days(t.avg_days)}</span>
 				</div>`).join("");
 		const pill = (r) => {
 			const d = Math.floor(r.duration_days || 0);
@@ -518,7 +518,7 @@ class NexlifyCeoDashboard {
 		const query = new URLSearchParams(h.report_filters || {}).toString();
 		const report = `<a href="/app/query-report/${encodeURIComponent("Pipeline Status")}${query ? "?" + query : ""}">${__("Pipeline Status")} →</a>`;
 		return `<div class="nx-grid-2">
-				<div>${this.section(__("Hand-offs by team"), note, `<div class="nx-box">${teams}</div>`)}</div>
+				<div>${this.section(__("Waiting by team"), note, `<div class="nx-box">${teams}</div>`)}</div>
 				<div>${this.section(__("Waiting the longest"), report, `<div class="nx-box">${oldest}</div>`)}</div>
 			</div>`;
 	}
