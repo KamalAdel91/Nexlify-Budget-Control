@@ -156,3 +156,53 @@ def by_team(measure="waiting"):
 	labels = sorted(values, key=lambda k: -values[k])
 	name = {"waiting": "Waiting Now", "overdue": "Overdue Now", "average": "Average Days"}.get(measure, measure)
 	return {"labels": labels, "datasets": [{"name": name, "values": [values[k] for k in labels]}]}
+
+
+def _estimation(states):
+	"""Stage filter: Project Estimation stages in the given workflow states (read from the Workflow, see estimation_flow)."""
+	return {"reference_doctype": "Project Estimation", "stage": ["in", sorted(states) or [""]]}
+
+
+@frappe.whitelist()
+def waiting_for_price_approval(filters=None):
+	"""Number Card Waiting for Price Approval: Estimations with the COO or the CEO now."""
+	from nexlify_budget_control.nexlify_budget_control.estimation_flow import pending
+
+	return {"value": len(_open(_estimation(pending()))), "fieldtype": "Int"}
+
+
+@frappe.whitelist()
+def average_days_for_coo_price_approval(filters=None):
+	"""Number Card Average Days for COO Price Approval: finished Estimation stages that waited on the COO."""
+	return _average({"reference_doctype": "Project Estimation", "waiting_on": "COO"})
+
+
+@frappe.whitelist()
+def average_days_for_ceo_price_approval(filters=None):
+	"""Number Card Average Days for CEO Price Approval: finished Estimation stages that waited on the CEO."""
+	return _average({"reference_doctype": "Project Estimation", "waiting_on": "CEO"})
+
+
+@frappe.whitelist()
+def contracts_in_negotiation(filters=None):
+	"""Number Card Contracts in Negotiation: Estimations in contract review or waiting on Sales for the changes, now."""
+	from nexlify_budget_control.nexlify_budget_control.estimation_flow import changes_requested, contract_review
+
+	return {"value": len(_open(_estimation(contract_review() | changes_requested()))), "fieldtype": "Int"}
+
+
+@frappe.whitelist()
+def contract_rounds_this_month(filters=None):
+	"""Number Card Contract Rounds This Month: each time Sales sent a contract to Estimation this month."""
+	from nexlify_budget_control.nexlify_budget_control.estimation_flow import contract_review
+
+	return {"value": len(stages(lives(), {**_estimation(contract_review()), "entered_on": [">=", get_first_day(today())]})),
+		"fieldtype": "Int"}
+
+
+@frappe.whitelist()
+def average_days_from_agreed_to_won(filters=None):
+	"""Number Card Average Days from Agreed to Won: from the contract agreed to the Closed Won with the signed contract."""
+	from nexlify_budget_control.nexlify_budget_control.estimation_flow import agreed
+
+	return _average(_estimation(agreed()))

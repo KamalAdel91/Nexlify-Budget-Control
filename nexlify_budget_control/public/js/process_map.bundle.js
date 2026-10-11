@@ -217,9 +217,17 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 				h += curve(P[i], P[i + 1], steps[i], off, off);
 			}
 			if (!progress) {
-				steps.forEach((s, i) => {
-					if (s.optional && i > 0 && i < steps.length - 1) h += curve(P[i - 1], P[i + 1], steps[i - 1], true, false);
-				});
+				// optional steps in a row (COO then CEO) skip together: from the step before the run, and from each
+				// step inside it, to the first step after the run
+				for (let a = 1; a < steps.length - 1; a++) {
+					if (!steps[a].optional || steps[a - 1].optional) continue;
+					let b = a;
+					while (b + 1 < steps.length && steps[b + 1].optional) b++;
+					const after = b + 1;
+					if (after >= steps.length) continue;
+					h += curve(P[a - 1], P[after], steps[a - 1], true, false);
+					for (let k = a; k < b; k++) h += curve(P[k], P[after], steps[k], true, false);
+				}
 			}
 			steps.forEach((s, i) => {
 				const st = state(i);

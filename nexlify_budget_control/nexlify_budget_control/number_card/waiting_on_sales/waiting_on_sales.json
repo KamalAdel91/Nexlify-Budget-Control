@@ -1,7 +1,6 @@
 {
  "color": "#7048E8",
  "creation": "2026-10-10 07:54:11.389432",
- "currency": "SAR",
  "docstatus": 0,
  "doctype": "Number Card",
  "idx": 0,
@@ -9,7 +8,7 @@
  "is_standard": 1,
  "label": "Waiting on Sales",
  "method": "nexlify_budget_control.nexlify_budget_control.project_life_dashboard.waiting_on_sales",
- "modified": "2026-10-11 03:37:38.391395",
+ "modified": "2026-10-12 01:48:40.890220",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Waiting on Sales",

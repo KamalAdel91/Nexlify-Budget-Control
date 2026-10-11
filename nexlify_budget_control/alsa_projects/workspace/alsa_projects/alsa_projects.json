@@ -22,7 +22,7 @@
    "label": "Average Days by Team"
   }
  ],
- "content": "[{\"id\":\"kh6pkjHjvA\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Business Process</b></span>\",\"col\":12}},{\"id\":\"IikyL6wSth\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Business Process Map\",\"col\":12}},{\"id\":\"hdr\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Overview</b></span>\",\"col\":12}},{\"id\":\"nc0\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Waiting for CEO Approval\",\"col\":3}},{\"id\":\"nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Projects\",\"col\":3}},{\"id\":\"nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Contract Value\",\"col\":3}},{\"id\":\"nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open Budget Violations\",\"col\":3}},{\"id\":\"ch0\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Approved Contract Value per Month\",\"col\":12}},{\"id\":\"ch1\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Violations by Type\",\"col\":12}},{\"id\":\"bqTfssjGhm\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>COO</b></span>\",\"col\":12}},{\"id\":\"nc0\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Waiting for COO Approval\",\"col\":3}},{\"id\":\"nc1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"With the CEO\",\"col\":3}},{\"id\":\"nc2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Approved This Month\",\"col\":3}},{\"id\":\"nc3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Contract Value Approved This Month\",\"col\":3}},{\"id\":\"JtUbcDSNYm\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Project Life</b></span>\",\"col\":12}},{\"id\":\"cAv7A9Yz81\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Pipeline Status\",\"col\":3}},{\"id\":\"eUuxBU0s4i\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Overdue Stages\",\"col\":4}},{\"id\":\"vstMpg6Uaq\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Revisions This Month\",\"col\":4}},{\"id\":\"NOKSZ375YJ\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Average Days for COO Approval\",\"col\":4}},{\"id\":\"CaBhqSMmkF\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Average Days for CEO Approval\",\"col\":4}},{\"id\":\"pML7IWnqVd\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Waiting Now by Team\",\"col\":12}},{\"id\":\"tQbspYOclN\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Overdue Now by Team\",\"col\":12}},{\"id\":\"bV5B0ptGyR\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Average Days by Team\",\"col\":12}}]",
+ "content": "[{\"id\": \"kh6pkjHjvA\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Business Process</b></span>\", \"col\": 12}}, {\"id\": \"IikyL6wSth\", \"type\": \"custom_block\", \"data\": {\"custom_block_name\": \"Business Process Map\", \"col\": 12}}, {\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Overview</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Waiting for CEO Approval\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Projects\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Contract Value\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Budget Violations\", \"col\": 3}}, {\"id\": \"ch0\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Approved Contract Value per Month\", \"col\": 12}}, {\"id\": \"ch1\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Violations by Type\", \"col\": 12}}, {\"id\": \"bqTfssjGhm\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>COO</b></span>\", \"col\": 12}}, {\"id\": \"nc0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Waiting for COO Approval\", \"col\": 3}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"With the CEO\", \"col\": 3}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Approved This Month\", \"col\": 3}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Contract Value Approved This Month\", \"col\": 3}}, {\"id\": \"JtUbcDSNYm\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Project Life</b></span>\", \"col\": 12}}, {\"id\": \"cAv7A9Yz81\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Pipeline Status\", \"col\": 3}}, {\"id\": \"eUuxBU0s4i\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Overdue Stages\", \"col\": 4}}, {\"id\": \"vstMpg6Uaq\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Revisions This Month\", \"col\": 4}}, {\"id\": \"NOKSZ375YJ\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Average Days for COO Approval\", \"col\": 4}}, {\"id\": \"CaBhqSMmkF\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Average Days for CEO Approval\", \"col\": 4}}, {\"id\": \"V3kA721ais\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Pricing and Contract</b></span>\", \"col\": 12}}, {\"id\": \"nKDm4H55xJ\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Waiting for Price Approval\", \"col\": 4}}, {\"id\": \"ORYysPTmP9\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Average Days for COO Price Approval\", \"col\": 4}}, {\"id\": \"K3nXq73ovo\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Average Days for CEO Price Approval\", \"col\": 4}}, {\"id\": \"R53d9R0Yhj\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Contracts in Negotiation\", \"col\": 4}}, {\"id\": \"vOqFLzhRPI\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Contract Rounds This Month\", \"col\": 4}}, {\"id\": \"uSpkbNNgef\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Average Days from Agreed to Won\", \"col\": 4}}, {\"id\": \"pML7IWnqVd\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Waiting Now by Team\", \"col\": 12}}, {\"id\": \"tQbspYOclN\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Overdue Now by Team\", \"col\": 12}}, {\"id\": \"bV5B0ptGyR\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Average Days by Team\", \"col\": 12}}]",
  "creation": "2026-09-24 21:56:40.112764",
  "custom_blocks": [
   {
@@ -117,7 +117,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-11 03:41:32.423468",
+ "modified": "2026-10-12 01:45:00.423646",
  "modified_by": "Administrator",
  "module": "ALSA Projects",
  "name": "ALSA Projects",
@@ -169,6 +169,30 @@
   {
    "label": "Average Days for CEO Approval",
    "number_card_name": "Average Days for CEO Approval"
+  },
+  {
+   "label": "Waiting for Price Approval",
+   "number_card_name": "Waiting for Price Approval"
+  },
+  {
+   "label": "Average Days for COO Price Approval",
+   "number_card_name": "Average Days for COO Price Approval"
+  },
+  {
+   "label": "Average Days for CEO Price Approval",
+   "number_card_name": "Average Days for CEO Price Approval"
+  },
+  {
+   "label": "Contracts in Negotiation",
+   "number_card_name": "Contracts in Negotiation"
+  },
+  {
+   "label": "Contract Rounds This Month",
+   "number_card_name": "Contract Rounds This Month"
+  },
+  {
+   "label": "Average Days from Agreed to Won",
+   "number_card_name": "Average Days from Agreed to Won"
   }
  ],
  "owner": "Administrator",

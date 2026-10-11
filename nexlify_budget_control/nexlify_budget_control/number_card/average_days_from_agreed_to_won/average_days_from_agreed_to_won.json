@@ -1,0 +1,21 @@
+{
+ "color": "#1971C2",
+ "creation": "2026-10-12 01:45:00.423646",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Average Days from Agreed to Won",
+ "method": "nexlify_budget_control.nexlify_budget_control.project_life_dashboard.average_days_from_agreed_to_won",
+ "modified": "2026-10-12 01:48:40.890220",
+ "modified_by": "Administrator",
+ "module": "Nexlify Budget Control",
+ "name": "Average Days from Agreed to Won",
+ "owner": "Administrator",
+ "report_function": "Sum",
+ "show_full_number": 0,
+ "show_percentage_stats": 0,
+ "stats_time_interval": "Daily",
+ "type": "Custom"
+}
