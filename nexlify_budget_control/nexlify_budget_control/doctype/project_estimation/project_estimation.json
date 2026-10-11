@@ -16,6 +16,7 @@
   "customer",
   "signed_contract",
   "contract_no_prices",
+  "quotation_no_prices",
   "column_break_xcgk",
   "project",
   "opportunity",
@@ -479,6 +480,13 @@
    "label": "Contract (No Prices)"
   },
   {
+   "allow_on_submit": 1,
+   "description": "Our Quotation without prices, for Planning (needed before the Handover)",
+   "fieldname": "quotation_no_prices",
+   "fieldtype": "Attach",
+   "label": "Quotation (No Prices)"
+  },
+  {
    "fieldname": "opportunity",
    "fieldtype": "Link",
    "label": "Opportunity",
@@ -593,7 +601,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-12 01:18:31.478788",
+ "modified": "2026-10-12 01:31:41.545311",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

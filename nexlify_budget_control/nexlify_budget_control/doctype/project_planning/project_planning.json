@@ -11,6 +11,7 @@
   "project",
   "estimation",
   "contract_no_prices",
+  "quotation_no_prices",
   "customer",
   "rejection_reason",
   "column_break_kcej",
@@ -189,6 +190,14 @@
    "fieldtype": "Attach",
    "label": "Contract",
    "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "description": "From the Estimation at the Handover",
+   "fieldname": "quotation_no_prices",
+   "fieldtype": "Attach",
+   "label": "Quotation (No Prices)",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -220,7 +229,7 @@
    "link_fieldname": "revenue_budget"
   }
  ],
- "modified": "2026-10-08 00:22:18.404778",
+ "modified": "2026-10-12 01:31:41.545311",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Planning",

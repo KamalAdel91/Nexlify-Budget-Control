@@ -3088,12 +3088,21 @@ def _copy_contract_to_plan(plan, file_url):
 	frappe.db.set_value("Project Planning", plan, "contract_no_prices", file_url or None, update_modified=False)
 
 
+def _copy_quotation_to_plan(plan, file_url):
+	"""Planning cannot read the Estimation, so the Quotation without prices gets its own File attached to the plan."""
+	attach_file_copy(file_url, "Project Planning", plan, "quotation_no_prices")
+	frappe.db.set_value("Project Planning", plan, "quotation_no_prices", file_url or None, update_modified=False)
+
+
 def on_project_estimation_update(doc, method=None):
-    """A new or replaced contract goes to the Estimation's draft plans."""
-    if not doc.has_value_changed("contract_no_prices"):
+    """A new or replaced contract or Quotation without prices goes to the Estimation's draft plans."""
+    copies = [(f, fn) for f, fn in (("contract_no_prices", _copy_contract_to_plan), ("quotation_no_prices", _copy_quotation_to_plan))
+              if doc.has_value_changed(f)]
+    if not copies:
         return
     for plan in frappe.get_all("Project Planning", filters={"estimation": doc.name, "docstatus": 0, "status": "Draft"}, pluck="name"):
-        _copy_contract_to_plan(plan, doc.contract_no_prices)
+        for field, copy in copies:
+            copy(plan, doc.get(field))
 
 
 @frappe.whitelist()

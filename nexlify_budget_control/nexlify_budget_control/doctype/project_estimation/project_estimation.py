@@ -54,6 +54,8 @@ class ProjectEstimation(Document):
 	def before_submit(self):
 		if not self.contract_no_prices:
 			frappe.throw(_("Attach the Contract (No Prices) before handing over to Planning."))
+		if self.opportunity and not self.quotation_no_prices:
+			frappe.throw(_("Attach the Quotation (No Prices) before handing over to Planning."))
 		self._validate_ready()
 
 	def _validate_ready(self):

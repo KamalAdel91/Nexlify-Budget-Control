@@ -184,14 +184,15 @@ def release_opportunity(estimation, cancelled=False):
 
 
 def on_estimation_submit(doc, method=None):
-	"""Handed Over: the Opportunity shows it, and the Plan opens for Planning with the contract without prices."""
+	"""Handed Over: the Opportunity shows it, and the Plan opens for Planning with the contract and the Quotation without prices."""
 	refresh_fetches(doc)
 	if not doc.project or frappe.db.exists("Project Planning", {"project": doc.project, "docstatus": ["<", 2]}):
 		return
 	plan = frappe.get_doc({"doctype": "Project Planning", "project": doc.project, "company": doc.company})
 	plan.insert(ignore_permissions=True, ignore_mandatory=True)
-	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _copy_contract_to_plan
+	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _copy_contract_to_plan, _copy_quotation_to_plan
 	_copy_contract_to_plan(plan.name, doc.contract_no_prices)
+	_copy_quotation_to_plan(plan.name, doc.quotation_no_prices)
 	frappe.msgprint(_("Handed over to Planning: Plan {0} is open.").format(plan.name), alert=True)
 
 
