@@ -144,7 +144,9 @@ def _from_states(ref, workflows):
 def _step_progress(step, rows, workflows):
 	"""One step for one project: done when its document reaches the stage the step leads to ("done", else "status"),
 	started when it entered the stage the step works in ("from", else the one the action leaves). A step done once per
-	document ("each": Supply Requests, invoices) is done when every document still going has reached it."""
+	document ("each": Supply Requests, invoices) is done when every document still going has reached it. A document
+	still open counts as open for the step only while it stands in the stage the step works in or leads to, so a
+	document that has moved on (or was recorded only from a later stage) does not hold an earlier step open."""
 	done_ref = step.get("done") or step.get("status") or {}
 	status, doctype = _resolve(done_ref, workflows)
 	done_states = {s for s in status.split(" or ") if s}
@@ -176,13 +178,13 @@ def _step_progress(step, rows, workflows):
 	documents = [{"doctype": doctype, "name": n, "stage": r.stage, "is_open": r.is_open} for n, r in last.items()]
 	return {"documents": documents, "events": events, "state": None, "done": done, "started": started, "finished": finished, "reached": count, "total": len(docs),
 		"open": [{"reference_name": n, "stage": r.stage, "waiting_on": r.waiting_on, "entered_on": r.entered_on,
-			"due_on": r.due_on, "is_scheduled": r.is_scheduled} for n, r in last.items() if r.is_open]}
+			"due_on": r.due_on, "is_scheduled": r.is_scheduled} for n, r in last.items() if r.is_open and (not from_states or r.stage in from_states or r.stage in done_states)]}
 
 
 def _step_states(raw, progress, life_open, outcome=None):
 	"""done; skipped (an optional step, or a once-per-document step with no document, passed by a later one); done
 	before the records start (passed by a later step, never reached); now (the first step still to do, while the
-	project has an open stage); part done; not yet."""
+	project has an open stage); part done (only a once-per-document step after now); not yet."""
 	later = [False] * len(progress)
 	seen = False
 	for i in range(len(progress) - 1, -1, -1):
@@ -198,6 +200,9 @@ def _step_states(raw, progress, life_open, outcome=None):
 			p["state"] = "done"
 		elif (life_open or outcome) and not now_given:
 			p["state"], now_given = ("lost" if outcome else "now"), True
+		elif now_given and not s.get("each"):
+			# after the step the project stands at, a step on the same document is not started yet
+			p["state"] = "todo"
 		else:
 			p["state"] = "part" if (p["reached"] or p["open"]) else "todo"
 

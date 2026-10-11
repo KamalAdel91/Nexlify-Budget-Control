@@ -1,6 +1,7 @@
 // Business Process Map: draws steps.json as one lane per team. The workspace block (process_map/process_map.js) and
 // the Project Life form both call nexlify_process_map.render(root, data, opts). When every step carries a progress
-// (get_life_map), each step is drawn as done, now, part done, not yet or skipped for that one project.
+// (get_life_map), each step is drawn as done, now, not yet, skipped or lost for that one project; a step done once per document
+// shows a count (2/5), and a Now line and a legend sit under the map.
 window.nexlify_process_map = (() => {
 	const CSS = `
 .pm { color: var(--text-color, #1f272e); padding: 4px 0 8px; }
@@ -23,6 +24,13 @@ window.nexlify_process_map = (() => {
 .pm-svg .ph-div { stroke: var(--border-color, #d1d8dd); stroke-width: .8; stroke-dasharray: 2 4; }
 @media (prefers-reduced-motion: no-preference) { .pm-svg .st.now .halo { animation: pm-pulse 1.6s ease-in-out infinite; } }
 @keyframes pm-pulse { 0%, 100% { opacity: .85; } 50% { opacity: .25; } }
+.pm-now { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; padding: 8px 12px; border-radius: 10px; background: var(--subtle-fg, #f8f8f8); font-size: 13px; cursor: pointer; }
+.pm-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 2px 0; font-size: 12px; color: var(--text-muted, #6c7680); }
+.pm-lg { display: inline-flex; align-items: center; gap: 6px; }
+.pm-lg svg { width: 22px; height: 22px; flex: none; }
+.pm-lg .halo, .pm-lg .sel { opacity: 0; }
+.pm-lg .st.now .halo { opacity: 1; }
+.pm-lg-count { background: #687178; color: #fff; border-radius: 7px; font-size: 9.5px; font-weight: 600; padding: 0 5px; line-height: 14px; }
 .pm-prog { display: flex; gap: 3px; margin: 10px 2px; }
 .pm-seg { flex: 1; height: 4px; border-radius: 2px; cursor: pointer; transition: opacity .25s; }
 .pm-card { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #ededed); border-radius: 14px; overflow: hidden; }
@@ -102,7 +110,7 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 		left: icon('<path d="M15 6l-6 6 6 6"/>', 14, "currentColor"),
 		right: icon('<path d="M9 6l6 6-6 6"/>', 14, "currentColor"),
 	};
-	const BADGE = { lost: ["Lost", "red"], done: ["Done", "green"], now: ["Now", "orange"], part: ["Part done", "blue"], todo: ["Not yet", "gray"], skipped: ["Skipped", "gray"] };
+	const BADGE = { lost: ["Lost", "red"], done: ["Done", "green"], now: ["Now", "orange"], part: ["In progress", "blue"], todo: ["Not yet", "gray"], skipped: ["Skipped", "gray"] };
 	const SEG = { lost: 1, done: 1, now: 1, part: 0.6, todo: 0.2, skipped: 0.1 };
 
 	function phases(steps) {
@@ -121,7 +129,7 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 		const progress = steps.length > 0 && !!steps[0].progress;
 		root.classList.add("pm");
 		root.classList.toggle("pm-progress", progress);
-		root.innerHTML = `<style>${CSS}</style><div class="pm-chips"></div><div class="pm-map"><svg class="pm-svg"></svg></div><div class="pm-prog"></div><div class="pm-card"></div>`;
+		root.innerHTML = `<style>${CSS}</style><div class="pm-chips"></div><div class="pm-map"><svg class="pm-svg"></svg></div><div class="pm-now"></div><div class="pm-legend"></div><div class="pm-prog"></div><div class="pm-card"></div>`;
 		const svg = root.querySelector(".pm-svg"), chips = root.querySelector(".pm-chips");
 		const prog = root.querySelector(".pm-prog"), card = root.querySelector(".pm-card");
 		const color = Object.fromEntries(teams.map((t) => [t.name, t.color]));
@@ -151,17 +159,12 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 			const extra = `<circle class="halo" cx="${x}" cy="${y}" r="${R + 7}" fill="${c}" fill-opacity=".22"/>`
 				+ `<circle class="sel" cx="${x}" cy="${y}" r="${R + 4.5}" fill="none" stroke="${c}" stroke-width="1.6"/>`;
 			const core = (attrs) => `<circle class="core" cx="${x}" cy="${y}" r="${R}" ${attrs}/>`;
-			if (st === "todo") {
+			if (st === "todo" || st === "part") {
 				return extra + core('style="fill:var(--card-bg, #fff);stroke:var(--gray-400, #a0aec0)" stroke-width="1.5"') + txt("var(--text-muted, #6c7680)");
 			}
 			if (st === "skipped") {
 				return extra + core('style="fill:var(--card-bg, #fff);stroke:var(--gray-400, #a0aec0)" stroke-width="1.5" stroke-dasharray="3 3"')
 					+ txt("var(--text-light, #8d99a6)");
-			}
-			if (st === "part") {
-				return extra + core(`style="fill:var(--card-bg, #fff)" stroke="${c}" stroke-width="2"`)
-					+ `<path d="M${x} ${y - R + 2} A${R - 2} ${R - 2} 0 0 1 ${x} ${y + R - 2} Z" fill="${c}" fill-opacity=".55" style="pointer-events:none"/>`
-					+ txt("var(--text-color, #1f272e)");
 			}
 			if (st === "lost") {
 				return extra + core('style="fill:var(--red-500, #e03131);stroke:var(--card-bg, #fff)" stroke-width="3"')
@@ -171,6 +174,14 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 				? `<path d="M${x - 5} ${y} l3.4 3.4 l6.6 -6.8" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none"/>`
 				: txt("#fff");
 			return extra + core(`fill="${c}" style="stroke:var(--card-bg, #fff)" stroke-width="3"`) + inner;
+		};
+
+		const count_badge = (s, x, y, c) => {
+			const p = s.progress;
+			if (!progress || !s.each || !p || !p.total || p.state === "skipped") return "";
+			const t = `${p.reached}/${p.total}`, w = t.length * 6 + 8;
+			return `<g style="pointer-events:none"><rect x="${x + R - 4}" y="${y - R - 4}" width="${w}" height="14" rx="7" fill="${c}"/>`
+				+ `<text x="${x + R - 4 + w / 2}" y="${y - R + 3}" text-anchor="middle" dominant-baseline="central" style="font-size:9.5px;font-weight:600;fill:#fff">${t}</text></g>`;
 		};
 
 		function drawMap() {
@@ -214,7 +225,8 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 				const st = state(i);
 				h += `<g class="st ${st}" data-act="step" data-i="${i}"><title>${i + 1}. ${esc(s.title)}${progress ? " · " + __(BADGE[st][0]) : ""}</title>`
 					+ dot(P[i].x, P[i].y, color[s.team], i + 1, st)
-					+ `<text class="lb" x="${P[i].x}" y="${P[i].y + R + 10}" text-anchor="middle" dominant-baseline="central">${esc(__(s.short || ""))}</text></g>`;
+					+ `<text class="lb" x="${P[i].x}" y="${P[i].y + R + 10}" text-anchor="middle" dominant-baseline="central">${esc(__(s.short || ""))}</text>`
+						+ count_badge(s, P[i].x, P[i].y, color[s.team]) + "</g>";
 			});
 			const H = TOP + teams.length * LH + 2;
 			svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -418,6 +430,29 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 			marks();
 		}
 
+		function drawExtras() {
+			const nowEl = root.querySelector(".pm-now"), lg = root.querySelector(".pm-legend");
+			nowEl.style.display = "none";
+			lg.style.display = progress ? "" : "none";
+			if (!progress) return;
+			const k = steps.findIndex((s) => s.progress.state === "now");
+			if (k >= 0) {
+				const s = steps[k], p = s.progress, c = color[s.team];
+				let since = p.started;
+				for (let j = k - 1; !since && j >= 0; j--) since = steps[j].progress.finished;
+				const who = (p.open[0] && p.open[0].waiting_on) || s.team;
+				nowEl.innerHTML = `<span class="pm-dot" style="background:${c}"></span><span><b>${__("Now")}:</b> ${k + 1}. ${esc(__(s.title))} · ${__("Waiting on {0}", [esc(__(who))])}${since ? " · " + span(hours(since)) : ""}</span>`;
+				nowEl.dataset.act = "step";
+				nowEl.dataset.i = k;
+				nowEl.style.display = "";
+			}
+			const D = 2 * (R + 8), G = "#687178";
+			const item = (st, label) => `<span class="pm-lg"><svg viewBox="0 0 ${D} ${D}"><g class="st ${st}">${dot(D / 2, D / 2, G, "", st)}</g></svg>${label}</span>`;
+			lg.innerHTML = item("done", __("Done")) + item("now", __("Now")) + item("todo", __("Not yet")) + item("skipped", __("Not needed"))
+				+ item("lost", __("Lost"))
+				+ `<span class="pm-lg"><span class="pm-lg-count">2/5</span>${__("Documents done in a step with several")}</span>`;
+		}
+
 		if (root._pm_click) root.removeEventListener("click", root._pm_click);
 		root._pm_click = (e) => {
 			const el = e.target.closest("[data-act]");
@@ -442,6 +477,7 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 		lastW = svg.parentElement.clientWidth;
 		draw();
 		drawChips();
+		drawExtras();
 		if (progress) {
 			const now = steps.findIndex((s) => ["now", "lost"].includes(s.progress.state));
 			let last = 0;
