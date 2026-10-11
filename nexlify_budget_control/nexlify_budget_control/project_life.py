@@ -25,6 +25,7 @@ IGNORED_ROLES = ("System Manager", "Administrator", "All", "Guest")
 IGNORED_ACTIONS = ("Cancel",)
 DEFAULT_TARGET_DAYS = 3
 NEVER = "9999-12-31 00:00:00"
+LOST = "Lost"  # a Project Life's outcome when its Opportunity was lost
 # Put in once per site each; edited or removed later from the UI, they never come back
 SEEDS = (
 	("nexlify_project_life_rules_seeded", "rules", (
@@ -205,6 +206,33 @@ def record(doctype, name):
 	_enter(life, doctype, name, stage, at, frappe.session.user, last)
 
 
+def _lost(opportunity):
+	"""The Opportunity, when it was lost: its status Lost, or a closing sales stage of opportunity_rfq that is a loss."""
+	from nexlify_budget_control.nexlify_budget_control.opportunity_rfq import CLOSED_STAGES
+
+	o = frappe.db.get_value("Opportunity", opportunity, ["name", "status", "sales_stage", "modified", "modified_by"], as_dict=True)
+	if o and (o.status == LOST or (o.sales_stage in CLOSED_STAGES and LOST in (o.sales_stage or ""))):
+		return o
+	return None
+
+
+def end_lost(life, at, by):
+	"""The Opportunity was lost: the open stages close at that moment, never late, and the life ends as Lost."""
+	at = get_datetime(at)
+	for r in frappe.get_all(STAGE, filters={"parent": life, "parenttype": LIFE, "is_open": 1}, fields=["name", "entered_on"]):
+		frappe.db.set_value(STAGE, r.name, {"is_open": 0, "left_on": at, "left_by": by, "next_stage": LOST, "is_late": 0,
+			"duration_days": flt(time_diff_in_hours(at, r.entered_on) / 24, 2)}, update_modified=False)
+	frappe.db.set_value(LIFE, life, {"outcome": LOST, "ended_on": at}, update_modified=False)
+	_refresh(life)
+
+
+def on_opportunity_update(doc, method=None):
+	"""Opportunity saved (doc_events): a lost one ends its Project Life."""
+	life = frappe.db.get_value(LIFE, {"opportunity": doc.name, "outcome": ["is", "not set"]})
+	if life and _lost(doc.name):
+		end_lost(life, now_datetime(), frappe.session.user)
+
+
 def on_change(doc, method=None):
 	"""doc_events "*": cheap for the others, one read for the tracked ones."""
 	if doc.doctype in TRACKED:
@@ -281,11 +309,18 @@ def rebuild(dry_run=1):
 			counts[doctype] = counts.get(doctype, 0) + 1
 	for life in touched:
 		_reorder(life)
+	lost = 0
+	for life in frappe.get_all(LIFE, filters={"outcome": ["is", "not set"], "opportunity": ["is", "set"]}, fields=["name", "opportunity"]):
+		o = _lost(life.opportunity)
+		if o:
+			lost += 1
+			if not dry:
+				end_lost(life.name, o.modified, o.modified_by)
 	for life in ([] if dry else frappe.get_all(LIFE, pluck="name")):
 		_refresh(life)
 	if not dry:
 		frappe.db.commit()
-	return {"documents": counts, "lives": None if dry else len(touched)}
+	return {"documents": counts, "lives": None if dry else len(touched), "lost": lost}
 
 
 def seed_rules():

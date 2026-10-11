@@ -169,12 +169,17 @@ def _step_progress(step, rows, workflows):
 		done = bool(reached)
 		finished = min(reached.values()) if done else None
 		count = len(reached)
-	return {"state": None, "done": done, "started": started, "finished": finished, "reached": count, "total": len(docs),
+	# What happened in the step: entering the stage it works in, leaving it, reaching the stage it leads to
+	events = [{"reference_doctype": r.reference_doctype, "reference_name": r.reference_name, "stage": r.stage, "previous_stage": r.previous_stage, "entered_on": r.entered_on,
+		"entered_by": r.get("entered_by"), "duration_days": r.get("duration_days"), "is_open": r.is_open}
+		for r in mine if r.stage in done_states or r.stage in from_states or (from_states and r.previous_stage in from_states)]
+	documents = [{"doctype": doctype, "name": n, "stage": r.stage, "is_open": r.is_open} for n, r in last.items()]
+	return {"documents": documents, "events": events, "state": None, "done": done, "started": started, "finished": finished, "reached": count, "total": len(docs),
 		"open": [{"reference_name": n, "stage": r.stage, "waiting_on": r.waiting_on, "entered_on": r.entered_on,
 			"due_on": r.due_on, "is_scheduled": r.is_scheduled} for n, r in last.items() if r.is_open]}
 
 
-def _step_states(raw, progress, life_open):
+def _step_states(raw, progress, life_open, outcome=None):
 	"""done; skipped (an optional step, or a once-per-document step with no document, passed by a later one); done
 	before the records start (passed by a later step, never reached); now (the first step still to do, while the
 	project has an open stage); part done; not yet."""
@@ -191,8 +196,8 @@ def _step_states(raw, progress, life_open):
 			p["state"] = "skipped"
 		elif passed and not p["reached"] and not p["open"]:
 			p["state"] = "done"
-		elif life_open and not now_given:
-			p["state"], now_given = "now", True
+		elif (life_open or outcome) and not now_given:
+			p["state"], now_given = ("lost" if outcome else "now"), True
 		else:
 			p["state"] = "part" if (p["reached"] or p["open"]) else "todo"
 
@@ -208,10 +213,31 @@ def get_life_map(life):
 	refs = [r for s in raw for r in (s.get("status"), s.get("done"), s.get("from")) if r]
 	workflows = _workflows({r["workflow"] for r in refs if r.get("workflow")})
 	rows = frappe.get_all(STAGE, filters={"parent": life, "parenttype": LIFE},
-		fields=["reference_doctype", "reference_name", "stage", "waiting_on", "is_open", "entered_on", "due_on", "is_scheduled"],
+		fields=["reference_doctype", "reference_name", "stage", "previous_stage", "waiting_on", "is_open", "entered_on", "entered_by",
+			"duration_days", "due_on", "is_scheduled"],
 		order_by="entered_on asc, idx asc")
 	progress = [_step_progress(s, rows, workflows) for s in raw]
-	_step_states(raw, progress, any(r.is_open for r in rows))
+	head = frappe.db.get_value(LIFE, life, ["outcome", "ended_on", "opportunity", "project"], as_dict=True) or frappe._dict()
+	_step_states(raw, progress, any(r.is_open for r in rows), head.outcome)
 	for step, p in zip(data["steps"], progress):
 		step["progress"] = p
+	users = {e["entered_by"] for p in progress for e in p["events"] if e["entered_by"]}
+	names = dict(frappe.get_all("User", filters={"name": ["in", list(users) or [""]]}, fields=["name", "full_name"], as_list=True))
+	for p in progress:
+		for e in p["events"]:
+			e["by"] = names.get(e["entered_by"]) or e["entered_by"]
+	# A step's "also": the project's Opportunity or Project shown with its own documents
+	for s, p in zip(raw, progress):
+		extra = []
+		for kind in s.get("also") or []:
+			if kind == "opportunity" and head.opportunity:
+				o = frappe.db.get_value("Opportunity", head.opportunity, ["sales_stage", "status"], as_dict=True) or frappe._dict()
+				extra.append({"doctype": "Opportunity", "name": head.opportunity, "stage": o.sales_stage or o.status})
+			elif kind == "project" and head.project:
+				extra.append({"doctype": "Project", "name": head.project, "stage": frappe.db.get_value("Project", head.project, "status")})
+		p["documents"] = extra + p["documents"]
+	data["outcome"], data["ended_on"], data["lost_reasons"] = head.outcome, head.ended_on, []
+	if head.outcome and head.opportunity:
+		data["lost_reasons"] = frappe.get_all("Opportunity Lost Reason Detail",
+			filters={"parent": head.opportunity, "parenttype": "Opportunity"}, pluck="lost_reason")
 	return data

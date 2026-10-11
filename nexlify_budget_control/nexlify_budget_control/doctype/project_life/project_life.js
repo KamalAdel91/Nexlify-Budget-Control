@@ -29,7 +29,11 @@ frappe.ui.form.on("Project Life", {
 
 		const open = cint(frm.doc.open_stages);
 		const cur = rows.find((r) => r.is_open && r.reference_doctype === frm.doc.current_doctype && r.reference_name === frm.doc.current_name);
-		if (frm.doc.current_stage) {
+		if (frm.doc.outcome === "Lost") {
+			frm.dashboard.add_indicator(__("Lost on {0}", [pl_day(frm.doc.ended_on)]), "red");
+			if (frm.doc.started_on) frm.dashboard.add_indicator(__("Lasted {0}", [pl_span(pl_hours(frm.doc.started_on, frm.doc.ended_on))]), "gray");
+		}
+		if (frm.doc.current_stage && frm.doc.outcome !== "Lost") {
 			const kind = PL_KIND[frm.doc.current_doctype] || frm.doc.current_doctype;
 			const dated = cur && cur.is_scheduled && cur.due_on;
 			frm.dashboard.add_indicator(__("Now at: {0} · {1}", [__(kind), __(frm.doc.current_stage)]),
@@ -44,7 +48,7 @@ frappe.ui.form.on("Project Life", {
 			}
 		}
 		if (open > 1) frm.dashboard.add_indicator(__("{0} stages open", [open]), "orange");
-		if (frm.doc.started_on) {
+		if (frm.doc.started_on && frm.doc.outcome !== "Lost") {
 			frm.dashboard.add_indicator(open
 				? __("Started {0} ago", [pl_span(pl_hours(frm.doc.started_on))])
 				: __("Took {0}", [pl_span(pl_hours(frm.doc.started_on, frm.doc.last_event_on))]), "blue");

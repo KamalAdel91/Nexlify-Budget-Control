@@ -48,7 +48,12 @@
 				"workflow": "Project Estimation Workflow",
 				"initial": 1
 			},
-			"open": "Opportunity"
+			"open": "Opportunity",
+			"short": "RFQ",
+			"phase": "Pricing",
+			"also": [
+				"opportunity"
+			]
 		},
 		{
 			"team": "Estimation",
@@ -69,7 +74,9 @@
 			"done": {
 				"workflow": "Project Estimation Workflow",
 				"action": "Send to Sales"
-			}
+			},
+			"short": "Pricing",
+			"phase": "Pricing"
 		},
 		{
 			"team": "Supply Chain",
@@ -90,7 +97,9 @@
 			"each": 1,
 			"from": {
 				"constant": "nexlify_budget_control.nexlify_budget_control.supply_chain.PENDING"
-			}
+			},
+			"short": "Supplies",
+			"phase": "Pricing"
 		},
 		{
 			"team": "Estimation",
@@ -110,7 +119,9 @@
 			"note": "Sales receives the selling price only.",
 			"policy": {
 				"note": "Sales receives the selling price only: the cost, the margin and the cost breakdown stay with Estimation."
-			}
+			},
+			"short": "Send",
+			"phase": "Pricing"
 		},
 		{
 			"team": "Sales",
@@ -118,7 +129,8 @@
 			"todo": [
 				"Send the quote to the customer",
 				"If the customer changes the scope, click Request Revision to send it back to Estimation",
-				"Set the Opportunity to Closed Won and attach the signed contract: the Estimation moves to contract review by itself"
+				"Set the Opportunity to Closed Won and attach the signed contract: the Estimation moves to contract review by itself",
+				"If the customer says no, set Closed Lost: the project's life ends here"
 			],
 			"note": "Closed Opportunities are locked and can't be edited.",
 			"receives": "Selling price from Estimation",
@@ -130,7 +142,13 @@
 			"open": "Opportunity",
 			"policy": {
 				"receives": "Selling price only, without the cost or the margin"
-			}
+			},
+			"short": "Win",
+			"phase": "Contract",
+			"also": [
+				"opportunity",
+				"project"
+			]
 		},
 		{
 			"team": "Estimation",
@@ -153,7 +171,9 @@
 					"Upload the Contract (No Prices)",
 					"Click Handover to Planning"
 				]
-			}
+			},
+			"short": "Handover",
+			"phase": "Contract"
 		},
 		{
 			"team": "Planning",
@@ -173,7 +193,9 @@
 			"policy": {
 				"note": "Planning never sees any amount.",
 				"receives": "Contract without prices"
-			}
+			},
+			"short": "Plan",
+			"phase": "Approval"
 		},
 		{
 			"team": "COO",
@@ -189,7 +211,9 @@
 				"action": "Approve",
 				"allowed": "COO"
 			},
-			"open": "Project Overview"
+			"open": "Project Overview",
+			"short": "COO",
+			"phase": "Approval"
 		},
 		{
 			"team": "CEO",
@@ -206,7 +230,9 @@
 				"action": "Approve",
 				"allowed": "CEO"
 			},
-			"open": "Project Overview"
+			"open": "Project Overview",
+			"short": "CEO",
+			"phase": "Approval"
 		},
 		{
 			"team": "Planning",
@@ -227,7 +253,9 @@
 			"each": 1,
 			"from": {
 				"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.PENDING"
-			}
+			},
+			"short": "Completion",
+			"phase": "Delivery"
 		},
 		{
 			"team": "Finance",
@@ -246,7 +274,9 @@
 			"each": 1,
 			"from": {
 				"constant": "nexlify_budget_control.nexlify_budget_control.job_completion.READY"
-			}
+			},
+			"short": "Invoice",
+			"phase": "Delivery"
 		}
 	]
 }
