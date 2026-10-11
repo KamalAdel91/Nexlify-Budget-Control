@@ -395,7 +395,7 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 		function showProgress(i) {
 			cur = i;
 			const s = steps[i], p = s.progress, c = color[s.team], n = steps.length, b = BADGE[p.state];
-			let since = p.started;
+			let since = (p.open[0] && p.open[0].entered_on) || p.started;  // the last entry, after a revision or a Return
 			for (let k = i - 1; !since && k >= 0; k--) since = steps[k].progress.finished;
 			const lines = [];
 			const count = s.each && p.total ? [__("Progress"), __("{0} of {1} done", [p.reached, p.total])] : null;
@@ -438,7 +438,7 @@ a.pm-doc:hover { border-color: var(--text-muted, #6c7680); text-decoration: none
 			const k = steps.findIndex((s) => s.progress.state === "now");
 			if (k >= 0) {
 				const s = steps[k], p = s.progress, c = color[s.team];
-				let since = p.started;
+				let since = (p.open[0] && p.open[0].entered_on) || p.started;  // the last entry, after a revision or a Return
 				for (let j = k - 1; !since && j >= 0; j--) since = steps[j].progress.finished;
 				const who = (p.open[0] && p.open[0].waiting_on) || s.team;
 				nowEl.innerHTML = `<span class="pm-dot" style="background:${c}"></span><span><b>${__("Now")}:</b> ${k + 1}. ${esc(__(s.title))} · ${__("Waiting on {0}", [esc(__(who))])}${since ? " · " + span(hours(since)) : ""}</span>`;
