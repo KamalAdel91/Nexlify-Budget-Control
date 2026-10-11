@@ -92,32 +92,72 @@ class ProjectEstimation(Document):
 
 	def _validate_workflow_step(self):
 		"""The prices are checked when they leave Draft (for approval or to Sales), then locked until the Estimation is
-		back in Draft (Reprice, Request Revision or a Return). A Return from the approval needs its reason."""
+		back in Draft (Reprice, Request Revision or a Return). A Return, Request Changes or Reprice needs its reason.
+		Each step of the contract negotiation adds a Contract Round."""
 		from nexlify_budget_control.nexlify_budget_control import estimation_flow as flow
 
 		before = None if self.is_new() else self.get_doc_before_save()
 		prev = before.get("workflow_state") if before else None
+		state = self.workflow_state
 		locked = flow.price_locked()
-		if self.workflow_state in locked and prev not in locked:
+		if state in locked and prev not in locked:
 			settings = frappe.get_cached_doc("Project Budget Settings")
 			if not (flt(settings.coo_approval_limit) and flt(settings.ceo_approval_limit)):
 				frappe.throw(_("Set the COO and CEO approval limits in Project Budget Settings."))
 			self._validate_ready()
 			self.return_reason = None
-		elif (self.workflow_state in locked and prev == self.workflow_state
+		elif (state in locked and prev == state
 				and not frappe.flags.nexlify_rfq_scope_sync and not self.flags.nexlify_flow_save):
-			frappe.throw(_("The prices are locked while the Estimation is {0}.").format(_(self.workflow_state)))
-		if prev in flow.pending() and self.workflow_state in flow.draft() and not (self.return_reason or "").strip():
-			frappe.throw(_("Enter the reason for returning it."))
+			frappe.throw(_("The prices are locked while the Estimation is {0}.").format(_(state)))
+		if prev == state:
+			return
+		reason = (self.return_reason or "").strip()
+		review = flow.contract_review()
+		needs_reason = ((prev in flow.pending() and state in flow.draft())
+			or (prev in review and state in (flow.changes_requested() | flow.draft())))
+		if needs_reason and not reason:
+			frappe.throw(_("Enter the reason."))
+		if state in review:
+			sent = frappe.flags.nexlify_contract_round
+			if not sent:
+				frappe.throw(_("Sales sends the contract from the Opportunity."))
+			self._add_round("From Sales", "Contract Sent", **sent)
+			self.return_reason = None
+		elif prev in review and state not in flow.lost():
+			event = ("Changes Requested" if state in flow.changes_requested()
+				else "Accepted" if state in flow.agreed() else "Repriced")
+			self._add_round("From Estimation", event, comment=reason or None)
+
+	def _add_round(self, direction, event, **values):
+		"""One step of the contract negotiation: a new round starts each time Sales sends the contract."""
+		sent = sum(1 for r in self.get("contract_rounds") or [] if r.direction == "From Sales")
+		self.append("contract_rounds", {
+			"round_no": sent + 1 if direction == "From Sales" else max(sent, 1),
+			"direction": direction, "event": event,
+			"by_user": values.pop("by_user", None) or frappe.session.user,
+			"sent_on": frappe.utils.now_datetime(), **values})
 
 	def on_update(self):
-		"""A Return from the approval is written on the Estimation, with its reason."""
+		"""A Return or a contract decision goes on the timeline (the Opportunity's too, for Sales), with its reason."""
 		from nexlify_budget_control.nexlify_budget_control import estimation_flow as flow
 
 		before = self.get_doc_before_save()
-		if before and before.get("workflow_state") in flow.pending() and self.workflow_state in flow.draft():
-			self.add_comment("Comment", _("Returned to Estimation by {0}: {1}").format(
-				frappe.utils.get_fullname(frappe.session.user), frappe.utils.escape_html(self.return_reason or "")))
+		prev = before.get("workflow_state") if before else None
+		state = self.workflow_state
+		if prev == state:
+			return
+		who = frappe.utils.get_fullname(frappe.session.user)
+		reason = frappe.utils.escape_html(self.return_reason or "")
+		if prev in flow.pending() and state in flow.draft():
+			self.add_comment("Comment", _("Returned to Estimation by {0}: {1}").format(who, reason))
+		elif prev in flow.contract_review() and state in flow.changes_requested():
+			msg = _("Contract changes requested by {0}: {1}").format(who, reason)
+			self.add_comment("Comment", msg)
+			if self.opportunity:
+				frappe.get_doc("Opportunity", self.opportunity).add_comment("Comment", msg)
+		elif prev in flow.contract_review() and state in flow.agreed() and self.opportunity:
+			frappe.get_doc("Opportunity", self.opportunity).add_comment("Comment",
+				_("Contract accepted by {0}. The Opportunity can be Closed Won with the signed contract.").format(who))
 
 	def _scope_rows_with_roles(self):
 		if self.is_new():
@@ -482,6 +522,6 @@ def set_return_reason(name, reason):
 	reason = (reason or "").strip()
 	if not reason:
 		frappe.throw(_("Enter the reason for returning it."))
-	if frappe.db.get_value("Project Estimation", name, "workflow_state") not in flow.pending():
-		frappe.throw(_("The Estimation is not waiting for approval."))
+	if frappe.db.get_value("Project Estimation", name, "workflow_state") not in flow.pending() | flow.contract_review():
+		frappe.throw(_("The Estimation is not waiting for this decision."))
 	frappe.db.set_value("Project Estimation", name, "return_reason", reason, update_modified=False)

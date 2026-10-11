@@ -25,11 +25,11 @@ frappe.ui.form.on('Project Estimation', {
     }
 });
 
-// Return to Estimation (COO / CEO) needs a reason
+// Return to Estimation (COO / CEO), Request Changes and Reprice need a reason
 frappe.ui.form.on('Project Estimation', {
 	before_workflow_action(frm) {
 		const action = frm.selected_workflow_action || '';
-		if (!action.startsWith('Return')) return;
+		if (!action.startsWith('Return') && !['Request Changes', 'Reprice'].includes(action)) return;
 		return new Promise((resolve, reject) => {
 			frappe.dom.unfreeze();
 			let done = false;

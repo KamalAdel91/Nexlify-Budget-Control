@@ -83,20 +83,27 @@ function nexlify_render_estimation_view(frm) {
 			}
 			const revise = (g.with_sales.includes(d.status) && !['Closed Won', 'Closed Lost'].includes(frm.doc.sales_stage))
 				? `<button class="btn btn-xs btn-default nx-request-revision" style="margin-left:8px">${__('Request Revision')}</button>` : '';
+			const can_send = [...g.with_sales, ...g.changes_requested].includes(d.status)
+				&& !['Closed Won', 'Closed Lost', 'Closed Lost to Competition'].includes(frm.doc.sales_stage);
+			const send = can_send ? `<button class="btn btn-xs btn-primary nx-send-contract" style="margin-left:8px">${__('Send Contract')}</button>` : '';
+			const notes = d.notes ? `<div style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--subtle-fg, #f8f8f8);font-size:13px"><div class="nx-rfq-sub">${__('Notes from Estimation')}</div>${esc(d.notes)}</div>` : '';
+			const rounds = (d.rounds || []).length ? `<div style="margin:12px 0 0"><div class="nx-rfq-sub">${__('Contract rounds')}</div>`
+				+ d.rounds.map(r => `<div style="font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border-color, #ededed)"><b>${__('Round {0}', [r.round_no])}</b> · ${esc(__(r.event || ''))} · ${esc(r.by_name || '')} · ${frappe.datetime.str_to_user(r.sent_on)}${r.comment ? `<div class="text-muted">${esc(r.comment)}</div>` : ''}</div>`).join('') + '</div>' : '';
 			const body = (d.rows || []).map(x => `<tr>
 				<td>${esc(x.equipment || '')}</td>
 				<td class="nx-num">${format_number(x.quantity)}</td>
 				<td class="nx-num">${money(x.unit_price)}</td>
 				<td class="nx-num">${money(x.total_price)}</td></tr>`).join('');
 			field.$wrapper.html(`<div class="nx-rfq-card">
-				${head(`<span class="nx-total">${money(d.total)}</span>${revise}`)}
+				${head(`<span class="nx-total">${money(d.total)}</span>${revise}${send}`)}
 				<div class="nx-rfq-scroll"><table class="nx-rfq-table">
 					<thead><tr><th>${__('Equipment Scope')}</th><th class="nx-num">${__('Qty')}</th>
 						<th class="nx-num">${__('Unit Price')}</th><th class="nx-num">${__('Total Price')}</th></tr></thead>
 					<tbody>${body}</tbody>
 					<tfoot><tr><td colspan="3" class="nx-num">${__('Total')}</td><td class="nx-num">${money(d.total)}</td></tr></tfoot>
-				</table></div></div>`);
+				</table></div>${notes}${rounds}</div>`);
 			field.$wrapper.find('.nx-request-revision').on('click', () => nexlify_request_revision(frm));
+			field.$wrapper.find('.nx-send-contract').on('click', () => nexlify_send_contract(frm));
 		});
 		},
 	});
@@ -186,4 +193,34 @@ function nexlify_est_states() {
 			.then((g) => (window.__nx_est_groups = g));
 	}
 	return window.__nx_est_states;
+}
+
+// Sales sends the customer's contract and our submitted Quotation to the Estimation team.
+function nexlify_send_contract(frm) {
+	frappe.db.get_list('Quotation', { filters: { opportunity: frm.doc.name, docstatus: 1 }, fields: ['name'], order_by: 'creation desc', limit: 1 }).then((q) => {
+		const d = new frappe.ui.Dialog({
+			title: __('Send Contract to Estimation'),
+			fields: [
+				{ fieldname: 'contract', fieldtype: 'Attach', label: __('Contract'), reqd: 1 },
+				{ fieldname: 'quotation', fieldtype: 'Link', options: 'Quotation', label: __('Quotation'), reqd: 1,
+					default: q.length ? q[0].name : null,
+					get_query: () => ({ filters: { opportunity: frm.doc.name, docstatus: 1 } }) },
+				{ fieldname: 'comment', fieldtype: 'Small Text', label: __('Comment') },
+			],
+			primary_action_label: __('Send'),
+			primary_action(v) {
+				frappe.call({
+					method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.send_contract',
+					args: { opportunity: frm.doc.name, contract: v.contract, quotation: v.quotation, comment: v.comment },
+					freeze: true,
+					callback() {
+						d.hide();
+						frappe.show_alert({ message: __('Contract sent to Estimation'), indicator: 'green' });
+						frm.reload_doc();
+					},
+				});
+			},
+		});
+		d.show();
+	});
 }

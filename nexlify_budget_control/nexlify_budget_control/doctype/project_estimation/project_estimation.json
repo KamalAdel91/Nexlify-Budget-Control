@@ -78,7 +78,9 @@
   "other_cost_total",
   "workflow_state",
   "is_cancelled_draft",
-  "return_reason"
+  "contract_negotiation_section",
+  "return_reason",
+  "contract_rounds"
  ],
  "fields": [
   {
@@ -543,9 +545,22 @@
    "read_only": 1
   },
   {
+   "fieldname": "contract_negotiation_section",
+   "fieldtype": "Section Break",
+   "label": "Contract Negotiation"
+  },
+  {
+   "description": "The last reason given for a Return, Request Changes or Reprice",
    "fieldname": "return_reason",
    "fieldtype": "Small Text",
-   "label": "Return Reason",
+   "label": "Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contract_rounds",
+   "fieldtype": "Table",
+   "label": "Contract Rounds",
+   "options": "Project Estimation Contract Round",
    "read_only": 1
   }
  ],
@@ -578,7 +593,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-12 01:04:05.487513",
+ "modified": "2026-10-12 01:18:31.478788",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

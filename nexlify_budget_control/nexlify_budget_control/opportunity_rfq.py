@@ -158,17 +158,19 @@ def get_rfq_for_estimation(estimation):
 
 @frappe.whitelist()
 def get_estimation_for_opportunity(opportunity):
-	"""Selling information only (equipment, quantity, unit and total price), once the Estimation is sent to Sales."""
+	"""Selling information only (equipment, quantity, unit and total price), once the Estimation is sent to Sales,
+	with the notes from Estimation and the contract rounds."""
 	frappe.has_permission("Opportunity", "read", doc=opportunity, throw=True)
 	est, status = frappe.db.get_value("Opportunity", opportunity, ["custom_estimation", "custom_estimation_status"])
 	status = status or "Not Sent"
 	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.sales_visible():
 		return {"estimation": est, "status": status, "submitted": False, "rows": [], "total": 0, "currency": None}
-	e = frappe.db.get_value("Project Estimation", est, ["total_price", "currency"], as_dict=True)
+	e = frappe.db.get_value("Project Estimation", est, ["total_price", "currency", "notes_to_sales"], as_dict=True)
 	rows = frappe.get_all("Project Equipment Scope", filters={"cost_budget": est, "docstatus": ["<", 2]},
 			fields=["equipment", "quantity", "unit_price", "total_price"], order_by="creation")
 	return {"estimation": est, "status": status, "submitted": True, "rows": rows,
-			"total": flt(e.total_price), "currency": e.currency}
+			"total": flt(e.total_price), "currency": e.currency,
+			"notes": e.notes_to_sales, "rounds": _contract_rounds(est)}
 
 def release_opportunity(estimation, cancelled=False):
 	"""A deleted Estimation gives the RFQ back to its Opportunity: link removed, status Not Sent, a note on the timeline."""
@@ -367,3 +369,65 @@ def validate_won_ready(doc, method=None):
 	if state not in flow.agreed():
 		frappe.throw(_("The Opportunity can be Closed Won only after the Estimation team accepts the contract. Estimation Status: {0}").format(
 			_(state or "Not Sent")), title=_("Contract not agreed"))
+
+
+def _contract_rounds(estimation):
+	"""The contract negotiation as Sales may see it: who, when, what and the comment (no Estimation files)."""
+	rows = frappe.get_all("Project Estimation Contract Round", filters={"parent": estimation, "parenttype": "Project Estimation"},
+		fields=["round_no", "direction", "event", "comment", "by_user", "sent_on"], order_by="idx")
+	for r in rows:
+		r.by_name = frappe.utils.get_fullname(r.pop("by_user"))
+	return rows
+
+
+def _claim_upload(url, doctype, name):
+	"""A file uploaded from a dialog is not attached to anything yet: attach it to the document, private."""
+	file = frappe.db.get_value("File", {"file_url": url, "attached_to_name": ["is", "not set"]}, "name")
+	if not file:
+		return url
+	f = frappe.get_doc("File", file)
+	f.update({"attached_to_doctype": doctype, "attached_to_name": name, "is_private": 1})
+	f.save(ignore_permissions=True)
+	return f.file_url
+
+
+def _quotation_pdf(quotation, estimation):
+	"""Our Quotation as Sales sent it, as a PDF on the Estimation (the Estimation team cannot read the Quotation)."""
+	f = frappe.get_doc({"doctype": "File", "file_name": f"{quotation}.pdf", "is_private": 1,
+		"content": frappe.get_print("Quotation", quotation, as_pdf=True),
+		"attached_to_doctype": "Project Estimation", "attached_to_name": estimation, "attached_to_field": "contract_rounds"})
+	f.insert(ignore_permissions=True)
+	return f.file_url
+
+
+@frappe.whitelist()
+def send_contract(opportunity, contract, quotation, comment=None):
+	"""Sales sends the customer's contract and our Quotation to the Estimation team for the Contract Review."""
+	opp = frappe.get_doc("Opportunity", opportunity)
+	opp.check_permission("write")
+	if opp.sales_stage in CLOSED_STAGES:
+		frappe.throw(_("The Opportunity is closed."))
+	est = opp.get("custom_estimation")
+	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.left_by(flow.SEND_CONTRACT):
+		frappe.throw(_("The Estimation is not waiting for the contract."))
+	if not contract:
+		frappe.throw(_("Attach the contract."))
+	q = frappe.db.get_value("Quotation", quotation, ["docstatus", "opportunity"], as_dict=True) if quotation else None
+	if not q or q.docstatus != 1 or q.opportunity != opp.name:
+		frappe.throw(_("Choose a submitted Quotation of this Opportunity."))
+	from frappe.model.workflow import apply_workflow
+	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator, attach_file_copy
+
+	contract = _claim_upload(contract, "Opportunity", opp.name)
+	attach_file_copy(contract, "Project Estimation", est, "contract_rounds")
+	frappe.flags.nexlify_contract_round = {"contract": contract, "quotation": quotation,
+		"quotation_pdf": _quotation_pdf(quotation, est), "comment": (comment or "").strip() or None,
+		"by_user": frappe.session.user}
+	try:
+		_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", est).as_dict(), flow.SEND_CONTRACT)
+	finally:
+		frappe.flags.nexlify_contract_round = None
+	note = _("Contract and Quotation {0} sent to Estimation by {1}").format(quotation, frappe.utils.get_fullname())
+	if (comment or "").strip():
+		note += ": " + frappe.utils.escape_html(comment.strip())
+	opp.add_comment("Comment", note)
