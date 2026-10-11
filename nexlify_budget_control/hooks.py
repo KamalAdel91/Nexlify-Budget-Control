@@ -288,3 +288,8 @@ scheduler_events = {
 override_whitelisted_methods = {
 	"erpnext.crm.doctype.opportunity.opportunity.make_quotation": "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.make_quotation",
 }
+
+# The Business Process side panel (nexlify_tracker) draws these DocTypes from steps.json and their Project Life
+nexlify_tracker_stages = {
+	"Project Estimation": "nexlify_budget_control.nexlify_budget_control.process_map.tracker.tracker_stages",
+}

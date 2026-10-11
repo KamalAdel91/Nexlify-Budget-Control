@@ -107,7 +107,7 @@
 		},
 		{
 			"team": "COO",
-			"title": "Approve the price",
+			"title": "COO approves the price",
 			"optional": 1,
 			"todo": [
 				"Needed only when the selling price is over the COO limit",
@@ -128,7 +128,7 @@
 		},
 		{
 			"team": "CEO",
-			"title": "Approve the price",
+			"title": "CEO approves the price",
 			"optional": 1,
 			"todo": [
 				"Needed only when the selling price is over the CEO limit",
