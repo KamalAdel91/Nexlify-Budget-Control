@@ -86,16 +86,25 @@ class ProjectOverview(Document):
 		if self.project:
 			frappe.db.set_value("Project", self.project, "is_active", "No")
 
+	def _state_order(self):
+		"""Position of each state in the active Workflow (read from the Workflow, never written in the code)."""
+		from frappe.model.workflow import get_workflow_name
+		name = get_workflow_name(self.doctype)
+		if not name:
+			return {}
+		return {s.state: i for i, s in enumerate(frappe.get_cached_doc("Workflow", name).states)}
+
 	def _return_step(self):
+		"""A move back to an earlier state of the Workflow: back to its first state is a return to Planning,
+		to any other state a return to the approver before."""
 		before = self.get_doc_before_save()
 		if not before or not self.has_value_changed("workflow_state"):
 			return None
-		step = (before.workflow_state, self.workflow_state)
-		if step == ("Pending COO Approval", "In Planning"):
-			return "planning"
-		if step == ("Pending CEO Approval", "Pending COO Approval"):
-			return "coo"
-		return None
+		order = self._state_order()
+		old, new = order.get(before.workflow_state), order.get(self.workflow_state)
+		if old is None or new is None or new >= old:
+			return None
+		return "planning" if new == 0 else "coo"
 
 	def before_save(self):
 		if self._return_step() and not (self.return_reason or "").strip():

@@ -502,14 +502,14 @@ def plan_staff_days(plan_name, cost_budget=None):
                 if r.trade:
                     est[r.trade] = est.get(r.trade, 0) + days[r.parent] * flt(r.count)
 
-    duration = {v.name: flt(v.visit_duration) for v in frappe.get_all("Project Visits",
-        filters={"project_planning": plan_name, "docstatus": ["<", 2]}, fields=["name", "visit_duration"])}
-    if duration:
-        for t in frappe.get_all("Project Visit Team",
-                filters={"parent": ["in", list(duration)], "parenttype": "Project Visits"},
-                fields=["parent", "trade", "headcount"]):
+    for visit_name in frappe.get_all("Project Visits",
+            filters={"project_planning": plan_name, "docstatus": ["<", 2]}, pluck="name"):
+        visit = frappe.get_doc("Project Visits", visit_name)
+        # the duration the visit gives right now: a change in the days or the crew counts even before the visit is saved again
+        days = flt(visit._compute_duration())
+        for t in visit.team or []:
             if t.trade and cint(t.headcount) > 0:
-                plan[t.trade] = plan.get(t.trade, 0) + cint(t.headcount) * duration[t.parent]
+                plan[t.trade] = plan.get(t.trade, 0) + cint(t.headcount) * days
 
     est_total, plan_total = flt(sum(est.values()), 2), flt(sum(plan.values()), 2)
     allowed = flt(frappe.db.get_single_value("Project Budget Settings", "plan_staff_days_tolerance"))
@@ -572,7 +572,9 @@ def fill_overview_staff_days(dry_run=1, include_approved=0):
 
 
 def _open_overview_for_plan(plan, contract_value):
-    """Creates the project's Overview (or reuses the draft one) and puts it in Pending COO Approval."""
+    """Creates the project's Overview (or reuses the draft one) when the plan is sent for approval, and routes it by the
+    plan's staff days: above the allowed increase it goes to the COO now; within it, it is approved automatically as soon
+    as the plan's save is committed (the plan cannot be submitted inside its own save)."""
     existing = frappe.db.get_value(
         "Project Overview", {"project": plan.project, "docstatus": ["!=", 2]}, ["name", "docstatus"], as_dict=True
     )
@@ -587,19 +589,93 @@ def _open_overview_for_plan(plan, contract_value):
         doc = frappe.get_doc({"doctype": "Project Overview", "project": plan.project, "amended_from": last_cancelled})
         doc.insert(ignore_permissions=True)
         name = doc.name
-    # set directly: the state is driven by the plan, not by a user action on the Overview
+    # set directly: the state is driven by the plan, not by a user action on the Overview. It starts again from the
+    # Workflow's first state, and the Workflow's own transitions decide where it goes from there.
     frappe.db.set_value("Project Overview", name, {
         "revenue_budget": plan.name,
         "cost_budget": _planning_cost_budget(plan.name),
         "contract_value": contract_value,
-        "workflow_state": "Pending COO Approval",
-        "pending_since": frappe.utils.now_datetime(),
+        "workflow_state": _workflow_first_state("Project Overview"),
+        "pending_since": None,
     })
-    record_project_life("Project Overview", name)
     update_overview_stored_numbers(name)
     if frappe.db.get_value("Project", plan.project, "custom_project_overview") != name:
         frappe.db.set_value("Project", plan.project, "custom_project_overview", name, update_modified=False)
+
+    ov = frappe.db.get_value("Project Overview", name, ["needs_approval", "estimation_staff_days", "plan_staff_days",
+                                                         "staff_days_increase_pct", "allowed_increase_pct"], as_dict=True)
+    if ov.needs_approval:
+        _route_overview(name)
+        frappe.get_doc("Project Overview", name).add_comment("Info", _("Sent to the COO: {0}.").format(_staff_days_line(ov)))
+    else:
+        frappe.enqueue("nexlify_budget_control.nexlify_budget_control.budget_enforcement.approve_overview_within_allowance",
+                       queue="short", overview=name, enqueue_after_commit=True)
+    record_project_life("Project Overview", name)
     return name
+
+
+def _workflow_first_state(doctype):
+    """The first state of the doctype's active Workflow, read from the Workflow (never written in the code)."""
+    from frappe.model.workflow import get_workflow_name
+    name = get_workflow_name(doctype)
+    states = frappe.get_cached_doc("Workflow", name).states if name else []
+    if not states:
+        frappe.throw(_("{0} has no active Workflow.").format(doctype))
+    return states[0].state
+
+
+def _route_overview(name):
+    """Moves the Overview along the one system transition its Workflow offers from where it stands. System transitions
+    are allowed to the Administrator role only, so no person ever sees them; their conditions on needs_approval pick
+    the route (to the COO, or approved)."""
+    from frappe.model.workflow import apply_workflow, get_transitions
+
+    def run():
+        doc = frappe.get_doc("Project Overview", name)
+        steps = [t for t in get_transitions(doc) if t.allowed == "Administrator"]
+        if len(steps) != 1:
+            frappe.throw(_("Project Overview {0}: its Workflow should offer one system step from {1}, it offers {2}.").format(
+                name, doc.workflow_state, len(steps)))
+        return apply_workflow(doc, steps[0].action)
+
+    return _run_as_administrator(run)
+
+
+def approve_overview_within_allowance(overview):
+    """Background job, run once the plan's save is committed: approves the Overview of a plan within the allowed staff
+    days, which submits the plan and activates the project. If anything stops it, the Overview goes to the COO
+    instead, so it never waits silently."""
+    doc = frappe.get_doc("Project Overview", overview)
+    if doc.docstatus != 0 or doc.needs_approval or doc.workflow_state != _workflow_first_state("Project Overview"):
+        return
+    line = _staff_days_line(doc)
+    try:
+        _route_overview(overview)
+        frappe.get_doc("Project Overview", overview).add_comment("Info", _("Approved automatically: {0}.").format(line))
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title=_("Automatic approval of {0} failed").format(overview),
+                         reference_doctype="Project Overview", reference_name=overview)
+        frappe.db.set_value("Project Overview", overview, "needs_approval", 1, update_modified=False)
+        _route_overview(overview)
+        frappe.get_doc("Project Overview", overview).add_comment("Info", _(
+            "The automatic approval could not finish (see the Error Log), so it went to the COO: {0}.").format(line))
+    record_project_life("Project Overview", overview)
+
+
+def _staff_days_line(ov):
+    """One sentence with the staff-days check, for the Overview's comments."""
+    if not frappe.utils.flt(ov.estimation_staff_days):
+        return _("the plan has {0} staff days and the Estimation has none to compare with").format(
+            _staff_days_num(ov.plan_staff_days))
+    return _("the plan has {0} staff days against {1} in the Estimation ({2}%), allowed {3}%").format(
+        _staff_days_num(ov.plan_staff_days), _staff_days_num(ov.estimation_staff_days),
+        _staff_days_num(ov.staff_days_increase_pct), _staff_days_num(ov.allowed_increase_pct))
+
+
+def _staff_days_num(value):
+    """At most 2 decimals, without trailing zeros: 33.0 -> 33, 4.50 -> 4.5."""
+    return ("%.2f" % frappe.utils.flt(value)).rstrip("0").rstrip(".")
 
 @frappe.whitelist()
 def get_project_visits(project_planning):
@@ -3377,4 +3453,5 @@ def sync_visit_days_from_scope(planning_scope, days_per_equipment):
         total = frappe.db.sql("""select sum(work_days) from `tabProject Visit Allocation`
             where parent = %s and parenttype = 'Project Visits'""", v)[0][0]
         frappe.db.set_value("Project Visits", v, "working_days", flt(total, 2), update_modified=False)
+        frappe.db.set_value("Project Visits", v, "visit_duration", frappe.get_doc("Project Visits", v)._compute_duration(), update_modified=False)
     return len(open_visits)

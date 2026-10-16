@@ -94,17 +94,9 @@ class ProjectPlanning(Document):
 			if not est or est.cost_budget != cost_budget or est.docstatus != 1:
 				scope_issues.append(_("{0}: not in the Estimation. Remove it from the plan.").format(s.equipment))
 				continue
-			if flt(s.quantity) > flt(est.quantity):
-				scope_issues.append(_("{0}: quantity {1} is above the Estimation ({2}).").format(
+			if flt(s.quantity) != flt(est.quantity):
+				scope_issues.append(_("{0}: quantity {1} differs from the Estimation ({2}). The equipment follows the customer's requirements.").format(
 					s.equipment, flt(s.quantity), flt(est.quantity)))
-			if flt(s.days_per_equipment) > flt(est.days_per_equipment):
-				scope_issues.append(_("{0}: days per equipment {1} is above the Estimation ({2}).").format(
-					s.equipment, flt(s.days_per_equipment), flt(est.days_per_equipment)))
-			est_roles = roles_of(est.name, "Project Equipment Scope")
-			for trade, count in roles_of(s.name, "Project Planning Scope").items():
-				if count > est_roles.get(trade, 0):
-					scope_issues.append(_("{0}: {1} x{2} is above the Estimation ({3}).").format(
-						s.equipment, trade, count, est_roles.get(trade, 0)))
 
 			alloc = flt(allocated.get(s.name), 4)
 			planned = flt(s.quantity, 4)
@@ -114,6 +106,12 @@ class ProjectPlanning(Document):
 			elif alloc < planned:
 				alloc_issues.append(_("{0}: {1} of {2} allocated to the visits ({3} remaining).").format(
 					s.equipment, alloc, planned, flt(planned - alloc, 4)))
+
+		planned_est = {s.estimation_scope for s in scope if s.estimation_scope}
+		for e in frappe.get_all("Project Equipment Scope", filters={"cost_budget": cost_budget, "docstatus": 1},
+				fields=["name", "equipment"], order_by="creation asc"):
+			if e.name not in planned_est:
+				scope_issues.append(_("{0}: in the Estimation but not in the plan. The equipment follows the customer's requirements: add it back (Add missing).").format(e.equipment))
 
 		for v in frappe.get_all("Project Visits", filters={"project_planning": self.name},
 								fields=["name", "visit_label"], order_by="creation asc"):
