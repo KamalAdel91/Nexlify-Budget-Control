@@ -507,7 +507,8 @@ def validate_prices_from_estimation(doc, method=None):
 
 
 def _price_lines(doc):
-	return [(r.item_code, r.item_name, flt(r.qty, 4), flt(r.rate, 2)) for r in doc.get("items") or []]
+	"""The priced part of each line (the Item, the quantity, the price); its name and description stay free for Sales."""
+	return [(r.item_code, flt(r.qty, 4), flt(r.rate, 2)) for r in doc.get("items") or []]
 
 
 def _estimation_lines(opp):
@@ -524,15 +525,20 @@ def _estimation_lines(opp):
 
 
 def _fill_opportunity_from_estimation(opportunity):
-	"""The Estimation's lines become the Opportunity's Items and its total the Opportunity's value (same currency and rate)."""
+	"""The Estimation's lines become the Opportunity's Items and its total the Opportunity's value (same currency and rate).
+	The names and descriptions Sales wrote stay when the same lines come back (as many lines as before)."""
 	opp = frappe.get_doc("Opportunity", opportunity)
 	if opp.sales_stage in CLOSED_STAGES or not opp.get("custom_estimation"):
 		return False
 	e = frappe.db.get_value("Project Estimation", opp.custom_estimation, ["currency", "conversion_rate", "total_price"], as_dict=True)
+	old = [(r.item_name, r.description) for r in opp.get("items") or []]
+	new = _estimation_lines(opp)
+	keep = len(old) == len(new)
 	opp.set("items", [])
-	for line in _estimation_lines(opp):
-		opp.append("items", {"item_code": line.item_code, "item_name": line.item_name, "description": line.description,
-			"qty": line.qty, "uom": line.uom, "rate": line.rate})
+	for k, line in enumerate(new):
+		name, description = old[k] if keep else (line.item_name, line.description)
+		opp.append("items", {"item_code": line.item_code, "item_name": name or line.item_name,
+			"description": description or line.description, "qty": line.qty, "uom": line.uom, "rate": line.rate})
 	opp.currency = e.currency
 	opp.conversion_rate = flt(e.conversion_rate) or 1
 	opp.opportunity_amount = flt(e.total_price)

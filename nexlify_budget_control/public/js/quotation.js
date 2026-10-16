@@ -22,13 +22,21 @@ frappe.ui.form.on('Quotation', {
 	},
 });
 
-// A Quotation of an Opportunity with an Estimation: its lines and prices come from the Estimation, no discount
+// A Quotation of an Opportunity with an Estimation: its lines and prices come from the Estimation, no discount;
+// Sales may rename and describe the lines
 frappe.ui.form.on('Quotation', {
 	refresh(frm) {
 		if (!frm.doc.opportunity || frm.doc.docstatus !== 0) return;
 		frappe.db.get_value('Opportunity', frm.doc.opportunity, 'custom_estimation').then((r) => {
 			if (!(r && r.message && r.message.custom_estimation)) return;
-			['items', 'additional_discount_percentage', 'discount_amount'].forEach((f) => frm.set_df_property(f, 'read_only', 1));
+			['additional_discount_percentage', 'discount_amount'].forEach((f) => frm.set_df_property(f, 'read_only', 1));
+			const grid = frm.fields_dict.items && frm.fields_dict.items.grid;
+			if (!grid) return;
+			['item_code', 'qty', 'uom', 'rate', 'price_list_rate', 'discount_percentage', 'discount_amount',
+				'margin_type', 'margin_rate_or_amount', 'amount'].forEach((f) => grid.update_docfield_property(f, 'read_only', 1));
+			frm.set_df_property('items', 'cannot_add_rows', true);
+			frm.set_df_property('items', 'cannot_delete_rows', true);
+			grid.refresh();
 		});
 	},
 });

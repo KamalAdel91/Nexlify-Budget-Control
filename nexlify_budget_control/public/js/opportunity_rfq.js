@@ -236,12 +236,18 @@ function nexlify_send_contract(frm) {
 	});
 }
 
-// The Opportunity's Items, value and currency come from the approved Estimation: read only once they are filled
+// The Opportunity's Items, value and currency come from the approved Estimation: Sales may only rename and describe the lines
 frappe.ui.form.on('Opportunity', {
 	refresh(frm) {
 		if (frm.is_new() || !frm.doc.custom_estimation || !(frm.doc.items || []).length) return;
-		['items', 'opportunity_amount', 'currency', 'conversion_rate'].forEach((f) => frm.set_df_property(f, 'read_only', 1));
-		frm.toggle_display('items', true);
+		['opportunity_amount', 'currency', 'conversion_rate'].forEach((f) => frm.set_df_property(f, 'read_only', 1));
 		frm.set_df_property('opportunity_amount', 'description', __('From the approved Estimation: a price changes through Request Revision.'));
+		frm.toggle_display('items', true);
+		const grid = frm.fields_dict.items && frm.fields_dict.items.grid;
+		if (!grid) return;
+		['item_code', 'qty', 'uom', 'rate', 'amount'].forEach((f) => grid.update_docfield_property(f, 'read_only', 1));
+		frm.set_df_property('items', 'cannot_add_rows', true);
+		frm.set_df_property('items', 'cannot_delete_rows', true);
+		grid.refresh();
 	},
 });
