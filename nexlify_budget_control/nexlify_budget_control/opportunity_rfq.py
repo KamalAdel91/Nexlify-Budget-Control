@@ -591,3 +591,14 @@ def fill_opportunity_items(dry_run=1):
 		if not frappe.utils.cint(dry_run):
 			_fill_opportunity_from_estimation(o.name)
 	return out
+
+
+def validate_one_quotation(doc, method=None):
+	"""One submitted Quotation at a time for an Opportunity: for a new one, cancel the old one, then Make Quotation
+	(it takes the current prices; Amend would copy the old ones)."""
+	if not doc.get("opportunity"):
+		return
+	other = frappe.db.get_value("Quotation", {"opportunity": doc.opportunity, "docstatus": 1, "name": ["!=", doc.name]}, "name")
+	if other:
+		frappe.throw(_("Quotation {0} is already submitted for this Opportunity. Cancel it first, then use Make Quotation.").format(other),
+			title=_("One Quotation at a time"))
