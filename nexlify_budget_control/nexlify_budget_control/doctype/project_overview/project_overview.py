@@ -78,9 +78,11 @@ class ProjectOverview(Document):
 			frappe.throw(_("Cannot approve: the Plan has not been sent for approval."))
 
 	def on_submit(self):
-		self._submit_plan()
+		# the Project is Active first: submitting the Plan makes the Down Payment Sales Orders, which need an Active
+		# Project. A failure after this rolls the whole approval back, the Project included.
 		if self.project:
 			frappe.db.set_value("Project", self.project, "is_active", "Yes")
+		self._submit_plan()
 
 	def on_cancel(self):
 		if self.project:
