@@ -194,13 +194,21 @@ def _step_progress(step, rows, workflows):
 		"entered_by": r.get("entered_by"), "duration_days": r.get("duration_days"), "is_open": r.is_open}
 		for r in mine if r.stage in done_states or r.stage in from_states or (from_states and r.previous_stage in from_states)]
 	documents = [{"doctype": doctype, "name": n, "stage": r.stage, "is_open": r.is_open} for n, r in last.items()]
-	# an optional step its document went past without ever standing in it (a plan approved automatically:
-	# no COO, no CEO) is not needed, rather than waiting
+	# an optional step its document went past in its latest round without standing in it (a plan approved
+	# automatically: no COO, no CEO, even after an earlier round went to them) is not needed, rather than waiting
 	bypassed = False
-	if step.get("optional") and not done and last and from_states and not any(r.stage in from_states for r in mine):
+	if step.get("optional") and not done and last and from_states:
 		order = {s: i for i, s in enumerate((workflows.get(done_ref.get("workflow")) or {}).get("states") or [])}
 		at = min((order[s] for s in from_states if s in order), default=None)
-		bypassed = at is not None and all(order.get(r.stage, -1) > at for r in last.values())
+		if at is not None:
+			bypassed = True
+			for name, final in last.items():
+				its = [r for r in mine if r.reference_name == name]
+				# the latest round: the stages since the document last stood before this step
+				start = max((k for k, r in enumerate(its) if order.get(r.stage, -1) < at), default=-1)
+				latest = its[start + 1:]
+				if not latest or any(r.stage in from_states for r in latest) or order.get(final.stage, -1) <= at:
+					bypassed = False
 	return {"bypassed": bypassed, "documents": documents, "events": events, "state": None, "done": done, "started": started, "finished": finished, "reached": count, "total": len(docs),
 		"open": [{"reference_name": n, "stage": r.stage, "waiting_on": r.waiting_on, "entered_on": r.entered_on,
 			"due_on": r.due_on, "is_scheduled": r.is_scheduled} for n, r in last.items() if r.is_open and (not from_states or r.stage in from_states or r.stage in done_states)]}
