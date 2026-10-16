@@ -167,6 +167,9 @@ def _step_progress(step, rows, workflows):
 	done_states = {s for s in status.split(" or ") if s}
 	from_states = _from_states(step.get("from") or done_ref, workflows)
 	mine = [r for r in rows if r.reference_doctype == doctype]
+	# a cancelled document is replaced by its amended copy: what it reached no longer counts for the project
+	cancelled = {n for n in {r.reference_name for r in mine} if frappe.db.get_value(doctype, n, "docstatus") == 2}
+	mine = [r for r in mine if r.reference_name not in cancelled]
 	reached, last = {}, {}
 	for r in mine:
 		last[r.reference_name] = r
