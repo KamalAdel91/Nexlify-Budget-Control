@@ -459,6 +459,7 @@ def make_quotation(source_name, target_doc=None):
 		frappe.throw(_("The Opportunity has no priced Items yet."), title=_("No prices yet"))
 	e = frappe.db.get_value("Project Estimation", est, ["currency", "conversion_rate"], as_dict=True)
 
+	_throw_other_quotation(opp.name)
 	q = erpnext_make_quotation(source_name, target_doc)
 	q.opportunity = opp.name
 	q.ignore_pricing_rule = 1
@@ -581,14 +582,22 @@ def fill_opportunity_items(dry_run=1):
 
 
 def validate_one_quotation(doc, method=None):
-	"""One submitted Quotation at a time for an Opportunity: for a new one, cancel the old one, then Make Quotation
-	(it takes the current prices; Amend would copy the old ones)."""
+	"""One Quotation at a time for an Opportunity, Draft or Submitted: for a new one, delete the Draft or cancel the
+	submitted one, then Make Quotation (it takes the current prices; Amend would copy the old ones)."""
 	if not doc.get("opportunity"):
 		return
-	other = frappe.db.get_value("Quotation", {"opportunity": doc.opportunity, "docstatus": 1, "name": ["!=", doc.name]}, "name")
+	_throw_other_quotation(doc.opportunity, doc.name)
+
+
+def _throw_other_quotation(opportunity, name=None):
+	filters = {"opportunity": opportunity, "docstatus": ["<", 2]}
+	if name and not name.startswith("new-"):
+		filters["name"] = ["!=", name]
+	other = frappe.db.get_value("Quotation", filters, ["name", "docstatus"], as_dict=True)
 	if other:
-		frappe.throw(_("Quotation {0} is already submitted for this Opportunity. Cancel it first, then use Make Quotation.").format(other),
-			title=_("One Quotation at a time"))
+		frappe.throw(_("Quotation {0} ({1}) already exists for this Opportunity. Open it, or {2} it first, then use Make Quotation.").format(
+			frappe.utils.get_link_to_form("Quotation", other.name), _("Draft") if other.docstatus == 0 else _("Submitted"),
+			_("delete") if other.docstatus == 0 else _("cancel")), title=_("One Quotation at a time"))
 
 
 def _missing_for_estimation(opp):
