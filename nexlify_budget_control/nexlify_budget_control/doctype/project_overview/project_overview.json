@@ -29,6 +29,14 @@
   "schedule_html",
   "invoicing_section",
   "invoicing_html",
+  "staff_days_section",
+  "estimation_staff_days",
+  "plan_staff_days",
+  "column_break_staff_days",
+  "staff_days_increase_pct",
+  "allowed_increase_pct",
+  "needs_approval",
+  "staff_days_detail",
   "approval_section",
   "pending_since",
   "approved_on",
@@ -203,6 +211,56 @@
    "label": "Invoicing"
   },
   {
+   "collapsible": 1,
+   "fieldname": "staff_days_section",
+   "fieldtype": "Section Break",
+   "label": "Staff Days vs Estimation"
+  },
+  {
+   "fieldname": "estimation_staff_days",
+   "fieldtype": "Float",
+   "label": "Estimation Staff Days",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "plan_staff_days",
+   "fieldtype": "Float",
+   "label": "Plan Staff Days",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_staff_days",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "staff_days_increase_pct",
+   "fieldtype": "Percent",
+   "label": "Increase over Estimation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "allowed_increase_pct",
+   "fieldtype": "Percent",
+   "label": "Allowed Increase",
+   "read_only": 1
+  },
+  {
+   "fieldname": "needs_approval",
+   "fieldtype": "Check",
+   "label": "Needs COO and CEO Approval",
+   "read_only": 1
+  },
+  {
+   "fieldname": "staff_days_detail",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Staff Days by Role",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
    "fieldname": "approval_section",
    "fieldtype": "Section Break",
    "label": "Approval"
@@ -282,7 +340,7 @@
    "link_fieldname": "custom_project_overview"
   }
  ],
- "modified": "2026-10-04 01:47:54.536326",
+ "modified": "2026-10-16 17:40:55.734128",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Overview",

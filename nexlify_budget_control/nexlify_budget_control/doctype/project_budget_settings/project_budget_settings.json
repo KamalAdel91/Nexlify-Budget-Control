@@ -48,9 +48,12 @@
   "section_break_project_life_targets",
   "default_target_days",
   "project_life_targets",
+  "tab_approvals",
   "estimation_approval_section",
   "coo_approval_limit",
-  "ceo_approval_limit"
+  "ceo_approval_limit",
+  "plan_approval_section",
+  "plan_staff_days_tolerance"
  ],
  "fields": [
   {
@@ -306,6 +309,11 @@
    "options": "Project Life Stage Target"
   },
   {
+   "fieldname": "tab_approvals",
+   "fieldtype": "Tab Break",
+   "label": "Approvals"
+  },
+  {
    "fieldname": "estimation_approval_section",
    "fieldtype": "Section Break",
    "label": "Estimation Approval"
@@ -323,11 +331,23 @@
    "fieldname": "ceo_approval_limit",
    "fieldtype": "Currency",
    "label": "CEO Approval Above"
+  },
+  {
+   "fieldname": "plan_approval_section",
+   "fieldtype": "Section Break",
+   "label": "Plan Approval"
+  },
+  {
+   "description": "Staff days = people x days. A plan above the Estimation by more than this goes to the COO, then the CEO; within it, the plan is approved automatically. Empty means 0.",
+   "fieldname": "plan_staff_days_tolerance",
+   "fieldtype": "Percent",
+   "label": "Allowed Increase in Staff Days",
+   "non_negative": 1
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-12 00:57:57.222510",
+ "modified": "2026-10-16 17:40:55.734128",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Budget Settings",

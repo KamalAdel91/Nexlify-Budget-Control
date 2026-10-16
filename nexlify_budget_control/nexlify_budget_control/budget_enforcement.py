@@ -478,6 +478,97 @@ def update_overview_stored_numbers(name):
         "expected_profit": doc.expected_profit,
         "margin_pct": doc.margin_pct,
     }, update_modified=False)
+    _store_overview_staff_days(name, doc.revenue_budget, doc.cost_budget)
+
+
+def plan_staff_days(plan_name, cost_budget=None):
+    """Staff days (people x days) of a plan against its Estimation, by role. Days only, no amounts.
+
+    Estimation: each equipment's total days x its crew, the same days its manpower cost is priced on.
+    Plan: each visit's team headcount x the visit duration (the team stays for the whole visit).
+    Above the allowed increase (Project Budget Settings) the plan needs the COO, then the CEO.
+    """
+    flt, cint = frappe.utils.flt, frappe.utils.cint
+    cost_budget = cost_budget or _planning_cost_budget(plan_name)
+    est, plan = {}, {}
+
+    if cost_budget:
+        days = {r.name: flt(r.total_days) for r in frappe.get_all("Project Equipment Scope",
+            filters={"cost_budget": cost_budget, "docstatus": 1}, fields=["name", "total_days"])}
+        if days:
+            for r in frappe.get_all("Project Equipment Scope Role",
+                    filters={"parent": ["in", list(days)], "parenttype": "Project Equipment Scope"},
+                    fields=["parent", "trade", "count"]):
+                if r.trade:
+                    est[r.trade] = est.get(r.trade, 0) + days[r.parent] * flt(r.count)
+
+    duration = {v.name: flt(v.visit_duration) for v in frappe.get_all("Project Visits",
+        filters={"project_planning": plan_name, "docstatus": ["<", 2]}, fields=["name", "visit_duration"])}
+    if duration:
+        for t in frappe.get_all("Project Visit Team",
+                filters={"parent": ["in", list(duration)], "parenttype": "Project Visits"},
+                fields=["parent", "trade", "headcount"]):
+            if t.trade and cint(t.headcount) > 0:
+                plan[t.trade] = plan.get(t.trade, 0) + cint(t.headcount) * duration[t.parent]
+
+    est_total, plan_total = flt(sum(est.values()), 2), flt(sum(plan.values()), 2)
+    allowed = flt(frappe.db.get_single_value("Project Budget Settings", "plan_staff_days_tolerance"))
+    increase = flt((plan_total - est_total) / est_total * 100, 2) if est_total else None
+    trades = list(est) + [t for t in plan if t not in est]
+    return frappe._dict({
+        "estimation": est_total,
+        "plan": plan_total,
+        "difference": flt(plan_total - est_total, 2),
+        "increase_pct": increase,
+        "allowed_pct": allowed,
+        # nothing in the Estimation to compare with: the COO and the CEO decide
+        "needs_approval": increase is None or increase > allowed,
+        "roles": [{"trade": t, "estimation": flt(est.get(t), 2), "plan": flt(plan.get(t), 2),
+                   "difference": flt(flt(plan.get(t)) - flt(est.get(t)), 2)} for t in trades],
+    })
+
+
+@frappe.whitelist()
+def get_plan_staff_days(project_planning):
+    """For the Plan form: its staff days against the Estimation (days only, no amounts)."""
+    frappe.has_permission("Project Planning", "read", doc=project_planning, throw=True)
+    return plan_staff_days(project_planning)
+
+
+def _store_overview_staff_days(name, plan_name, cost_budget=None):
+    """The Overview's copy of the staff-days check, frozen once approved like its other numbers."""
+    if not plan_name:
+        return None
+    check = plan_staff_days(plan_name, cost_budget)
+    frappe.db.set_value("Project Overview", name, {
+        "estimation_staff_days": check.estimation,
+        "plan_staff_days": check.plan,
+        "staff_days_increase_pct": check.increase_pct or 0,
+        "allowed_increase_pct": check.allowed_pct,
+        "needs_approval": 1 if check.needs_approval else 0,
+        "staff_days_detail": frappe.as_json(check.roles),
+    }, update_modified=False)
+    return check
+
+
+def fill_overview_staff_days(dry_run=1, include_approved=0):
+    """Once per site: fills the staff-days numbers of the draft Overviews (approved ones stay as approved).
+    dry_run=1 only lists them; include_approved=1 also lists the approved ones, to see what the rule would have done.
+    bench --site <site> execute nexlify_budget_control.nexlify_budget_control.budget_enforcement.fill_overview_staff_days --kwargs "{'dry_run': 0}"
+    """
+    cint = frappe.utils.cint
+    out = []
+    docstatus = ["<", 2] if cint(include_approved) else 0
+    for o in frappe.get_all("Project Overview", filters={"docstatus": docstatus},
+                            fields=["name", "revenue_budget", "cost_budget", "docstatus"], order_by="creation asc"):
+        if not o.revenue_budget:
+            continue
+        check = plan_staff_days(o.revenue_budget, o.cost_budget)
+        out.append({"overview": o.name, "approved": o.docstatus == 1, "estimation": check.estimation,
+                    "plan": check.plan, "increase_pct": check.increase_pct, "needs_approval": check.needs_approval})
+        if not cint(dry_run) and o.docstatus == 0:
+            _store_overview_staff_days(o.name, o.revenue_budget, o.cost_budget)
+    return out
 
 
 def _open_overview_for_plan(plan, contract_value):
