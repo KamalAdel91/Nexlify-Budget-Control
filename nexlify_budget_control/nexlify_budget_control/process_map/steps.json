@@ -150,10 +150,10 @@
 			"team": "Sales",
 			"title": "Quote and send the contract",
 			"todo": [
-				"Click Make Quotation in the price card: the lines come with the Estimation prices",
-				"Send the Quotation to the customer",
+				"Get the Quotation signed by the customer: Make Quotation in the price card gives one with the Estimation prices",
+				"Attach it to Signed Quotation on the Opportunity",
 				"Customer changed the scope? Click Request Revision",
-				"When the customer sends the contract, click Send Contract and attach it: the Quotation goes with it"
+				"When the customer sends the contract, click Send Contract and attach it: the signed Quotation goes with it"
 			],
 			"note": "The notes from Estimation show in the price card.",
 			"receives": "Selling price from Estimation",
@@ -176,11 +176,11 @@
 			"team": "Estimation",
 			"title": "Review the contract",
 			"todo": [
-				"Open the contract and the Quotation in Contract Rounds",
+				"Open the contract and the signed Quotation: Contract from Sales and Quotation from Sales, every round in Contract Rounds",
 				"Request Changes with a comment, or Accept Contract",
 				"The price must change? Click Reprice: it goes back through approval"
 			],
-			"receives": "Contract and Quotation from Sales",
+			"receives": "Contract draft and signed Quotation from Sales",
 			"hands_to": "Sales",
 			"status": {
 				"workflow": "Project Estimation Workflow",

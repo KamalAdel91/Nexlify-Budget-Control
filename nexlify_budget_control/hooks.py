@@ -19,7 +19,7 @@ doc_events = {
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_closed_lock",
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_won_ready",
         ],
-        "on_update": ["nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_opportunity_closed", "nexlify_budget_control.nexlify_budget_control.supply_chain.on_opportunity_update", "nexlify_budget_control.nexlify_budget_control.project_life.on_opportunity_update"],
+        "on_update": ["nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_quotation", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_opportunity_closed", "nexlify_budget_control.nexlify_budget_control.supply_chain.on_opportunity_update", "nexlify_budget_control.nexlify_budget_control.project_life.on_opportunity_update"],
     },
     "Designation": {
         "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
@@ -138,6 +138,7 @@ fixtures = [
 					"Project-custom_maintenance_type",
 					"Project-custom_section_break_7pnjy",
 					"Opportunity-custom_signed_contract",
+					"Opportunity-custom_signed_quotation",
 					"Opportunity-custom_project_locations",
 					"Opportunity-custom_locations_summary",
 					"Project-custom_project_locations",

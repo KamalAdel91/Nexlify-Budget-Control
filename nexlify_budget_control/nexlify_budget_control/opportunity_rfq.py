@@ -244,10 +244,21 @@ FETCH_LINKS = {
 
 
 def share_signed_contract(doc, method=None):
-	"""The Estimation team cannot read the Opportunity, so the signed contract gets its own File on the Estimation."""
-	if doc.get("signed_contract"):
+	"""The Estimation team cannot read the Opportunity, so the files that come from it (the signed contract, the signed
+	Quotation and the latest contract draft) get their own File on the Estimation."""
+	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import attach_file_copy
+	for field in ("signed_contract", "quotation_from_sales", "contract_from_sales"):
+		if doc.get(field):
+			attach_file_copy(doc.get(field), doc.doctype, doc.name, field)
+
+
+def share_signed_quotation(doc, method=None):
+	"""A Signed Quotation attached on the Opportunity is shared with its Estimation at once, as the Estimation team
+	cannot read the Opportunity."""
+	url, est = doc.get("custom_signed_quotation"), doc.get("custom_estimation")
+	if url and est and doc.has_value_changed("custom_signed_quotation"):
 		from nexlify_budget_control.nexlify_budget_control.budget_enforcement import attach_file_copy
-		attach_file_copy(doc.signed_contract, doc.doctype, doc.name, "signed_contract")
+		attach_file_copy(url, "Project Estimation", est, "quotation_from_sales")
 
 
 def on_opportunity_closed(doc, method=None):
@@ -407,8 +418,9 @@ def _quotation_pdf(quotation, estimation):
 
 
 @frappe.whitelist()
-def send_contract(opportunity, contract, quotation, comment=None):
-	"""Sales sends the customer's contract and our Quotation to the Estimation team for the Contract Review."""
+def send_contract(opportunity, contract, quotation=None, comment=None):
+	"""Sales sends the customer's contract (a draft until the deal is won) to the Estimation team for the Contract Review.
+	The Quotation signed by the customer must be on the Opportunity first (Signed Quotation); it goes with the contract."""
 	opp = frappe.get_doc("Opportunity", opportunity)
 	opp.check_permission("write")
 	if opp.sales_stage in CLOSED_STAGES:
@@ -418,22 +430,28 @@ def send_contract(opportunity, contract, quotation, comment=None):
 		frappe.throw(_("The Estimation is not waiting for the contract."))
 	if not contract:
 		frappe.throw(_("Attach the contract."))
-	q = frappe.db.get_value("Quotation", quotation, ["docstatus", "opportunity"], as_dict=True) if quotation else None
-	if not q or q.docstatus != 1 or q.opportunity != opp.name:
-		frappe.throw(_("Choose a submitted Quotation of this Opportunity."))
+	signed_quotation = opp.get("custom_signed_quotation")
+	if not signed_quotation:
+		frappe.throw(_("Attach the Quotation signed by the customer (Signed Quotation) on the Opportunity first."))
+	if quotation:
+		q = frappe.db.get_value("Quotation", quotation, ["docstatus", "opportunity"], as_dict=True)
+		if not q or q.docstatus != 1 or q.opportunity != opp.name:
+			quotation = None
 	from frappe.model.workflow import apply_workflow
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator, attach_file_copy
 
 	contract = _claim_upload(contract, "Opportunity", opp.name)
 	attach_file_copy(contract, "Project Estimation", est, "contract_rounds")
-	frappe.flags.nexlify_contract_round = {"contract": contract, "quotation": quotation,
-		"quotation_pdf": _quotation_pdf(quotation, est), "comment": (comment or "").strip() or None,
-		"by_user": frappe.session.user}
+	attach_file_copy(signed_quotation, "Project Estimation", est, "contract_rounds")
+	frappe.flags.nexlify_contract_round = {"contract": contract, "quotation": quotation, "quotation_pdf": signed_quotation,
+		"comment": (comment or "").strip() or None, "by_user": frappe.session.user}
 	try:
 		_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", est).as_dict(), flow.SEND_CONTRACT)
 	finally:
 		frappe.flags.nexlify_contract_round = None
-	note = _("Contract and Quotation {0} sent to Estimation by {1}").format(quotation, frappe.utils.get_fullname())
+	# the latest draft on the Estimation; every round stays in Contract Rounds
+	frappe.db.set_value("Project Estimation", est, "contract_from_sales", contract, update_modified=False)
+	note = _("Contract and the signed Quotation sent to Estimation by {0}").format(frappe.utils.get_fullname())
 	if (comment or "").strip():
 		note += ": " + frappe.utils.escape_html(comment.strip())
 	opp.add_comment("Comment", note)
