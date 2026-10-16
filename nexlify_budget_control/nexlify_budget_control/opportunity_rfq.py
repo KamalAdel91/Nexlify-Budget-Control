@@ -80,23 +80,10 @@ def send_to_estimation(opportunity):
 	opp = frappe.get_doc("Opportunity", opportunity)
 	opp.check_permission("write")
 
-	if opp.opportunity_from != "Customer" or not opp.party_name:
-		frappe.throw(_("Only an Opportunity for a Customer can be sent to Estimation."))
 	if (opp.custom_estimation_status or "Not Sent") != "Not Sent" or opp.custom_estimation:
 		frappe.throw(_("This Opportunity was already sent to Estimation ({0}).").format(opp.custom_estimation))
+	_throw_missing(_missing_for_estimation(opp))
 	rows = opp.get("custom_rfq_items") or []
-	if not rows:
-		frappe.throw(_("Add at least one RFQ Item before sending to Estimation."))
-	for r in rows:
-		if not r.equipment or flt(r.quantity) <= 0:
-			frappe.throw(_("Row {0}: Equipment Scope and a Quantity above zero are required.").format(r.idx))
-
-	if not opp.get("custom_region"):
-		frappe.throw(_("Select the Region before sending to Estimation."))
-	if not opp.get("custom_project_type"):
-		frappe.throw(_("Select the Project Type before sending to Estimation."))
-	if opp.custom_project_type == MAINTENANCE_PROJECT_TYPE and not opp.get("custom_maintenance_type"):
-		frappe.throw(_("Select the Maintenance Type before sending to Estimation."))
 
 	currency = opp.get("currency") or frappe.get_cached_value("Company", opp.company, "default_currency")
 	estimation_date = nowdate()
@@ -602,3 +589,38 @@ def validate_one_quotation(doc, method=None):
 	if other:
 		frappe.throw(_("Quotation {0} is already submitted for this Opportunity. Cancel it first, then use Make Quotation.").format(other),
 			title=_("One Quotation at a time"))
+
+
+def _missing_for_estimation(opp):
+	"""Everything the Opportunity still needs before it goes to Estimation, all at once."""
+	missing = []
+	if opp.opportunity_from != "Customer" or not opp.party_name:
+		missing.append(_("A Customer (Opportunity From = Customer)"))
+	if not opp.get("custom_region"):
+		missing.append(_("Region"))
+	if not opp.get("custom_project_type"):
+		missing.append(_("Project Type"))
+	elif opp.custom_project_type == MAINTENANCE_PROJECT_TYPE and not opp.get("custom_maintenance_type"):
+		missing.append(_("Maintenance Type"))
+	rows = opp.get("custom_rfq_items") or []
+	if not rows:
+		missing.append(_("At least one RFQ Item"))
+	for r in rows:
+		if not r.equipment or flt(r.quantity) <= 0:
+			missing.append(_("RFQ Items row {0}: Equipment Scope and a Quantity above zero").format(r.idx))
+	return missing
+
+
+def _throw_missing(missing):
+	if missing:
+		frappe.throw("<br>".join(["<b>" + _("Complete these before sending to Estimation:") + "</b>"]
+								 + ["&bull; " + frappe.utils.escape_html(m) for m in missing]),
+					 title=_("Missing information"))
+
+
+@frappe.whitelist()
+def check_send_to_estimation(opportunity):
+	"""What is missing before Send To Estimation, checked before the confirmation."""
+	opp = frappe.get_doc("Opportunity", opportunity)
+	opp.check_permission("write")
+	return _missing_for_estimation(opp)

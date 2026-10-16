@@ -31,28 +31,31 @@ function nexlify_render_rfq_actions(frm) {
 			frappe.msgprint(__('Save the Opportunity first.'));
 			return;
 		}
-		if (!(frm.doc.custom_rfq_items || []).length) {
-			frappe.msgprint({ title: __('RFQ Items required'), indicator: 'red',
-				message: __('Add at least one RFQ Item before sending to Estimation.') });
-			return;
-		}
-		if (frm.doc.opportunity_from !== 'Customer') {
-			frappe.msgprint({ title: __('Customer required'), indicator: 'red',
-				message: __('Only an Opportunity for a Customer can be sent to Estimation.') });
-			return;
-		}
-		frappe.confirm(__('Send this RFQ to Estimation? The RFQ Items cannot be changed after sending.'), () => {
-			frappe.call({
-				method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.send_to_estimation',
-				args: { opportunity: frm.doc.name },
-				freeze: true,
-				freeze_message: __('Creating the Estimation...'),
-				callback(r) {
-					if (!r.message) return;
-					frappe.show_alert({ message: __('Estimation {0} created', [r.message]), indicator: 'green' });
-					frm.reload_doc();
-				},
-			});
+		frappe.xcall('nexlify_budget_control.nexlify_budget_control.opportunity_rfq.check_send_to_estimation',
+			{ opportunity: frm.doc.name }).then((missing) => {
+			if ((missing || []).length) {
+				frappe.msgprint({ title: __('Missing information'), indicator: 'red',
+					message: '<b>' + __('Complete these before sending to Estimation:') + '</b><br>'
+						+ missing.map(m => '&bull; ' + frappe.utils.escape_html(m)).join('<br>') });
+				return;
+			}
+			nexlify_confirm_send_estimation(frm);
+		});
+	});
+}
+
+function nexlify_confirm_send_estimation(frm) {
+	frappe.confirm(__('Send this RFQ to Estimation? The RFQ Items cannot be changed after sending.'), () => {
+		frappe.call({
+			method: 'nexlify_budget_control.nexlify_budget_control.opportunity_rfq.send_to_estimation',
+			args: { opportunity: frm.doc.name },
+			freeze: true,
+			freeze_message: __('Creating the Estimation...'),
+			callback(r) {
+				if (!r.message) return;
+				frappe.show_alert({ message: __('Estimation {0} created', [r.message]), indicator: 'green' });
+				frm.reload_doc();
+			},
 		});
 	});
 }
