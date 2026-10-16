@@ -25,6 +25,17 @@
   "started_on",
   "last_event_on",
   "title",
+  "section_notice",
+  "notice_stage",
+  "notice_doctype",
+  "notice_name",
+  "notice_waiting_on",
+  "column_break_notice",
+  "notice_since",
+  "notice_due_on",
+  "notice_days_late",
+  "notice_sent_on",
+  "notice_to",
   "section_stages",
   "stages"
  ],
@@ -166,6 +177,73 @@
    "read_only": 1
   },
   {
+   "collapsible": 1,
+   "description": "The last email about a stage: a new stage, or a daily reminder while it is overdue. The Notifications \"Project Life: New Stage\" and \"Project Life: Stage Overdue\" read these fields.",
+   "fieldname": "section_notice",
+   "fieldtype": "Section Break",
+   "label": "Last Notice"
+  },
+  {
+   "fieldname": "notice_stage",
+   "fieldtype": "Data",
+   "label": "Stage",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notice_doctype",
+   "fieldtype": "Link",
+   "label": "Document Type",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notice_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Document",
+   "options": "notice_doctype",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notice_waiting_on",
+   "fieldtype": "Data",
+   "label": "Waiting On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_notice",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notice_since",
+   "fieldtype": "Datetime",
+   "label": "Waiting Since",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notice_due_on",
+   "fieldtype": "Datetime",
+   "label": "Due On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notice_days_late",
+   "fieldtype": "Int",
+   "label": "Days Late",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notice_sent_on",
+   "fieldtype": "Datetime",
+   "label": "Sent On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notice_to",
+   "fieldtype": "Small Text",
+   "label": "Sent To",
+   "read_only": 1
+  },
+  {
    "fieldname": "section_stages",
    "fieldtype": "Section Break",
    "label": "Stages"
@@ -181,7 +259,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-11 04:18:12.450406",
+ "modified": "2026-10-17 01:26:15.979708",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Life",

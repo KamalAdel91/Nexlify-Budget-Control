@@ -9,7 +9,7 @@ Expected Invoice Date). Saving Project Budget Settings brings the open stages up
 Stage Targets. rebuild() fills, once by hand, the lives of documents made before, from their Version history."""
 
 import frappe
-from frappe.utils import add_to_date, cint, flt, get_datetime, now_datetime, time_diff_in_hours
+from frappe.utils import add_to_date, cint, date_diff, flt, get_datetime, now_datetime, time_diff_in_hours
 
 LIFE = "Project Life"
 STAGE = "Project Life Stage"
@@ -154,12 +154,16 @@ def _enter(life, doctype, name, stage, at, by, last=None, backfilled=False):
 	if stage:
 		who = waiting_on(doctype, stage)
 		target, due_on, scheduled = due(doctype, name, stage, at, who)
-		_add_stage(life, {"reference_doctype": doctype, "reference_name": name, "stage": stage,
+		opened = {"reference_doctype": doctype, "reference_name": name, "stage": stage,
 			"previous_stage": last.stage if last else None, "waiting_on": who, "is_open": 1 if who else 0,
 			"target_days": target, "due_on": due_on, "is_scheduled": scheduled,
 			"entered_on": at, "entered_by": by, "left_on": None if who else at, "duration_days": 0,
-			"is_backfilled": 1 if backfilled else 0})
+			"is_backfilled": 1 if backfilled else 0}
+		_add_stage(life, opened)
 	_refresh(life)
+	# someone waits on it now: tell them (not for history filled by hand, nor a stage that waits on a date)
+	if stage and who and not scheduled and not backfilled:
+		_notice(life, frappe._dict(opened), NOTICE_ENTERED)
 
 
 def _refresh(life):
@@ -404,3 +408,56 @@ def remove_hand_off_leftovers(dry_run=1):
 			frappe.defaults.clear_default(key=key)
 		frappe.db.commit()
 	return found
+
+
+# The emails about stages are Frappe Notifications on the Project Life (event Method), editable on the site:
+# their text, who gets them and the CC. The code only says when, and puts the stage in the Last Notice fields.
+NOTICE_ENTERED = "nexlify_stage_entered"  # a stage starts and someone waits on it
+NOTICE_OVERDUE = "nexlify_stage_overdue"  # every day while a stage is open after it was due
+
+
+def _role_emails(roles):
+	"""Emails of the enabled system users with any of the roles ("A, B")."""
+	names = [r.strip() for r in (roles or "").split(",") if r.strip()]
+	if not names:
+		return []
+	users = frappe.get_all("Has Role", filters={"role": ["in", names], "parenttype": "User",
+		"parent": ["not in", ("Administrator", "Guest")]}, pluck="parent")
+	if not users:
+		return []
+	emails = frappe.get_all("User", filters={"name": ["in", users], "enabled": 1, "user_type": "System User"}, pluck="email")
+	return sorted({e for e in emails if e})
+
+
+def nexlify_role_emails(roles):
+	"""For a Notification template (hooks.py jinja): {{ nexlify_role_emails("CEO, COO") }} gives their emails."""
+	return ",".join(_role_emails(roles))
+
+
+def _notice(life, row, method, days_late=0):
+	"""The stage goes on the Project Life (Last Notice), then its Notifications with this Method send the email."""
+	frappe.db.set_value(LIFE, life, {
+		"notice_stage": row.stage, "notice_doctype": row.reference_doctype, "notice_name": row.reference_name,
+		"notice_waiting_on": row.waiting_on, "notice_since": row.entered_on, "notice_due_on": row.due_on,
+		"notice_days_late": days_late, "notice_sent_on": now_datetime(),
+		"notice_to": ",".join(_role_emails(row.waiting_on)),
+	}, update_modified=False)
+	frappe.get_doc(LIFE, life).run_method(method)
+
+
+def remind_overdue():
+	"""Every morning (scheduler_events in hooks.py): a reminder for each stage still open after it was due, every day
+	until it moves on."""
+	now = now_datetime()
+	rows = frappe.get_all(STAGE, filters={"parenttype": LIFE, "is_open": 1, "due_on": ["<", now]},
+		fields=["parent", "reference_doctype", "reference_name", "stage", "waiting_on", "entered_on", "due_on"],
+		order_by="due_on asc")
+	for r in rows:
+		if not r.waiting_on:
+			continue
+		try:
+			_notice(r.parent, r, NOTICE_OVERDUE, max(0, date_diff(now, r.due_on)))
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title=f"Project Life reminder: {r.parent} {r.reference_doctype} {r.reference_name}")

@@ -31,5 +31,63 @@
   "send_system_notification": 0,
   "send_to_all_assignees": 0,
   "subject": "Plan approved automatically: {{ doc.project }}"
+ },
+ {
+  "attach_print": 0,
+  "channel": "Email",
+  "condition": null,
+  "docstatus": 0,
+  "doctype": "Notification",
+  "document_type": "Project Life",
+  "enabled": 1,
+  "event": "Method",
+  "is_standard": 0,
+  "message": "**{{ doc.title }}**\n\n{{ doc.notice_doctype }} **{{ doc.notice_name }}** is now at **{{ doc.notice_stage }}** and waits on **{{ doc.notice_waiting_on }}**.{% if doc.notice_due_on %} Due on {{ frappe.utils.format_datetime(doc.notice_due_on) }}.{% endif %}\n\n[Open {{ doc.notice_name }}]({{ frappe.utils.get_url_to_form(doc.notice_doctype, doc.notice_name) }})\n",
+  "message_type": "Markdown",
+  "method": "nexlify_stage_entered",
+  "modified": "2026-10-17 01:26:15.979708",
+  "module": "Nexlify Budget Control",
+  "name": "Project Life: New Stage",
+  "recipients": [
+   {
+    "cc": "{{ nexlify_role_emails('CEO, COO, Accounts Manager, Accounts User') }}",
+    "parent": "Project Life: New Stage",
+    "parentfield": "recipients",
+    "parenttype": "Notification",
+    "receiver_by_document_field": "notice_to"
+   }
+  ],
+  "send_system_notification": 0,
+  "send_to_all_assignees": 0,
+  "subject": "{{ doc.notice_stage }}: {{ doc.notice_doctype }} {{ doc.notice_name }} waits on {{ doc.notice_waiting_on }}"
+ },
+ {
+  "attach_print": 0,
+  "channel": "Email",
+  "condition": null,
+  "docstatus": 0,
+  "doctype": "Notification",
+  "document_type": "Project Life",
+  "enabled": 1,
+  "event": "Method",
+  "is_standard": 0,
+  "message": "**{{ doc.title }}**\n\n{{ doc.notice_doctype }} **{{ doc.notice_name }}** is still at **{{ doc.notice_stage }}**, waiting on **{{ doc.notice_waiting_on }}** since {{ frappe.utils.format_datetime(doc.notice_since) }}. It was due on {{ frappe.utils.format_datetime(doc.notice_due_on) }}{% if doc.notice_days_late %}, {{ doc.notice_days_late }} day(s) ago{% endif %}.\n\n[Open {{ doc.notice_name }}]({{ frappe.utils.get_url_to_form(doc.notice_doctype, doc.notice_name) }})\n",
+  "message_type": "Markdown",
+  "method": "nexlify_stage_overdue",
+  "modified": "2026-10-17 01:26:15.979708",
+  "module": "Nexlify Budget Control",
+  "name": "Project Life: Stage Overdue",
+  "recipients": [
+   {
+    "cc": "{{ nexlify_role_emails('CEO, COO, Accounts Manager, Accounts User') }}",
+    "parent": "Project Life: Stage Overdue",
+    "parentfield": "recipients",
+    "parenttype": "Notification",
+    "receiver_by_document_field": "notice_to"
+   }
+  ],
+  "send_system_notification": 0,
+  "send_to_all_assignees": 0,
+  "subject": "Overdue: {{ doc.notice_doctype }} {{ doc.notice_name }} at {{ doc.notice_stage }} ({{ doc.notice_waiting_on }})"
  }
 ]

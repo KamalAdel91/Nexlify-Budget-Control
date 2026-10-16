@@ -286,8 +286,13 @@ add_to_apps_screen = [
 
 scheduler_events = {
     "cron": {
+        # every morning at 8: a reminder for each stage still open after it was due (Project Life)
+        "0 8 * * *": ["nexlify_budget_control.nexlify_budget_control.project_life.remind_overdue"],
     },
 }
+
+# {{ nexlify_role_emails("CEO, COO") }} in a Notification gives the emails of those roles' users (its CC)
+jinja = {"methods": ["nexlify_budget_control.nexlify_budget_control.project_life.nexlify_role_emails"]}
 
 # Create > Quotation on an Opportunity fills the lines from the approved Estimation
 override_whitelisted_methods = {
@@ -301,3 +306,6 @@ nexlify_tracker_stages = {
 
 # the plan approval email (a plan approved automatically), kept on the site and editable there
 fixtures.append({"dt": "Notification", "filters": [["name", "in", ["Plan Approved Automatically"]]]})
+
+# the stage emails (a new stage, a daily reminder while overdue), kept on the site and editable there
+fixtures.append({"dt": "Notification", "filters": [["name", "in", ["Project Life: New Stage", "Project Life: Stage Overdue"]]]})
