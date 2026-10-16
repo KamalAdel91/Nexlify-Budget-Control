@@ -3,7 +3,7 @@
 (() => {
 	const METHOD = "nexlify_budget_control.nexlify_budget_control.project_life.get_project_life";
 	const LIFE_FOR = "nexlify_budget_control.nexlify_budget_control.project_life.get_life_for";
-	const open_life = (frm, life) => frm.add_custom_button(__("Project Life"), () => frappe.set_route("Form", "Project Life", life));
+	const open_life = (frm, life, group) => frm.add_custom_button(__("Project Life"), () => frappe.set_route("Form", "Project Life", life), group);
 
 	["Project Estimation", "Supply Request", "Project Planning", "Project Overview", "Project Invoicing"].forEach((doctype) => {
 		frappe.ui.form.on(doctype, {
@@ -31,7 +31,7 @@
 				if (frm.is_new() || !frappe.model.can_read("Project Life")) return;
 				const name = frm.doc.name;
 				frappe.xcall(LIFE_FOR, { doctype: frm.doctype, name }).then((life) => {
-					if (life && frm.doc.name === name) open_life(frm, life);
+					if (life && frm.doc.name === name) open_life(frm, life, frm.doctype === "Opportunity" ? __("Details") : undefined);
 				});
 			},
 		});

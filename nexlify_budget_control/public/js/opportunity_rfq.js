@@ -13,20 +13,16 @@ if (window.erpnext && erpnext.utils && erpnext.utils.CRMActivities && !erpnext.u
 
 // RFQ tab: Send To Estimation, shown above the RFQ Items while the RFQ is not sent yet
 frappe.ui.form.on('Opportunity', {
-	refresh(frm) { nexlify_render_rfq_actions(frm); nexlify_render_estimation_view(frm); nexlify_lock_closed(frm); },
+	refresh(frm) { nexlify_tidy_buttons(frm, true); nexlify_render_rfq_actions(frm); nexlify_render_estimation_view(frm); nexlify_lock_closed(frm); },
 	custom_estimation_status(frm) { nexlify_render_rfq_actions(frm); },
 });
 
 function nexlify_render_rfq_actions(frm) {
 	const field = frm.get_field('custom_rfq_actions_html');
-	if (!field) return;
-	if (frm.is_new() || (frm.doc.custom_estimation_status || 'Not Sent') !== 'Not Sent') {
-		field.$wrapper.html('');
-		return;
-	}
-	field.$wrapper.html(`<div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
-		<button class="btn btn-sm btn-primary nexlify-send-estimation">${__('Send To Estimation')}</button></div>`);
-	field.$wrapper.find('.nexlify-send-estimation').on('click', () => {
+	if (field) field.$wrapper.html('');
+	frm.remove_custom_button(__('Send To Estimation'), __('Estimation'));
+	if (frm.is_new() || (frm.doc.custom_estimation_status || 'Not Sent') !== 'Not Sent') return;
+	frm.add_custom_button(__('Send To Estimation'), () => {
 		if (frm.is_dirty()) {
 			frappe.msgprint(__('Save the Opportunity first.'));
 			return;
@@ -41,7 +37,7 @@ function nexlify_render_rfq_actions(frm) {
 			}
 			nexlify_confirm_send_estimation(frm);
 		});
-	});
+	}, __('Estimation'));
 }
 
 function nexlify_confirm_send_estimation(frm) {
@@ -104,12 +100,19 @@ function nexlify_render_estimation_view(frm) {
 					<tfoot><tr><td colspan="3" class="nx-num">${__('Total')}</td><td class="nx-num">${money(d.total)}</td></tr></tfoot>
 				</table></div>${notes}${rounds}</div>`);
 			const group = __('Estimation');
-			[__('Request Revision'), __('Make Quotation'), __('Send Contract')].forEach((b) => frm.remove_custom_button(b, group));
+			[__('Request Revision'), __('Send Contract & Quotation')].forEach((b) => frm.remove_custom_button(b, group));
+			frm.remove_custom_button(__('Quotation'), __('Create'));
 			if (revise) frm.add_custom_button(__('Request Revision'), () => nexlify_request_revision(frm), group);
 			if (can_send) {
-				frm.add_custom_button(__('Make Quotation'), () => frappe.model.open_mapped_doc({
-					method: 'erpnext.crm.doctype.opportunity.opportunity.make_quotation', frm }), group);
-				frm.add_custom_button(__('Send Contract'), () => nexlify_send_contract(frm), group);
+				frm.add_custom_button(__('Send Contract & Quotation'), () => nexlify_send_contract(frm), group);
+				// Create > Quotation only while there is none (Draft or Submitted): one Quotation at a time
+				const name = frm.doc.name;
+				frappe.db.count('Quotation', { filters: { opportunity: name, docstatus: ['<', 2] } }).then((n) => {
+					if (n || frm.doc.name !== name) return;
+					frm.add_custom_button(__('Quotation'), () => frappe.model.open_mapped_doc({
+						method: 'erpnext.crm.doctype.opportunity.opportunity.make_quotation', frm }), __('Create'));
+					frm.page.inner_toolbar.find(`.inner-group-button[data-label="${encodeURIComponent(__('Create'))}"]`).removeClass('hide');
+				});
 			}
 		});
 		},
@@ -255,3 +258,32 @@ frappe.ui.form.on('Opportunity', {
 		grid.refresh();
 	},
 });
+
+// The form's buttons: no Reopen; Create holds only our Quotation (added by stage above); Flow (Nexlify Board)
+// and Project Life under Details. ERPNext adds its buttons before this runs; the other apps may add theirs a
+// moment later, so this runs again after the refresh.
+function nexlify_tidy_buttons(frm, first) {
+	const name = frm.doc.name;
+	const group_items = (label) => frm.page.inner_toolbar
+		.find(`.inner-group-button[data-label="${encodeURIComponent(label)}"] .dropdown-item`);
+	frm.remove_custom_button(__('Reopen'));
+	// ERPNext's Create items (its Quotation too) go once, before ours is added
+	if (first) {
+		group_items(__('Create')).each(function () {
+			frm.page.remove_inner_button(decodeURIComponent($(this).attr('data-label') || ''), __('Create'));
+		});
+	}
+	const flow = frm.custom_buttons && frm.custom_buttons[__('Flow')];
+	const moved = group_items(__('Details')).filter(function () {
+		return decodeURIComponent($(this).attr('data-label') || '') === __('Flow');
+	}).length;
+	if (flow && !moved && !flow.hasClass('dropdown-item')) {
+		flow.addClass('hidden');
+		frm.add_custom_button(__('Flow'), () => flow.trigger('click'), __('Details'));
+	}
+	if (first) {
+		[600, 1500, 3000].forEach((ms) => setTimeout(() => {
+			if (frm.doc.name === name) nexlify_tidy_buttons(frm, false);
+		}, ms));
+	}
+}
