@@ -158,6 +158,8 @@ fixtures = [
             "Opportunity-custom_rfq_items",
             "Opportunity-custom_estimation_section",
             "Opportunity-custom_estimation_html",
+            "Opportunity-custom_rfq_est_cb",
+            "Opportunity-custom_rfq_items_section",
         ]
 			]
 		]
