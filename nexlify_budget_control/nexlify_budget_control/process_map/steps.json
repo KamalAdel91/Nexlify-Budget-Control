@@ -132,7 +132,7 @@
 			"optional": 1,
 			"todo": [
 				"Needed only when the selling price is over the CEO limit",
-				"Approve, or Return to Estimation with a reason"
+				"Approve, or return it with a reason: to the COO, or to Estimation"
 			],
 			"receives": "Price approved by the COO",
 			"hands_to": "Sales",

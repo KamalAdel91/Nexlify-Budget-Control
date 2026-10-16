@@ -99,3 +99,11 @@ GROUPS = {"draft": draft, "pending": pending, "with_sales": with_sales, "contrac
 def get_state_groups():
 	"""For the forms: the state names in each group."""
 	return {name: sorted(fn()) for name, fn in GROUPS.items()}
+
+
+def is_back_to_approver(prev, state):
+	"""A move back from one approval to an earlier one (the CEO returning it to the COO), read from the order of the
+	Workflow's states: like a Return to Estimation, it needs its reason."""
+	order = [s.state for s in _wf().states]
+	waiting = pending()
+	return prev in waiting and state in waiting and order.index(state) < order.index(prev)

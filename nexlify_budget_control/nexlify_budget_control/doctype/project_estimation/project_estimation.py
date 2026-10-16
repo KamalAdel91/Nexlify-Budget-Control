@@ -116,7 +116,8 @@ class ProjectEstimation(Document):
 		reason = (self.return_reason or "").strip()
 		review = flow.contract_review()
 		needs_reason = ((prev in flow.pending() and state in flow.draft())
-			or (prev in review and state in (flow.changes_requested() | flow.draft())))
+			or (prev in review and state in (flow.changes_requested() | flow.draft()))
+			or flow.is_back_to_approver(prev, state))
 		if needs_reason and not reason:
 			frappe.throw(_("Enter the reason."))
 		if state in review:
@@ -152,6 +153,9 @@ class ProjectEstimation(Document):
 		reason = frappe.utils.escape_html(self.return_reason or "")
 		if prev in flow.pending() and state in flow.draft():
 			self.add_comment("Comment", _("Returned to Estimation by {0}: {1}").format(who, reason))
+		elif flow.is_back_to_approver(prev, state):
+			self.add_comment("Comment", _("Returned to {0} by {1}: {2}").format(_(state), who, reason))
+			frappe.db.set_value(self.doctype, self.name, "return_reason", None, update_modified=False)
 		elif prev in flow.contract_review() and state in flow.changes_requested():
 			msg = _("Contract changes requested by {0}: {1}").format(who, reason)
 			self.add_comment("Comment", msg)
