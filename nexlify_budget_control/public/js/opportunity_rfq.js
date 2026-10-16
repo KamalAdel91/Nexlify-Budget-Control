@@ -236,14 +236,12 @@ function nexlify_send_contract(frm) {
 	});
 }
 
-// The Opportunity's value comes from its submitted Quotation: read only once there is one
+// The Opportunity's Items, value and currency come from the approved Estimation: read only once they are filled
 frappe.ui.form.on('Opportunity', {
 	refresh(frm) {
-		if (frm.is_new()) return;
-		frappe.db.count('Quotation', { filters: { opportunity: frm.doc.name, docstatus: 1 } }).then((n) => {
-			if (!n) return;
-			['opportunity_amount', 'currency', 'conversion_rate'].forEach((f) => frm.set_df_property(f, 'read_only', 1));
-			frm.set_df_property('opportunity_amount', 'description', __('From the submitted Quotation: make a new Quotation to change it.'));
-		});
+		if (frm.is_new() || !frm.doc.custom_estimation || !(frm.doc.items || []).length) return;
+		['items', 'opportunity_amount', 'currency', 'conversion_rate'].forEach((f) => frm.set_df_property(f, 'read_only', 1));
+		frm.toggle_display('items', true);
+		frm.set_df_property('opportunity_amount', 'description', __('From the approved Estimation: a price changes through Request Revision.'));
 	},
 });

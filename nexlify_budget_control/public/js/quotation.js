@@ -21,3 +21,14 @@ frappe.ui.form.on('Quotation', {
 		d.show();
 	},
 });
+
+// A Quotation of an Opportunity with an Estimation: its lines and prices come from the Estimation, no discount
+frappe.ui.form.on('Quotation', {
+	refresh(frm) {
+		if (!frm.doc.opportunity || frm.doc.docstatus !== 0) return;
+		frappe.db.get_value('Opportunity', frm.doc.opportunity, 'custom_estimation').then((r) => {
+			if (!(r && r.message && r.message.custom_estimation)) return;
+			['items', 'additional_discount_percentage', 'discount_amount'].forEach((f) => frm.set_df_property(f, 'read_only', 1));
+		});
+	},
+});

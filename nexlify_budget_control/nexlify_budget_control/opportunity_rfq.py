@@ -436,6 +436,8 @@ def send_contract(opportunity, contract, quotation=None, comment=None):
 	q = frappe.db.get_value("Quotation", quotation, ["docstatus", "opportunity"], as_dict=True) if quotation else None
 	if not q or q.docstatus != 1 or q.opportunity != opp.name:
 		frappe.throw(_("Choose the submitted Quotation of this Opportunity: Make Quotation in the price card, then Submit it."))
+	if not _quotation_matches(frappe.get_doc("Quotation", quotation), opp):
+		frappe.throw(_("Quotation {0} does not carry the current Estimation prices. Make a new Quotation.").format(quotation))
 	from frappe.model.workflow import apply_workflow
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator, attach_file_copy
 
@@ -458,19 +460,17 @@ def send_contract(opportunity, contract, quotation=None, comment=None):
 
 @frappe.whitelist()
 def make_quotation(source_name, target_doc=None):
-	"""Create > Quotation on an Opportunity: ERPNext's mapping (party, company, default taxes), then one line per
-	Equipment Scope of the approved Estimation, priced as Estimation priced it. Sales may change the prices."""
+	"""Create > Quotation on an Opportunity: ERPNext's mapping (party, company, default taxes), with the Opportunity's
+	Items as its lines: the approved Estimation's lines and prices, which Sales cannot change."""
 	from erpnext.crm.doctype.opportunity.opportunity import make_quotation as erpnext_make_quotation
-	from nexlify_budget_control.nexlify_budget_control.job_completion import item_for_project_type
 
 	opp = frappe.get_doc("Opportunity", source_name)
 	est = opp.get("custom_estimation")
 	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.left_by(flow.SEND_CONTRACT):
 		frappe.throw(_("The Quotation is made once the Estimation prices are with Sales."), title=_("No prices yet"))
+	if not opp.get("items"):
+		frappe.throw(_("The Opportunity has no priced Items yet."), title=_("No prices yet"))
 	e = frappe.db.get_value("Project Estimation", est, ["currency", "conversion_rate"], as_dict=True)
-	item = item_for_project_type(opp.get("custom_project_type"))
-	uom = frappe.db.get_value("Item", item, "stock_uom")
-	described = {r.equipment: (r.description or "").strip() for r in opp.get("custom_rfq_items") or []}
 
 	q = erpnext_make_quotation(source_name, target_doc)
 	q.opportunity = opp.name
@@ -478,49 +478,110 @@ def make_quotation(source_name, target_doc=None):
 	q.currency = e.currency
 	q.conversion_rate = flt(e.conversion_rate) or 1
 	q.set("items", [])
-	for r in frappe.get_all("Project Equipment Scope", filters={"cost_budget": est, "docstatus": ["<", 2]},
-			fields=["equipment", "quantity", "unit_price"], order_by="creation"):
-		q.append("items", {"item_code": item, "item_name": r.equipment,
-			"description": described.get(r.equipment) or r.equipment, "qty": flt(r.quantity),
-			"uom": uom, "stock_uom": uom, "conversion_factor": 1,
-			"price_list_rate": flt(r.unit_price), "rate": flt(r.unit_price), "discount_percentage": 0})
+	for r in opp.items:
+		q.append("items", {"item_code": r.item_code, "item_name": r.item_name, "description": r.description or r.item_name,
+			"qty": flt(r.qty), "uom": r.uom, "stock_uom": r.uom, "conversion_factor": 1,
+			"price_list_rate": flt(r.rate), "rate": flt(r.rate), "discount_percentage": 0})
 	q.run_method("set_missing_values")
 	q.run_method("calculate_taxes_and_totals")
 	return q
 
 
-def quotation_value_to_opportunity(doc, method=None):
-	"""A submitted Quotation sets the Opportunity's value: same currency and rate, the net total before VAT (the Planned
-	Revenue the invoices split by percentage, each invoice adding its own VAT). A cancelled one gives the value back to
-	the latest Quotation still submitted."""
-	if not doc.get("opportunity"):
-		return
-	q = doc
-	if doc.docstatus == 2:
-		latest = frappe.get_all("Quotation", filters={"opportunity": doc.opportunity, "docstatus": 1},
-			pluck="name", order_by="creation desc", limit=1)
-		if not latest:
-			return
-		q = frappe.get_doc("Quotation", latest[0])
-	opp = frappe.get_doc("Opportunity", doc.opportunity)
-	if opp.sales_stage in CLOSED_STAGES:
-		return
-	opp.currency = q.currency
-	opp.conversion_rate = q.conversion_rate
-	opp.opportunity_amount = q.net_total
-	opp.flags.ignore_permissions = True
-	opp.flags.nexlify_value_from_quotation = True
-	opp.save()
 
 
-def validate_value_from_quotation(doc, method=None):
-	"""Once a Quotation of the Opportunity is submitted, the Opportunity's value and currency come only from it (the
-	latest one): to change them, Sales makes a new Quotation."""
-	if doc.is_new() or doc.flags.nexlify_value_from_quotation or frappe.flags.in_import or frappe.flags.in_patch:
+def validate_prices_from_estimation(doc, method=None):
+	"""Once the Estimation's prices are approved, the Opportunity's Items, value and currency come only from it: a price
+	changes through Request Revision on the Estimation, never by hand."""
+	if doc.is_new() or doc.flags.nexlify_prices_from_estimation or frappe.flags.in_import or frappe.flags.in_patch:
 		return
 	before = doc.get_doc_before_save()
-	if not before or (flt(doc.opportunity_amount, 2) == flt(before.opportunity_amount, 2) and doc.currency == before.currency):
+	if not before:
 		return
-	if frappe.db.exists("Quotation", {"opportunity": doc.name, "docstatus": 1}):
-		frappe.throw(_("The value comes from the submitted Quotation. To change it, make a new Quotation and submit it."),
-			title=_("Value from the Quotation"))
+	if (flt(doc.opportunity_amount, 2) == flt(before.opportunity_amount, 2) and doc.currency == before.currency
+			and _price_lines(doc) == _price_lines(before)):
+		return
+	est = doc.get("custom_estimation")
+	if est and frappe.db.get_value("Project Estimation", est, "workflow_state") in flow.sales_visible():
+		frappe.throw(_("The Items, the prices and the value come from the Estimation. To change a price, use Request Revision."),
+			title=_("Prices from the Estimation"))
+
+
+def _price_lines(doc):
+	return [(r.item_code, r.item_name, flt(r.qty, 4), flt(r.rate, 2)) for r in doc.get("items") or []]
+
+
+def _estimation_lines(opp):
+	"""The approved Estimation's priced lines as the Opportunity takes them: the Item from the settings (by Project Type),
+	the customer's item as its name, the quantity and the unit price."""
+	from nexlify_budget_control.nexlify_budget_control.job_completion import item_for_project_type
+	item = item_for_project_type(opp.get("custom_project_type"))
+	uom = frappe.db.get_value("Item", item, "stock_uom")
+	described = {r.equipment: (r.description or "").strip() for r in opp.get("custom_rfq_items") or []}
+	return [frappe._dict(item_code=item, item_name=r.equipment, description=described.get(r.equipment) or r.equipment,
+			qty=flt(r.quantity), uom=uom, rate=flt(r.unit_price))
+		for r in frappe.get_all("Project Equipment Scope", filters={"cost_budget": opp.custom_estimation, "docstatus": ["<", 2]},
+			fields=["equipment", "quantity", "unit_price"], order_by="creation")]
+
+
+def _fill_opportunity_from_estimation(opportunity):
+	"""The Estimation's lines become the Opportunity's Items and its total the Opportunity's value (same currency and rate)."""
+	opp = frappe.get_doc("Opportunity", opportunity)
+	if opp.sales_stage in CLOSED_STAGES or not opp.get("custom_estimation"):
+		return False
+	e = frappe.db.get_value("Project Estimation", opp.custom_estimation, ["currency", "conversion_rate", "total_price"], as_dict=True)
+	opp.set("items", [])
+	for line in _estimation_lines(opp):
+		opp.append("items", {"item_code": line.item_code, "item_name": line.item_name, "description": line.description,
+			"qty": line.qty, "uom": line.uom, "rate": line.rate})
+	opp.currency = e.currency
+	opp.conversion_rate = flt(e.conversion_rate) or 1
+	opp.opportunity_amount = flt(e.total_price)
+	opp.flags.nexlify_prices_from_estimation = True
+	opp.flags.ignore_permissions = True
+	opp.save()
+	return True
+
+
+def sync_opportunity_items(doc, method=None):
+	"""When the Estimation's approved prices reach Sales, its lines become the Opportunity's Items and its total the
+	Opportunity's value. Both stay locked: the prices come only from the Estimation."""
+	if doc.get("opportunity") and doc.has_value_changed("workflow_state") and doc.workflow_state in flow.with_sales():
+		_fill_opportunity_from_estimation(doc.opportunity)
+
+
+def _quotation_matches(q, opp):
+	"""The Quotation carries exactly the Opportunity's Items (lines, quantities, prices), with no discount."""
+	no_discount = (not flt(q.get("additional_discount_percentage")) and not flt(q.get("discount_amount"))
+		and all(not flt(r.get("discount_percentage")) and not flt(r.get("discount_amount")) for r in q.get("items") or []))
+	return bool(opp.get("items")) and sorted(_price_lines(q)) == sorted(_price_lines(opp)) and no_discount
+
+
+def validate_quotation_prices(doc, method=None):
+	"""A Quotation of an Opportunity whose Estimation prices are approved carries exactly its Items, with no discount.
+	A price changes through Request Revision on the Estimation."""
+	if not doc.get("opportunity") or doc.docstatus == 2:
+		return
+	opp = frappe.get_doc("Opportunity", doc.opportunity)
+	est = opp.get("custom_estimation")
+	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.sales_visible():
+		return
+	if not _quotation_matches(doc, opp):
+		frappe.throw(_("The Quotation's lines and prices come from the Estimation (the Opportunity's Items), with no discount. "
+			"To change a price, use Request Revision."), title=_("Prices from the Estimation"))
+
+
+def fill_opportunity_items(dry_run=1):
+	"""Once per site: the open Opportunities whose Estimation prices are with Sales get its lines as their Items and its
+	total as their value. dry_run=1 only lists them.
+	bench --site <site> execute nexlify_budget_control.nexlify_budget_control.opportunity_rfq.fill_opportunity_items --kwargs "{'dry_run': 0}"
+	"""
+	out = []
+	for o in frappe.get_all("Opportunity", filters={"custom_estimation": ["is", "set"]}, fields=["name", "custom_estimation", "sales_stage"]):
+		if o.sales_stage in CLOSED_STAGES:
+			continue
+		if frappe.db.get_value("Project Estimation", o.custom_estimation, "workflow_state") not in flow.sales_visible():
+			continue
+		out.append(o.name)
+		if not frappe.utils.cint(dry_run):
+			_fill_opportunity_from_estimation(o.name)
+	return out
