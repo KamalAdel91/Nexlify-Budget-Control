@@ -29,7 +29,7 @@ LOST = "Lost"  # a Project Life's outcome when its Opportunity was lost
 # Put in once per site each; edited or removed later from the UI, they never come back
 SEEDS = (
 	("nexlify_project_life_rules_seeded", "rules", (
-		("Project Overview", "In Planning", "Planning Manager"),
+		("Project Overview", "In Planning", None),  # the Planner works on the Plan; the Overview waits on nobody here
 		("Project Invoicing", "Pending", "Planning Manager"),
 		("Project Invoicing", "Ready to Invoice", "Accounts User"),
 		("Project Invoicing", "Ordered", "Accounts User"),
@@ -429,9 +429,11 @@ def _role_emails(roles):
 	return sorted({e for e in emails if e})
 
 
-def nexlify_role_emails(roles):
-	"""For a Notification template (hooks.py jinja): {{ nexlify_role_emails("CEO, COO") }} gives their emails."""
-	return ",".join(_role_emails(roles))
+def nexlify_role_emails(roles, exclude=None):
+	"""For a Notification template (hooks.py jinja): {{ nexlify_role_emails("CEO, COO", doc.notice_to) }} gives their
+	emails, leaving out those in exclude (comma separated): the CC without who is already in To."""
+	skip = {e.strip().lower() for e in (exclude or "").split(",") if e.strip()}
+	return ",".join(e for e in _role_emails(roles) if e.lower() not in skip)
 
 
 def _notice(life, row, method, days_late=0):
