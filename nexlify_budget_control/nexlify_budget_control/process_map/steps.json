@@ -250,7 +250,7 @@
 				"Click Send for Approval: the Overview goes to the COO"
 			],
 			"receives": "Contract from Estimation",
-			"hands_to": "COO",
+			"hands_to": "COO, for a plan above the allowed staff days; within it, the plan is approved automatically",
 			"status": {
 				"workflow": "Project Planning Approval",
 				"action": "Send for Approval"
@@ -266,12 +266,15 @@
 		{
 			"team": "COO",
 			"title": "First approval",
+			"optional": 1,
+			"exact": 1,
 			"todo": [
-				"Review the Overview",
+				"Needed only when the plan's staff days are above the allowed increase over the Estimation",
+				"Review the Overview: its Staff days check shows the difference",
 				"Approve, or Return to Planning with a reason"
 			],
-			"receives": "Overview from Planning",
-			"hands_to": "CEO for contracts over {ceo_limit}, otherwise Planning",
+			"receives": "Overview from Planning, for a plan above the allowed staff days",
+			"hands_to": "CEO",
 			"status": {
 				"workflow": "Project Overview Approval",
 				"action": "Approve",
@@ -285,8 +288,9 @@
 			"team": "CEO",
 			"title": "Final approval",
 			"optional": 1,
+			"exact": 1,
 			"todo": [
-				"Needed only for contracts over {ceo_limit}",
+				"Needed after the COO, for a plan above the allowed staff days",
 				"Approve, or Return to COO with a reason"
 			],
 			"receives": "Overview approved by the COO",

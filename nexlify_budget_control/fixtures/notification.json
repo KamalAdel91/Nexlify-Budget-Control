@@ -1,0 +1,35 @@
+[
+ {
+  "attach_print": 0,
+  "channel": "Email",
+  "condition": "not doc.needs_approval",
+  "docstatus": 0,
+  "doctype": "Notification",
+  "document_type": "Project Overview",
+  "enabled": 1,
+  "event": "Submit",
+  "is_standard": 0,
+  "message": "The plan of project **{{ doc.project }}** ({{ doc.customer or '' }}) was approved automatically, and the project is now active.\n\nStaff days: {{ '%g'|format(doc.plan_staff_days) }} in the plan against {{ '%g'|format(doc.estimation_staff_days) }} in the Estimation ({{ '%g'|format(doc.staff_days_increase_pct) }}%), within the allowed {{ '%g'|format(doc.allowed_increase_pct) }}%.\n\n[Open the Project Overview]({{ frappe.utils.get_url_to_form(doc.doctype, doc.name) }})\n",
+  "message_type": "Markdown",
+  "modified": "2026-10-16 18:09:39.697961",
+  "module": "Nexlify Budget Control",
+  "name": "Plan Approved Automatically",
+  "recipients": [
+   {
+    "parent": "Plan Approved Automatically",
+    "parentfield": "recipients",
+    "parenttype": "Notification",
+    "receiver_by_role": "COO"
+   },
+   {
+    "parent": "Plan Approved Automatically",
+    "parentfield": "recipients",
+    "parenttype": "Notification",
+    "receiver_by_role": "CEO"
+   }
+  ],
+  "send_system_notification": 0,
+  "send_to_all_assignees": 0,
+  "subject": "Plan approved automatically: {{ doc.project }}"
+ }
+]

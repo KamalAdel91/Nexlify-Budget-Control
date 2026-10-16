@@ -293,3 +293,6 @@ override_whitelisted_methods = {
 nexlify_tracker_stages = {
 	"Project Estimation": "nexlify_budget_control.nexlify_budget_control.process_map.tracker.tracker_stages",
 }
+
+# the plan approval email (a plan approved automatically), kept on the site and editable there
+fixtures.append({"dt": "Notification", "filters": [["name", "in", ["Plan Approved Automatically"]]]})

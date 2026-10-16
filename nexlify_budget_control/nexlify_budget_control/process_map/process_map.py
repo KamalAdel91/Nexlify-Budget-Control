@@ -60,9 +60,9 @@ def get_process_map(workspace=None):
 
 
 def _workflows(names):
-	"""Active workflows by name, with their document type and transitions."""
+	"""Active workflows by name, with their document type, transitions and states (in the Workflow's order)."""
 	out = {
-		w.name: frappe._dict(doctype=w.document_type, transitions=[])
+		w.name: frappe._dict(doctype=w.document_type, transitions=[], states=[])
 		for w in frappe.get_all(
 			"Workflow", filters={"name": ["in", list(names)], "is_active": 1}, fields=["name", "document_type"]
 		)
@@ -75,6 +75,13 @@ def _workflows(names):
 			order_by="parent asc, idx asc",
 		):
 			out[row.parent].transitions.append(row)
+		for row in frappe.get_all(
+			"Workflow Document State",
+			filters={"parenttype": "Workflow", "parent": ["in", list(out)]},
+			fields=["parent", "state"],
+			order_by="parent asc, idx asc",
+		):
+			out[row.parent].states.append(row.state)
 	return out
 
 
@@ -124,14 +131,12 @@ def _sees_amounts():
 
 
 def _ceo_limit(wf):
-	"""The CEO limit from the Overview workflow condition, only for users who may read the contract value."""
-	if not wf or not _sees_amounts():
+	"""The CEO approval limit of the Estimation's prices (Project Budget Settings), only for users who may read amounts.
+	The plan's own approval no longer depends on an amount, so the Overview workflow has no limit to read."""
+	if not _sees_amounts():
 		return HIDDEN_LIMIT
-	for row in wf.transitions:
-		match = re.search(rf"{CEO_LIMIT_FIELD}\s*>\s*([\d_,.]+)", row.condition or "")
-		if match:
-			return f"{float(match.group(1).replace('_', '').replace(',', '')):,.0f}"
-	return HIDDEN_LIMIT
+	limit = frappe.utils.flt(frappe.db.get_single_value("Project Budget Settings", "ceo_approval_limit"))
+	return f"{limit:,.0f}" if limit else HIDDEN_LIMIT
 
 
 def _from_states(ref, workflows):
@@ -189,7 +194,14 @@ def _step_progress(step, rows, workflows):
 		"entered_by": r.get("entered_by"), "duration_days": r.get("duration_days"), "is_open": r.is_open}
 		for r in mine if r.stage in done_states or r.stage in from_states or (from_states and r.previous_stage in from_states)]
 	documents = [{"doctype": doctype, "name": n, "stage": r.stage, "is_open": r.is_open} for n, r in last.items()]
-	return {"documents": documents, "events": events, "state": None, "done": done, "started": started, "finished": finished, "reached": count, "total": len(docs),
+	# an optional step its document went past without ever standing in it (a plan approved automatically:
+	# no COO, no CEO) is not needed, rather than waiting
+	bypassed = False
+	if step.get("optional") and not done and last and from_states and not any(r.stage in from_states for r in mine):
+		order = {s: i for i, s in enumerate((workflows.get(done_ref.get("workflow")) or {}).get("states") or [])}
+		at = min((order[s] for s in from_states if s in order), default=None)
+		bypassed = at is not None and all(order.get(r.stage, -1) > at for r in last.values())
+	return {"bypassed": bypassed, "documents": documents, "events": events, "state": None, "done": done, "started": started, "finished": finished, "reached": count, "total": len(docs),
 		"open": [{"reference_name": n, "stage": r.stage, "waiting_on": r.waiting_on, "entered_on": r.entered_on,
 			"due_on": r.due_on, "is_scheduled": r.is_scheduled} for n, r in last.items() if r.is_open and (not from_states or r.stage in from_states or r.stage in done_states)]}
 
@@ -208,6 +220,8 @@ def _step_states(raw, progress, life_open, outcome=None):
 		if p["done"]:
 			p["state"] = "done"
 		elif passed and (s.get("optional") or (s.get("each") and not p["total"])):
+			p["state"] = "skipped"
+		elif s.get("optional") and p.get("bypassed"):
 			p["state"] = "skipped"
 		elif passed and not p["reached"] and not p["open"]:
 			p["state"] = "done"
