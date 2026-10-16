@@ -624,3 +624,32 @@ def check_send_to_estimation(opportunity):
 	opp = frappe.get_doc("Opportunity", opportunity)
 	opp.check_permission("write")
 	return _missing_for_estimation(opp)
+
+
+@frappe.whitelist()
+def check_closed_won(opportunity):
+	"""Everything the Opportunity still needs before Closed Won, all at once (the same rules the save checks)."""
+	opp = frappe.get_doc("Opportunity", opportunity)
+	opp.check_permission("write")
+	missing = []
+	if not frappe.db.exists("Quotation", {"opportunity": opp.name, "docstatus": 1}):
+		missing.append(_("A submitted Quotation (Estimation > Make Quotation)"))
+	if not opp.get("custom_signed_quotation"):
+		missing.append(_("Signed Quotation"))
+	est = opp.get("custom_estimation")
+	state = frappe.db.get_value("Project Estimation", est, "workflow_state") if est else None
+	if state not in flow.agreed():
+		missing.append(_("The Estimation team accepts the contract (Estimation Status: {0})").format(_(state or "Not Sent")))
+	if not opp.get("custom_signed_contract"):
+		missing.append(_("Signed Contract"))
+	if not opp.get("custom_closing_date"):
+		missing.append(_("Closing Date"))
+	if not opp.get("custom_region"):
+		missing.append(_("Region"))
+	if not opp.get("custom_project_type"):
+		missing.append(_("Project Type"))
+	elif opp.custom_project_type == MAINTENANCE_PROJECT_TYPE and not opp.get("custom_maintenance_type"):
+		missing.append(_("Maintenance Type"))
+	if flt(opp.get("opportunity_amount")) <= 0:
+		missing.append(_("Opportunity Amount above zero"))
+	return missing
