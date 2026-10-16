@@ -509,4 +509,18 @@ def quotation_value_to_opportunity(doc, method=None):
 	opp.conversion_rate = q.conversion_rate
 	opp.opportunity_amount = q.net_total
 	opp.flags.ignore_permissions = True
+	opp.flags.nexlify_value_from_quotation = True
 	opp.save()
+
+
+def validate_value_from_quotation(doc, method=None):
+	"""Once a Quotation of the Opportunity is submitted, the Opportunity's value and currency come only from it (the
+	latest one): to change them, Sales makes a new Quotation."""
+	if doc.is_new() or doc.flags.nexlify_value_from_quotation or frappe.flags.in_import or frappe.flags.in_patch:
+		return
+	before = doc.get_doc_before_save()
+	if not before or (flt(doc.opportunity_amount, 2) == flt(before.opportunity_amount, 2) and doc.currency == before.currency):
+		return
+	if frappe.db.exists("Quotation", {"opportunity": doc.name, "docstatus": 1}):
+		frappe.throw(_("The value comes from the submitted Quotation. To change it, make a new Quotation and submit it."),
+			title=_("Value from the Quotation"))

@@ -17,7 +17,7 @@ doc_events = {
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_project_type",
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_rfq_lock",
             "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_closed_lock",
-            "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_won_ready",
+            "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_won_ready", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.validate_value_from_quotation",
         ],
         "on_update": ["nexlify_budget_control.nexlify_budget_control.opportunity_rfq.share_signed_quotation", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.refresh_fetches", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_opportunity_closed", "nexlify_budget_control.nexlify_budget_control.supply_chain.on_opportunity_update", "nexlify_budget_control.nexlify_budget_control.project_life.on_opportunity_update"],
     },
