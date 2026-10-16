@@ -231,10 +231,10 @@ FETCH_LINKS = {
 
 
 def share_signed_contract(doc, method=None):
-	"""The Estimation team cannot read the Opportunity, so the files that come from it (the signed contract, the signed
-	Quotation and the latest contract draft) get their own File on the Estimation."""
+	"""The Estimation team cannot read the Opportunity, so the files that come from it (the Signed Quotation and the
+	Signed Contract) get their own File on the Estimation. The contract drafts stay in Contract Rounds."""
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import attach_file_copy
-	for field in ("signed_contract", "quotation_from_sales", "contract_from_sales"):
+	for field in ("signed_contract", "quotation_from_sales"):
 		if doc.get(field):
 			attach_file_copy(doc.get(field), doc.doctype, doc.name, field)
 
@@ -437,8 +437,6 @@ def send_contract(opportunity, contract, quotation=None, comment=None):
 		_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", est).as_dict(), flow.SEND_CONTRACT)
 	finally:
 		frappe.flags.nexlify_contract_round = None
-	# the latest draft on the Estimation; every round stays in Contract Rounds
-	frappe.db.set_value("Project Estimation", est, "contract_from_sales", contract, update_modified=False)
 	note = _("Contract, Quotation {0} and its signed copy sent to Estimation by {1}").format(quotation, frappe.utils.get_fullname())
 	if (comment or "").strip():
 		note += ": " + frappe.utils.escape_html(comment.strip())

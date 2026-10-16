@@ -15,13 +15,14 @@
   "company",
   "customer",
   "quotation_from_sales",
-  "contract_from_sales",
   "signed_contract",
-  "contract_no_prices",
-  "quotation_no_prices",
   "column_break_xcgk",
   "project",
   "opportunity",
+  "no_prices_section",
+  "contract_no_prices",
+  "column_break_no_prices",
+  "quotation_no_prices",
   "section_break_rtyw",
   "column_break_ikkr",
   "section_break_kwgb",
@@ -469,19 +470,11 @@
    "fetch_from": "opportunity.custom_signed_quotation",
    "fieldname": "quotation_from_sales",
    "fieldtype": "Attach",
-   "label": "Quotation from Sales",
-   "read_only": 1
-  },
-  {
-   "description": "The latest contract draft Sales sent. Every round stays in Contract Rounds.",
-   "fieldname": "contract_from_sales",
-   "fieldtype": "Attach",
-   "label": "Contract from Sales",
+   "label": "Signed Quotation",
    "read_only": 1
   },
   {
    "allow_on_submit": 1,
-   "depends_on": "eval:doc.signed_contract",
    "fetch_from": "opportunity.custom_signed_contract",
    "fieldname": "signed_contract",
    "fieldtype": "Attach",
@@ -490,11 +483,20 @@
    "read_only": 1
   },
   {
+   "fieldname": "no_prices_section",
+   "fieldtype": "Section Break",
+   "label": "For Planning (No Prices)"
+  },
+  {
    "allow_on_submit": 1,
    "description": "Contract copy without selling prices. It is shared with Planning.",
    "fieldname": "contract_no_prices",
    "fieldtype": "Attach",
    "label": "Contract (No Prices)"
+  },
+  {
+   "fieldname": "column_break_no_prices",
+   "fieldtype": "Column Break"
   },
   {
    "allow_on_submit": 1,
@@ -618,7 +620,7 @@
    "link_fieldname": "cost_budget"
   }
  ],
- "modified": "2026-10-16 21:56:15.446995",
+ "modified": "2026-10-17 01:15:31.862873",
  "modified_by": "Administrator",
  "module": "Nexlify Budget Control",
  "name": "Project Estimation",

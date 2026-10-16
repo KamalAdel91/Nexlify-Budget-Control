@@ -176,7 +176,7 @@
 			"team": "Estimation",
 			"title": "Review the contract",
 			"todo": [
-				"Open the contract and the signed Quotation: Contract from Sales and Quotation from Sales, every round in Contract Rounds",
+				"Open the contract and the signed Quotation of every round in Contract Rounds",
 				"Request Changes with a comment, or Accept Contract",
 				"The price must change? Click Reprice: it goes back through approval"
 			],
