@@ -433,10 +433,9 @@ def send_contract(opportunity, contract, quotation=None, comment=None):
 	signed_quotation = opp.get("custom_signed_quotation")
 	if not signed_quotation:
 		frappe.throw(_("Attach the Quotation signed by the customer (Signed Quotation) on the Opportunity first."))
-	if quotation:
-		q = frappe.db.get_value("Quotation", quotation, ["docstatus", "opportunity"], as_dict=True)
-		if not q or q.docstatus != 1 or q.opportunity != opp.name:
-			quotation = None
+	q = frappe.db.get_value("Quotation", quotation, ["docstatus", "opportunity"], as_dict=True) if quotation else None
+	if not q or q.docstatus != 1 or q.opportunity != opp.name:
+		frappe.throw(_("Choose the submitted Quotation of this Opportunity: Make Quotation in the price card, then Submit it."))
 	from frappe.model.workflow import apply_workflow
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator, attach_file_copy
 
@@ -451,7 +450,7 @@ def send_contract(opportunity, contract, quotation=None, comment=None):
 		frappe.flags.nexlify_contract_round = None
 	# the latest draft on the Estimation; every round stays in Contract Rounds
 	frappe.db.set_value("Project Estimation", est, "contract_from_sales", contract, update_modified=False)
-	note = _("Contract and the signed Quotation sent to Estimation by {0}").format(frappe.utils.get_fullname())
+	note = _("Contract, Quotation {0} and its signed copy sent to Estimation by {1}").format(quotation, frappe.utils.get_fullname())
 	if (comment or "").strip():
 		note += ": " + frappe.utils.escape_html(comment.strip())
 	opp.add_comment("Comment", note)
@@ -488,3 +487,26 @@ def make_quotation(source_name, target_doc=None):
 	q.run_method("set_missing_values")
 	q.run_method("calculate_taxes_and_totals")
 	return q
+
+
+def quotation_value_to_opportunity(doc, method=None):
+	"""A submitted Quotation sets the Opportunity's value: same currency and rate, the net total before VAT (the Planned
+	Revenue the invoices split by percentage, each invoice adding its own VAT). A cancelled one gives the value back to
+	the latest Quotation still submitted."""
+	if not doc.get("opportunity"):
+		return
+	q = doc
+	if doc.docstatus == 2:
+		latest = frappe.get_all("Quotation", filters={"opportunity": doc.opportunity, "docstatus": 1},
+			pluck="name", order_by="creation desc", limit=1)
+		if not latest:
+			return
+		q = frappe.get_doc("Quotation", latest[0])
+	opp = frappe.get_doc("Opportunity", doc.opportunity)
+	if opp.sales_stage in CLOSED_STAGES:
+		return
+	opp.currency = q.currency
+	opp.conversion_rate = q.conversion_rate
+	opp.opportunity_amount = q.net_total
+	opp.flags.ignore_permissions = True
+	opp.save()

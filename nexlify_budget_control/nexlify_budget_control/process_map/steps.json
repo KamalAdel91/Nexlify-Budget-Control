@@ -150,10 +150,10 @@
 			"team": "Sales",
 			"title": "Quote and send the contract",
 			"todo": [
-				"Get the Quotation signed by the customer: Make Quotation in the price card gives one with the Estimation prices",
-				"Attach it to Signed Quotation on the Opportunity",
+				"Click Make Quotation in the price card: the lines come with the Estimation prices. Submit it: its total becomes the Opportunity's value",
+				"Print it for the customer; when it comes back signed, attach it to Signed Quotation on the Opportunity",
 				"Customer changed the scope? Click Request Revision",
-				"When the customer sends the contract, click Send Contract and attach it: the signed Quotation goes with it"
+				"When the customer sends the contract, click Send Contract and attach it: the Quotation and its signed copy go with it"
 			],
 			"note": "The notes from Estimation show in the price card.",
 			"receives": "Selling price from Estimation",

@@ -200,16 +200,20 @@ function nexlify_est_states() {
 
 // Sales sends the customer's contract and our submitted Quotation to the Estimation team.
 function nexlify_send_contract(frm) {
-	if (!frm.doc.custom_signed_quotation) {
-		frappe.msgprint(__('Attach the Quotation signed by the customer (Signed Quotation) first. Make Quotation in the price card gives one with the Estimation prices.'));
-		return;
-	}
 	frappe.db.get_list('Quotation', { filters: { opportunity: frm.doc.name, docstatus: 1 }, fields: ['name'], order_by: 'creation desc', limit: 1 }).then((q) => {
+		if (!q.length) {
+			frappe.msgprint(__('Make the Quotation first: Make Quotation in the price card, then Submit it.'));
+			return;
+		}
+		if (!frm.doc.custom_signed_quotation) {
+			frappe.msgprint(__('Attach the Quotation signed by the customer (Signed Quotation) first.'));
+			return;
+		}
 		const d = new frappe.ui.Dialog({
 			title: __('Send Contract to Estimation'),
 			fields: [
 				{ fieldname: 'contract', fieldtype: 'Attach', label: __('Contract'), reqd: 1 },
-				{ fieldname: 'quotation', fieldtype: 'Link', options: 'Quotation', label: __('Quotation'), reqd: 0,
+				{ fieldname: 'quotation', fieldtype: 'Link', options: 'Quotation', label: __('Quotation'), reqd: 1,
 					default: q.length ? q[0].name : null,
 					get_query: () => ({ filters: { opportunity: frm.doc.name, docstatus: 1 } }) },
 				{ fieldname: 'comment', fieldtype: 'Small Text', label: __('Comment') },
