@@ -84,12 +84,9 @@ function nexlify_render_estimation_view(frm) {
 				field.$wrapper.html(`<div class="nx-rfq-card">${head()}<div class="nx-empty"><b>${msg[0]}</b>${msg[1]}</div></div>`);
 				return;
 			}
-			const revise = (g.with_sales.includes(d.status) && !['Closed Won', 'Closed Lost'].includes(frm.doc.sales_stage))
-				? `<button class="btn btn-xs btn-default nx-request-revision" style="margin-left:8px">${__('Request Revision')}</button>` : '';
+			const revise = g.with_sales.includes(d.status) && !['Closed Won', 'Closed Lost'].includes(frm.doc.sales_stage);
 			const can_send = [...g.with_sales, ...g.changes_requested].includes(d.status)
 				&& !['Closed Won', 'Closed Lost', 'Closed Lost to Competition'].includes(frm.doc.sales_stage);
-			const send = can_send ? `<button class="btn btn-xs btn-default nx-make-quotation" style="margin-left:8px">${__('Make Quotation')}</button>`
-				+ `<button class="btn btn-xs btn-primary nx-send-contract" style="margin-left:8px">${__('Send Contract')}</button>` : '';
 			const notes = d.notes ? `<div style="margin:12px 0 0;padding:10px 12px;border-radius:8px;background:var(--subtle-fg, #f8f8f8);font-size:13px"><div class="nx-rfq-sub">${__('Notes from Estimation')}</div>${esc(d.notes)}</div>` : '';
 			const rounds = (d.rounds || []).length ? `<div style="margin:12px 0 0"><div class="nx-rfq-sub">${__('Contract rounds')}</div>`
 				+ d.rounds.map(r => `<div style="font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border-color, #ededed)"><b>${__('Round {0}', [r.round_no])}</b> · ${esc(__(r.event || ''))} · ${esc(r.by_name || '')} · ${frappe.datetime.str_to_user(r.sent_on)}${r.comment ? `<div class="text-muted">${esc(r.comment)}</div>` : ''}</div>`).join('') + '</div>' : '';
@@ -99,17 +96,21 @@ function nexlify_render_estimation_view(frm) {
 				<td class="nx-num">${money(x.unit_price)}</td>
 				<td class="nx-num">${money(x.total_price)}</td></tr>`).join('');
 			field.$wrapper.html(`<div class="nx-rfq-card">
-				${head(`<span class="nx-total">${money(d.total)}</span>${revise}${send}`)}
+				${head(`<span class="nx-total">${money(d.total)}</span>`)}
 				<div class="nx-rfq-scroll"><table class="nx-rfq-table">
 					<thead><tr><th>${__('Equipment Scope')}</th><th class="nx-num">${__('Qty')}</th>
 						<th class="nx-num">${__('Unit Price')}</th><th class="nx-num">${__('Total Price')}</th></tr></thead>
 					<tbody>${body}</tbody>
 					<tfoot><tr><td colspan="3" class="nx-num">${__('Total')}</td><td class="nx-num">${money(d.total)}</td></tr></tfoot>
 				</table></div>${notes}${rounds}</div>`);
-			field.$wrapper.find('.nx-request-revision').on('click', () => nexlify_request_revision(frm));
-			field.$wrapper.find('.nx-send-contract').on('click', () => nexlify_send_contract(frm));
-			field.$wrapper.find('.nx-make-quotation').on('click', () => frappe.model.open_mapped_doc({
-				method: 'erpnext.crm.doctype.opportunity.opportunity.make_quotation', frm }));
+			const group = __('Estimation');
+			[__('Request Revision'), __('Make Quotation'), __('Send Contract')].forEach((b) => frm.remove_custom_button(b, group));
+			if (revise) frm.add_custom_button(__('Request Revision'), () => nexlify_request_revision(frm), group);
+			if (can_send) {
+				frm.add_custom_button(__('Make Quotation'), () => frappe.model.open_mapped_doc({
+					method: 'erpnext.crm.doctype.opportunity.opportunity.make_quotation', frm }), group);
+				frm.add_custom_button(__('Send Contract'), () => nexlify_send_contract(frm), group);
+			}
 		});
 		},
 	});
