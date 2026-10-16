@@ -477,6 +477,21 @@ function pes_recalculate(frm) {
 		if (pes_can_see_price(frm)) {
 			let margin = flt(total * flt(d.margin_percentage) / 100, 2);
 			let price = flt(total + margin, 2);
+			// as the server does (_store_equipment_scope_prices): the price is the sum of the equipment lines, each its
+			// rounded unit price times its quantity, and the rounding goes to the margin
+			if (manpower) {
+				let lines = 0;
+				(frm.__pes_rows || []).filter(s => s.docstatus === 0).forEach(s => {
+					let crew = flt(pes_crew_day_cost(s, rates), 2);
+					let line = flt(price * flt(flt(s.total_days) * crew, 2) / manpower, 2);
+					if (flt(s.quantity)) line = flt(flt(line / flt(s.quantity), 2) * flt(s.quantity), 2);
+					lines += line;
+				});
+				if (lines && Math.abs(lines - price) >= 0.005) {
+					price = flt(lines, 2);
+					margin = flt(price - total, 2);
+				}
+			}
 			pes_set_doc(frm, 'margin_amount', margin);
 			pes_set_doc(frm, 'total_price', price);
 			pes_set_doc(frm, 'price_per_day', flt(d.total_work_days) ? flt(price / flt(d.total_work_days), 2) : 0);
