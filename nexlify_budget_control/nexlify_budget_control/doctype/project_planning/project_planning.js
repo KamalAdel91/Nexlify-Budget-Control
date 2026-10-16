@@ -1329,13 +1329,13 @@ function ps_build_html(frm, data) {
 		return header + `<div class="nrb-empty">${__('No planning scope yet.')}</div>`;
 	}
 
-	let over = 0, sum_plan = 0, sum_est = 0;
+	let over = 0, qty_diff = 0, sum_plan = 0, sum_est = 0;
 	let not_in_est = [];
 	let body = rows.map(row => {
 		let e = row.est || {};
 		if (row.not_in_estimation) not_in_est.push(row.equipment);
 		let count_over = !row.not_in_estimation;
-		if (count_over && flt(row.quantity) > flt(e.quantity)) over++;
+		if (count_over && flt(row.quantity) !== flt(e.quantity)) qty_diff++;
 		if (count_over && flt(row.days_per_equipment) > flt(e.days_per_equipment)) over++;
 		sum_plan += flt(row.total_days);
 		sum_est += flt(e.total_days);
@@ -1370,13 +1370,13 @@ function ps_build_html(frm, data) {
 	let box = (bg, fg, text) => `<div style="margin-bottom:8px; padding:8px 10px; border-radius:8px; background:${bg}; color:${fg}; font-weight:600;">${text}</div>`;
 	let issues = [];
 	if (not_in_est.length) issues.push(__('{0} equipment not in the Estimation: {1}. Remove them from the plan.', [not_in_est.length, not_in_est.map(esc).join(', ')]));
-	if (over) issues.push(__('{0} value(s) are above the Estimation. Reduce them.', [over]));
+	if (qty_diff) issues.push(__('{0} equipment have a quantity different from the Estimation. The equipment follows the customer requirements: set it back.', [qty_diff]));
+	if (missing.length) issues.push(__('Missing from the plan: {0}. The equipment follows the customer requirements: add it back (Add missing).', [missing.map(esc).join(', ')]));
 	let banner = issues.length
-		? box('var(--red-50, #fff5f5)', 'var(--red-600, #c92a2a)', issues.join('<br>') + `<div style="font-weight:400; font-size:12px; margin-top:4px;">${__('Submitting the plan is blocked until this is fixed.')}</div>`)
-		: box('var(--green-50, #ebfbee)', 'var(--green-700, #2b8a3e)', __('The planning scope is within the Estimation.'));
-	let removed = missing.length
-		? `<div class="nrb-muted" style="margin-top:6px; font-size:12px;">${__('Removed from the plan')}: ${missing.map(esc).join(', ')}</div>`
-		: '';
+		? box('var(--red-50, #fff5f5)', 'var(--red-600, #c92a2a)', issues.join('<br>') + `<div style="font-weight:400; font-size:12px; margin-top:4px;">${__('Sending the plan for approval is blocked until this is fixed.')}</div>`)
+		: box('var(--green-50, #ebfbee)', 'var(--green-700, #2b8a3e)', __('The equipment and quantities match the Estimation.'));
+	if (over) banner += box('var(--orange-50, #fff4e6)', 'var(--orange-700, #d9480f)', __('{0} value(s) of days or crew are above the Estimation. They add staff days: above the allowed increase, the plan goes to the COO, then the CEO.', [over]));
+	let removed = '';
 
 	let min_width = (6 + trades.length) * 110;
 	return header + banner + `
@@ -1466,7 +1466,7 @@ window.ps_edit = function(name) {
 				</table>
 			</div>
 			${warn.length ? `<div style="margin-top:8px; padding:8px 10px; border-radius:8px; background: var(--red-50, #fff5f5); color: var(--red-600, #c92a2a);">${warn.map(w => '&bull; ' + w).join('<br>')}</div>` : ''}
-			<div class="nrb-muted" style="margin-top:6px; font-size:11px;">${__('Values above the Estimation are allowed while drafting, but block submitting the plan.')}</div>
+			<div class="nrb-muted" style="margin-top:6px; font-size:11px;">${__('The quantity must stay as in the Estimation. More days or crew than the Estimation add staff days: above the allowed increase, the plan goes to the COO, then the CEO.')}</div>
 		`);
 	}
 
@@ -1889,3 +1889,80 @@ window.nrb_undo_job_completed = function(name) {
 		frappe.xcall(NRB_JC + 'undo_job_completed', { invoicing: name }).then(() => render_invoices_table(_revenue_budget_frm));
 	});
 };
+
+// ---------------------------------------------------------------------------
+// Staff days (people x days) against the Estimation, for the planner. Days only, no amounts.
+// ---------------------------------------------------------------------------
+
+var NEXLIFY_STAFF_DAYS_METHOD = 'nexlify_budget_control.nexlify_budget_control.budget_enforcement.get_plan_staff_days';
+
+function nexlify_plan_first_state(frm) {
+	// the Workflow's first state, read from the Workflow (never written in the code)
+	frappe.workflow.setup(frm.doctype);
+	const wf = frappe.workflow.workflows[frm.doctype];
+	const field = frappe.workflow.get_state_fieldname(frm.doctype);
+	return wf && field && (wf.states || []).length ? { field: field, state: wf.states[0].state } : null;
+}
+
+function nexlify_staff_days_html(c) {
+	c = c || {};
+	const n = v => format_number(flt(v, 2), null, flt(v, 2) % 1 ? 2 : 0);
+	const signed = v => (flt(v) > 0 ? '+' : flt(v) < 0 ? '−' : '') + n(Math.abs(flt(v)));
+	const esc = frappe.utils.escape_html;
+	let head;
+	if (!flt(c.estimation)) {
+		head = __('The plan has {0} staff days and the Estimation has none to compare with: when you send it, it goes to the COO, then the CEO.', [n(c.plan)]);
+	} else if (c.needs_approval) {
+		head = __('Staff days: {0} in the plan against {1} in the Estimation ({2}%), above the allowed {3}%. When you send it, it goes to the COO, then the CEO.', [n(c.plan), n(c.estimation), signed(c.increase_pct), n(c.allowed_pct)]);
+	} else {
+		head = __('Staff days: {0} in the plan against {1} in the Estimation ({2}%), within the allowed {3}%. When you send it, it is approved automatically.', [n(c.plan), n(c.estimation), signed(c.increase_pct), n(c.allowed_pct)]);
+	}
+	const roles = (c.roles || []).filter(r => flt(r.difference, 2) !== 0)
+		.map(r => `${esc(r.trade)} ${n(r.estimation)} → ${n(r.plan)} (${signed(r.difference)})`);
+	const from = (c.equipment || []).map(e => `${esc(e.equipment)} ${signed(e.difference)}`);
+	if (flt(c.waiting_on_site) > 0) from.push(__('people on site while another role still works {0}', [signed(c.waiting_on_site)]));
+	let html = `<div style="font-weight:600;">${head}</div>`;
+	if (roles.length) html += `<div style="margin-top:4px;">${__('By role')}: ${roles.join(' · ')}</div>`;
+	if (from.length) html += `<div style="margin-top:2px;">${__('Where it comes from')}: ${from.join(' · ')}</div>`;
+	return html;
+}
+
+frappe.ui.form.on('Project Planning', {
+	refresh(frm) {
+		// drafts only: once the plan is sent, the Project Overview shows the same check
+		const first = nexlify_plan_first_state(frm);
+		if (frm.is_new() || frm.doc.docstatus !== 0 || !first || frm.doc[first.field] !== first.state) return;
+		frappe.xcall(NEXLIFY_STAFF_DAYS_METHOD, { project_planning: frm.doc.name }).then(c => {
+			if (!c || frm.doc.docstatus !== 0 || frm.doc[first.field] !== first.state) return;
+			if (!flt(c.plan)) {
+				frm.dashboard.set_headline_alert(__('Staff days will show here once the visits have their teams.'), 'blue');
+			} else {
+				frm.dashboard.set_headline_alert(nexlify_staff_days_html(c), c.needs_approval ? 'orange' : 'green');
+			}
+		});
+	},
+	before_workflow_action(frm) {
+		// the action out of the Workflow's first state sends the plan for approval: show where it will go first
+		const first = nexlify_plan_first_state(frm);
+		if (!first || frm.doc[first.field] !== first.state) return;
+		return new Promise((resolve, reject) => {
+			frappe.dom.unfreeze();
+			frappe.xcall(NEXLIFY_STAFF_DAYS_METHOD, { project_planning: frm.doc.name }).then(c => {
+				let done = false;
+				const d = new frappe.ui.Dialog({
+					title: __(frm.selected_workflow_action || 'Send'),
+					fields: [{ fieldname: 'staff_days', fieldtype: 'HTML', options: nexlify_staff_days_html(c) }],
+					primary_action_label: __(frm.selected_workflow_action || 'Send'),
+					primary_action() {
+						done = true;
+						d.hide();
+						frappe.dom.freeze();
+						resolve();
+					}
+				});
+				d.onhide = () => { if (!done) reject(); };
+				d.show();
+			}, () => reject());
+		});
+	}
+});

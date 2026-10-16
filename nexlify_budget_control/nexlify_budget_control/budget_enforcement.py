@@ -487,20 +487,43 @@ def plan_staff_days(plan_name, cost_budget=None):
     Estimation: each equipment's total days x its crew, the same days its manpower cost is priced on.
     Plan: each visit's team headcount x the visit duration (the team stays for the whole visit).
     Above the allowed increase (Project Budget Settings) the plan needs the COO, then the CEO.
+    Where an increase comes from: the equipment (more days or crew than the Estimation), and the visits
+    (people on site while another role still works, since the longest role sets the visit's length).
     """
     flt, cint = frappe.utils.flt, frappe.utils.cint
     cost_budget = cost_budget or _planning_cost_budget(plan_name)
-    est, plan = {}, {}
+    est, plan, est_rows, equipment = {}, {}, {}, []
+
+    def crews(parenttype, names):
+        out = {}
+        if names:
+            for r in frappe.get_all("Project Equipment Scope Role",
+                    filters={"parent": ["in", list(names)], "parenttype": parenttype}, fields=["parent", "trade", "count"]):
+                if r.trade:
+                    c = out.setdefault(r.parent, {})
+                    c[r.trade] = c.get(r.trade, 0) + flt(r.count)
+        return out
 
     if cost_budget:
-        days = {r.name: flt(r.total_days) for r in frappe.get_all("Project Equipment Scope",
-            filters={"cost_budget": cost_budget, "docstatus": 1}, fields=["name", "total_days"])}
-        if days:
-            for r in frappe.get_all("Project Equipment Scope Role",
-                    filters={"parent": ["in", list(days)], "parenttype": "Project Equipment Scope"},
-                    fields=["parent", "trade", "count"]):
-                if r.trade:
-                    est[r.trade] = est.get(r.trade, 0) + days[r.parent] * flt(r.count)
+        rows = frappe.get_all("Project Equipment Scope", filters={"cost_budget": cost_budget, "docstatus": 1},
+                              fields=["name", "total_days"])
+        crew = crews("Project Equipment Scope", [r.name for r in rows])
+        for r in rows:
+            for t, n in crew.get(r.name, {}).items():
+                est[t] = est.get(t, 0) + flt(r.total_days) * n
+            est_rows[r.name] = flt(r.total_days) * sum(crew.get(r.name, {}).values())
+
+    scope = frappe.get_all("Project Planning Scope", filters={"project_planning": plan_name, "docstatus": ["<", 2]},
+                           fields=["name", "equipment", "total_days", "estimation_scope"], order_by="creation asc")
+    crew = crews("Project Planning Scope", [s.name for s in scope])
+    needed = 0
+    for s in scope:
+        days = flt(s.total_days) * sum(crew.get(s.name, {}).values())
+        needed += days
+        before = flt(est_rows.get(s.estimation_scope))
+        if flt(days - before, 2) > 0:
+            equipment.append({"equipment": s.equipment, "estimation": flt(before, 2), "plan": flt(days, 2),
+                              "difference": flt(days - before, 2)})
 
     for visit_name in frappe.get_all("Project Visits",
             filters={"project_planning": plan_name, "docstatus": ["<", 2]}, pluck="name"):
@@ -525,6 +548,9 @@ def plan_staff_days(plan_name, cost_budget=None):
         "needs_approval": increase is None or increase > allowed,
         "roles": [{"trade": t, "estimation": flt(est.get(t), 2), "plan": flt(plan.get(t), 2),
                    "difference": flt(flt(plan.get(t)) - flt(est.get(t)), 2)} for t in trades],
+        "equipment": equipment,
+        # people on site while another role still works: the visit's longest role sets its length
+        "waiting_on_site": flt(max(plan_total - needed, 0), 2) if plan_total else 0,
     })
 
 
@@ -546,9 +572,25 @@ def _store_overview_staff_days(name, plan_name, cost_budget=None):
         "staff_days_increase_pct": check.increase_pct or 0,
         "allowed_increase_pct": check.allowed_pct,
         "needs_approval": 1 if check.needs_approval else 0,
-        "staff_days_detail": frappe.as_json(check.roles),
+        "staff_days_detail": frappe.as_json({"roles": check.roles, "equipment": check.equipment,
+                                             "waiting_on_site": check.waiting_on_site}),
     }, update_modified=False)
     return check
+
+
+def _overview_staff_days(name, plan_name, cost_budget=None):
+    """The staff-days check the Overview shows: its stored copy (frozen once approved), or worked out now for an
+    Overview made before the check existed."""
+    s = frappe.db.get_value("Project Overview", name, ["estimation_staff_days", "plan_staff_days",
+        "staff_days_increase_pct", "allowed_increase_pct", "needs_approval", "staff_days_detail"], as_dict=True)
+    if s and s.staff_days_detail:
+        detail = frappe.parse_json(s.staff_days_detail)
+        if isinstance(detail, list):
+            detail = {"roles": detail}
+        return dict(detail, estimation=s.estimation_staff_days, plan=s.plan_staff_days,
+                    increase_pct=s.staff_days_increase_pct, allowed_pct=s.allowed_increase_pct,
+                    needs_approval=bool(s.needs_approval))
+    return plan_staff_days(plan_name, cost_budget) if plan_name else {}
 
 
 def fill_overview_staff_days(dry_run=1, include_approved=0):
@@ -3416,6 +3458,7 @@ def get_overview_page(overview):
                             "by": frappe.utils.get_fullname(cm.owner)})
     history.sort(key=lambda h: h["date"])
     out["history"] = history[-20:]
+    out["staff_days"] = _overview_staff_days(ov.name, plan, ov.cost_budget)
     return out
 
 

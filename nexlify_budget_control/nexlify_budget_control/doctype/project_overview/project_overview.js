@@ -962,10 +962,15 @@ function pop_page_html(frm, d, scope) {
 	else if (differ) checks.push(['warn', 'scope_section', __('Scope'), __('{0} of {1} equipment differ from the Estimation.', [differ, comparison.length]), units_txt]);
 	else checks.push(['ok', 'scope_section', __('Scope'), (comparison.length === 1 ? __('The plan matches the Estimation on the equipment and its crew.') : __('The plan matches the Estimation on all {0} equipment and crews.', [comparison.length])), units_txt]);
 
-	const days_txt = __('{0} days', [flt(work_days, 2)]);
+	const sdays = d.staff_days || {};
+	const sd_n = v => format_number(flt(v, 2), null, flt(v, 2) % 1 ? 2 : 0);
+	const sd_pct = v => (flt(v) > 0 ? '+' : '') + sd_n(v);
+	const sd_more = (sdays.roles || []).filter(r => flt(r.difference, 2) > 0).map(r => `${esc(r.trade)} +${sd_n(r.difference)}`).join(', ');
+	const days_txt = __('{0} staff days', [sd_n(sdays.plan)]);
 	if (!visits.length) checks.push(['bad', 'schedule_section', __('Schedule'), __('No visits are planned yet.'), '']);
-	else if (est_days && flt(work_days, 2) !== flt(est_days, 2)) checks.push(['warn', 'schedule_section', __('Schedule'), __('{0} visits plan {1} working days; the Estimation has {2}.', [visits.length, flt(work_days, 2), flt(est_days, 2)]), days_txt]);
-	else checks.push(['ok', 'schedule_section', __('Schedule'), (visits.length === 1 ? __('1 visit covers all {0} working days.', [flt(work_days, 2)]) : __('{0} visits cover all {1} working days.', [visits.length, flt(work_days, 2)])), days_txt]);
+	else if (!flt(sdays.estimation)) checks.push(['warn', 'schedule_section', __('Staff days'), __('The plan has {0} staff days and the Estimation has none to compare with.', [sd_n(sdays.plan)]), days_txt]);
+	else if (sdays.needs_approval) checks.push(['warn', 'schedule_section', __('Staff days'), __('{0} staff days against {1} in the Estimation ({2}%), above the allowed {3}%.', [sd_n(sdays.plan), sd_n(sdays.estimation), sd_pct(sdays.increase_pct), sd_n(sdays.allowed_pct)]) + (sd_more ? ' ' + __('More for: {0}.', [sd_more]) : ''), days_txt]);
+	else checks.push(['ok', 'schedule_section', __('Staff days'), __('{0} staff days against {1} in the Estimation ({2}%), within the allowed {3}%.', [sd_n(sdays.plan), sd_n(sdays.estimation), sd_pct(sdays.increase_pct), sd_n(sdays.allowed_pct)]), days_txt]);
 
 	if (!invoices.length) checks.push(['warn', 'invoicing_section', __('Invoicing'), __('No invoices are planned yet.'), '']);
 	else if (flt(pct_total, 2) !== 100) checks.push(['bad', 'invoicing_section', __('Invoicing'), __('The invoices add up to {0}%, not 100%.', [flt(pct_total, 2)]), `${flt(pct_total, 2)}%`]);
