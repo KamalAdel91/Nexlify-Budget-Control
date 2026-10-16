@@ -113,6 +113,10 @@ class ProjectEstimation(Document):
 			frappe.throw(_("The prices are locked while the Estimation is {0}.").format(_(state)))
 		if prev == state:
 			return
+		# a deal with an Opportunity is won or lost only from the Opportunity (Closed Won with the signed contract, or Closed Lost)
+		if (self.opportunity and state in (flow.won() | flow.lost()) and not frappe.flags.nexlify_opportunity_closed
+				and not (frappe.flags.in_import or frappe.flags.in_patch)):
+			frappe.throw(_("The deal is closed from the Opportunity: Sales sets it Closed Won with the signed contract, or Closed Lost."))
 		reason = (self.return_reason or "").strip()
 		review = flow.contract_review()
 		needs_reason = ((prev in flow.pending() and state in flow.draft())

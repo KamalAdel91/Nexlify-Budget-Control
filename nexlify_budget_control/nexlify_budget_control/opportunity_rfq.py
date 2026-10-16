@@ -264,7 +264,12 @@ def on_opportunity_closed(doc, method=None):
 		return
 	from frappe.model.workflow import apply_workflow
 	from nexlify_budget_control.nexlify_budget_control.budget_enforcement import _run_as_administrator
-	_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", doc.custom_estimation).as_dict(), action)
+	# only this closing may move the Estimation to Won or Lost (Project Estimation._validate_workflow_step)
+	frappe.flags.nexlify_opportunity_closed = True
+	try:
+		_run_as_administrator(apply_workflow, frappe.get_doc("Project Estimation", doc.custom_estimation).as_dict(), action)
+	finally:
+		frappe.flags.nexlify_opportunity_closed = False
 
 
 @frappe.whitelist()

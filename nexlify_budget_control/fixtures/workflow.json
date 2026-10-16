@@ -238,7 +238,7 @@
   "document_type": "Project Estimation",
   "enable_action_confirmation": 1,
   "is_active": 1,
-  "modified": "2026-10-16 19:01:40.547942",
+  "modified": "2026-10-16 20:05:35.226984",
   "name": "Project Estimation Workflow",
   "override_status": 0,
   "send_email_alert": 0,
@@ -515,7 +515,7 @@
    {
     "action": "Send Contract",
     "allow_self_approval": 1,
-    "allowed": "System Manager",
+    "allowed": "Administrator",
     "condition": null,
     "next_state": "Contract Review",
     "send_email_to_creator": 0,
@@ -526,7 +526,7 @@
    {
     "action": "Send Contract",
     "allow_self_approval": 1,
-    "allowed": "System Manager",
+    "allowed": "Administrator",
     "condition": null,
     "next_state": "Contract Review",
     "send_email_to_creator": 0,
@@ -570,7 +570,7 @@
    {
     "action": "Receive Signed Contract",
     "allow_self_approval": 1,
-    "allowed": "System Manager",
+    "allowed": "Administrator",
     "condition": null,
     "next_state": "Won",
     "send_email_to_creator": 0,
