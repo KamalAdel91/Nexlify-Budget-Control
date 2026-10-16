@@ -405,9 +405,9 @@ def _quotation_pdf(quotation, estimation):
 
 
 @frappe.whitelist()
-def send_contract(opportunity, contract, quotation=None, comment=None):
-	"""Sales sends the customer's contract (a draft until the deal is won) to the Estimation team for the Contract Review.
-	The Quotation signed by the customer must be on the Opportunity first (Signed Quotation); it goes with the contract."""
+def send_contract(opportunity, comment=None):
+	"""Sales sends the Opportunity's two files, Signed Quotation and Signed Contract, with its submitted Quotation, to the
+	Estimation team for the Contract Review. Every send is a round in Contract Rounds."""
 	opp = frappe.get_doc("Opportunity", opportunity)
 	opp.check_permission("write")
 	if opp.sales_stage in CLOSED_STAGES:
@@ -415,14 +415,13 @@ def send_contract(opportunity, contract, quotation=None, comment=None):
 	est = opp.get("custom_estimation")
 	if not est or frappe.db.get_value("Project Estimation", est, "workflow_state") not in flow.left_by(flow.SEND_CONTRACT):
 		frappe.throw(_("The Estimation is not waiting for the contract."))
-	if not contract:
-		frappe.throw(_("Attach the contract."))
-	signed_quotation = opp.get("custom_signed_quotation")
-	if not signed_quotation:
-		frappe.throw(_("Attach the Quotation signed by the customer (Signed Quotation) on the Opportunity first."))
-	q = frappe.db.get_value("Quotation", quotation, ["docstatus", "opportunity"], as_dict=True) if quotation else None
-	if not q or q.docstatus != 1 or q.opportunity != opp.name:
-		frappe.throw(_("Choose the submitted Quotation of this Opportunity: Make Quotation in the price card, then Submit it."))
+	quotation = frappe.db.get_value("Quotation", {"opportunity": opp.name, "docstatus": 1}, "name")
+	contract, signed_quotation = opp.get("custom_signed_contract"), opp.get("custom_signed_quotation")
+	missing = [m for m, ok in ((_("A submitted Quotation (Create > Quotation)"), quotation),
+		(_("Signed Quotation"), signed_quotation), (_("Signed Contract"), contract)) if not ok]
+	if missing:
+		frappe.throw("<br>".join(["<b>" + _("Complete these before sending to Estimation:") + "</b>"]
+			+ ["&bull; " + frappe.utils.escape_html(m) for m in missing]), title=_("Missing information"))
 	if not _quotation_matches(frappe.get_doc("Quotation", quotation), opp):
 		frappe.throw(_("Quotation {0} does not carry the current Estimation prices. Make a new Quotation.").format(quotation))
 	from frappe.model.workflow import apply_workflow
@@ -640,7 +639,7 @@ def check_closed_won(opportunity):
 	opp.check_permission("write")
 	missing = []
 	if not frappe.db.exists("Quotation", {"opportunity": opp.name, "docstatus": 1}):
-		missing.append(_("A submitted Quotation (Estimation > Make Quotation)"))
+		missing.append(_("A submitted Quotation (Create > Quotation)"))
 	if not opp.get("custom_signed_quotation"):
 		missing.append(_("Signed Quotation"))
 	est = opp.get("custom_estimation")
