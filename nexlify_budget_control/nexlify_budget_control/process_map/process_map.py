@@ -183,9 +183,11 @@ def _step_progress(step, rows, workflows):
 		finished = max(reached[n] for n in docs) if done else None
 		count = sum(1 for n in docs if n in reached)
 	else:
-		# back in the step (a revision, a Return, a Reprice): not done until it leaves again
-		redo = [n for n, r in last.items() if r.is_open and r.stage in from_states
-			and n in reached and r.entered_on > reached[n]]
+		# back in the step, or sent back to before it (a revision, a Return, a Reprice): not done until it is done again
+		state_order = {s: k for k, s in enumerate((workflows.get(done_ref.get("workflow")) or {}).get("states") or [])}
+		step_at = min((state_order[s] for s in from_states if s in state_order), default=None)
+		redo = [n for n, r in last.items() if r.is_open and n in reached and r.entered_on > reached[n]
+			and (r.stage in from_states or (step_at is not None and state_order.get(r.stage, step_at) < step_at))]
 		done = bool(reached) and not redo
 		finished = min(reached.values()) if done else None
 		count = len(reached)
