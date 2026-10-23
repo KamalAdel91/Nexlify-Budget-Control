@@ -410,10 +410,21 @@ def remove_hand_off_leftovers(dry_run=1):
 	return found
 
 
-# The emails about stages are Frappe Notifications on the Project Life (event Method), editable on the site:
-# their text, who gets them and the CC. The code only says when, and puts the stage in the Last Notice fields.
+# The emails about stages are Frappe Notifications, editable on the site: their text, who gets them and the CC.
+# The code only says when. Each stage has its own Notification on the document itself (event Method STAGE_NOTICE),
+# so the email shows in that document's Activity, and is linked to the Project Life, so it shows there too.
+# The Last Notice fields on the Project Life keep the last one; its own two Notifications (NOTICE_ENTERED and
+# NOTICE_OVERDUE) came before them and stay on the site, disabled.
 NOTICE_ENTERED = "nexlify_stage_entered"  # a stage starts and someone waits on it
 NOTICE_OVERDUE = "nexlify_stage_overdue"  # every day while a stage is open after it was due
+STAGE_NOTICE = "nexlify_stage_notice"  # on the document: both, a new stage and the daily reminder while overdue
+CC_ROLES = "CEO, COO, Accounts Manager, Accounts User"  # in CC of every stage email, less who is in To
+STAGE_MESSAGE = """{% set s = nexlify_stage(doc) %}{% if s.title %}**{{ s.title }}**{% endif %}
+
+{% if s.overdue %}{{ doc.doctype }} **{{ doc.name }}** is still at **{{ s.stage }}**, waiting on **{{ s.waiting_on }}** since {{ frappe.utils.format_datetime(s.since) }}. It was due on {{ frappe.utils.format_datetime(s.due_on) }}{% if s.days_late %}, {{ s.days_late }} day(s) ago{% endif %}.{% else %}{{ doc.doctype }} **{{ doc.name }}** is now at **{{ s.stage }}** and waits on **{{ s.waiting_on }}**.{% if s.due_on %} Due on {{ frappe.utils.format_datetime(s.due_on) }}.{% endif %}{% endif %}
+
+[Open {{ doc.name }}]({{ frappe.utils.get_url_to_form(doc.doctype, doc.name) }}){% if s.life %} · [Project Life]({{ frappe.utils.get_url_to_form("Project Life", s.life) }}){% endif %}
+"""
 
 
 def _role_emails(roles):
@@ -445,6 +456,73 @@ def _notice(life, row, method, days_late=0):
 		"notice_to": ",".join(_role_emails(row.waiting_on)),
 	}, update_modified=False)
 	frappe.get_doc(LIFE, life).run_method(method)
+	_notice_on_document(life, row)
+
+
+def _notice_on_document(life, row):
+	"""The stage's own Notification sends the email from the document; each email it made is linked to the Project Life."""
+	filters = {"reference_doctype": row.reference_doctype, "reference_name": row.reference_name,
+		"communication_type": "Automated Message"}
+	before = set(frappe.get_all("Communication", filters=filters, pluck="name"))
+	frappe.get_doc(row.reference_doctype, row.reference_name).run_method(STAGE_NOTICE)
+	for name in frappe.get_all("Communication", filters=filters, pluck="name"):
+		if name not in before:
+			frappe.get_doc("Communication", name).add_link(LIFE, life, autosave=True)
+
+
+def nexlify_stage(doc):
+	"""For a stage Notification template (hooks.py jinja): {% set s = nexlify_stage(doc) %} gives the document's latest
+	stage from its Project Life: stage, waiting_on, since, due_on, overdue, days_late, the Project Life and its title."""
+	s = frappe._dict(life=None, title="", stage=doc.get(_stage_field(doc.doctype)) or "", waiting_on="",
+		since=None, due_on=None, overdue=0, days_late=0)
+	row = doc.get("name") and _last(doc.doctype, doc.name)
+	if not row:
+		return s
+	now = now_datetime()
+	s.update(life=row.parent, title=frappe.db.get_value(LIFE, row.parent, "title") or "", stage=row.stage,
+		waiting_on=row.waiting_on or "", since=row.entered_on, due_on=row.due_on)
+	if row.is_open and row.due_on and now > get_datetime(row.due_on):
+		s.update(overdue=1, days_late=max(0, date_diff(now, row.due_on)))
+	return s
+
+
+def _stages(doctype):
+	"""Every stage of a tracked DocType: the states of its Workflow, else the options of its status field."""
+	name = _workflow(doctype)
+	if name:
+		return [s.state for s in frappe.get_cached_doc("Workflow", name).states]
+	field = frappe.get_meta(doctype).get_field("status")
+	return [o.strip() for o in (field.options or "").split("\n") if o.strip()] if field else []
+
+
+def _stage_notification(doctype, stage, who):
+	"""A stage's Notification as first put on a site: To the roles it waits on, CC the CEO, COO and Finance."""
+	roles = [r.strip() for r in who.split(",") if r.strip()]
+	cc = "{{ nexlify_role_emails('%s', nexlify_role_emails('%s')) }}" % (CC_ROLES, ", ".join(roles))
+	return {
+		"name": f"Stage: {doctype} - {stage}",
+		"document_type": doctype, "event": "Method", "method": STAGE_NOTICE,
+		"condition_type": "Python", "condition": f'doc.{_stage_field(doctype)} == "{stage}"',
+		"channel": "Email", "message_type": "Markdown",
+		"subject": "{{ 'Overdue: ' if nexlify_stage(doc).overdue }}" + f"{stage}: {doctype} " + "{{ doc.name }}",
+		"message": STAGE_MESSAGE,
+		"recipients": [dict({"receiver_by_role": r}, **({"cc": cc} if i == 0 else {})) for i, r in enumerate(roles)],
+	}
+
+
+def seed_stage_notifications(doc=None, method=None):
+	"""A Notification for each stage someone waits on, put once per site (after_install, after_migrate, and when
+	Project Budget Settings is saved, so a new Waiting Rule gets its email). Then the UI owns it: edited, disabled
+	or deleted there, it never comes back."""
+	from nexlify_budget_control.nexlify_budget_control.supply_chain import seed_notification_rules
+
+	rules = []
+	for doctype in TRACKED:
+		for stage in _stages(doctype):
+			who = waiting_on(doctype, stage)
+			if who and all(frappe.db.exists("Role", r.strip()) for r in who.split(",") if r.strip()):
+				rules.append(_stage_notification(doctype, stage, who))
+	seed_notification_rules(rules)
 
 
 def remind_overdue():

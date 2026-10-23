@@ -25,7 +25,8 @@ doc_events = {
         "validate": "nexlify_budget_control.nexlify_budget_control.designation_manpower.validate_designation",
     },
 	"Project Budget Settings": {
-		"on_update": "nexlify_budget_control.nexlify_budget_control.project_life.refresh_open_stages",
+		"on_update": ["nexlify_budget_control.nexlify_budget_control.project_life.refresh_open_stages",
+			"nexlify_budget_control.nexlify_budget_control.project_life.seed_stage_notifications"],
 	},
 	"*": {
 		"before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference", "on_change": "nexlify_budget_control.nexlify_budget_control.project_life.on_change"
@@ -233,6 +234,7 @@ after_migrate = [
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.update_scripts_once",
     "nexlify_budget_control.nexlify_budget_control.designation_manpower.seed_manpower_categories",
     "nexlify_budget_control.nexlify_budget_control.project_life.seed_rules",
+    "nexlify_budget_control.nexlify_budget_control.project_life.seed_stage_notifications",
 ]
 
 auto_cancel_exempted_doctypes = [
@@ -249,6 +251,7 @@ after_install = [
 	"nexlify_budget_control.nexlify_budget_control.process_map.process_map.seed_process_map",
 	"nexlify_budget_control.nexlify_budget_control.landing.seed_alsa_landing_rules",
     "nexlify_budget_control.nexlify_budget_control.project_life.seed_rules",
+    "nexlify_budget_control.nexlify_budget_control.project_life.seed_stage_notifications",
 ]
 
 boot_session = "nexlify_budget_control.nexlify_budget_control.manpower.boot_session"
@@ -291,8 +294,10 @@ scheduler_events = {
     },
 }
 
-# {{ nexlify_role_emails("CEO, COO") }} in a Notification gives the emails of those roles' users (its CC)
-jinja = {"methods": ["nexlify_budget_control.nexlify_budget_control.project_life.nexlify_role_emails"]}
+# In a Notification: {{ nexlify_role_emails("CEO, COO") }} gives the emails of those roles' users (its CC);
+# {% set s = nexlify_stage(doc) %} gives the document's stage from its Project Life
+jinja = {"methods": ["nexlify_budget_control.nexlify_budget_control.project_life.nexlify_role_emails",
+	"nexlify_budget_control.nexlify_budget_control.project_life.nexlify_stage"]}
 
 # Create > Quotation on an Opportunity fills the lines from the approved Estimation
 override_whitelisted_methods = {
@@ -306,6 +311,3 @@ nexlify_tracker_stages = {
 
 # the plan approval email (a plan approved automatically), kept on the site and editable there
 fixtures.append({"dt": "Notification", "filters": [["name", "in", ["Plan Approved Automatically"]]]})
-
-# the stage emails (a new stage, a daily reminder while overdue), kept on the site and editable there
-fixtures.append({"dt": "Notification", "filters": [["name", "in", ["Project Life: New Stage", "Project Life: Stage Overdue"]]]})
