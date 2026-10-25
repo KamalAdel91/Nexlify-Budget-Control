@@ -61,6 +61,7 @@ def get_material_request_amount(company, project, accounts):
 
 	Any quantity already converted to a Purchase Order (ordered_qty)
 	is excluded - that portion is represented at the PO stage instead.
+	A Stopped request will not be ordered, so nothing of it is pending.
 	"""
 	if not accounts:
 		return 0.0
@@ -73,6 +74,7 @@ def get_material_request_amount(company, project, accounts):
 		FROM `tabMaterial Request Item` mri
 		INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
 		WHERE mr.docstatus = 1
+			AND mr.status != 'Stopped'
 			AND mr.company = %(company)s
 			AND mri.project = %(project)s
 			AND mri.expense_account IN %(accounts)s
@@ -104,17 +106,22 @@ def get_purchase_order_amount(company, project, accounts):
 
 	Any amount already billed (billed_amt) is excluded - that portion
 	is represented at the Actual/Purchase Invoice stage instead.
+	billed_amt is in the order's currency, like amount, so the unbilled
+	part is taken in that currency and then converted to the company's.
+	A Closed order will not be billed further, so nothing of it is pending.
 	"""
 	if not accounts:
 		return 0.0
 
 	rows = frappe.db.sql("""
 		SELECT
-			poi.base_amount AS amount,
-			poi.billed_amt
+			poi.amount,
+			poi.billed_amt,
+			po.conversion_rate
 		FROM `tabPurchase Order Item` poi
 		INNER JOIN `tabPurchase Order` po ON poi.parent = po.name
 		WHERE po.docstatus = 1
+			AND po.status != 'Closed'
 			AND po.company = %(company)s
 			AND poi.project = %(project)s
 			AND poi.expense_account IN %(accounts)s
@@ -122,8 +129,8 @@ def get_purchase_order_amount(company, project, accounts):
 
 	total = 0.0
 	for r in rows:
-		pending_amount = max(0.0, flt(r.amount) - flt(r.billed_amt))
-		total += pending_amount
+		unbilled = max(0.0, flt(r.amount) - flt(r.billed_amt))
+		total += unbilled * (flt(r.conversion_rate) or 1)
 
 	return total
 
