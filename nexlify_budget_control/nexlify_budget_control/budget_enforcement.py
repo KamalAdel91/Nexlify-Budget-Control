@@ -89,23 +89,25 @@ from nexlify_budget_control.nexlify_budget_control.notifications import (
 # Request-scoped caching helpers
 # ---------------------------------------------------------------------------
 
-_cached_amounts = {}
-
-
 def _clear_cached_amounts():
-    """Clear the request-scoped amount cache. Called automatically at the
-    start of each enforcement entry-point to prevent stale data."""
-    _cached_amounts.clear()
+    """Forget the amounts read so far in this request. Called at the start
+    of each enforcement entry-point, so figures read before a document
+    was posted are not reused after it."""
+    cache = getattr(frappe.local, "request_cache", None)
+    if cache is not None:
+        cache.pop(_cached_amount.__wrapped__, None)
 
 
 def _get_cached_amount(company, project, accounts, fn, fn_name, **extra_kwargs):
-    """Calls `fn(company, project, accounts, **extra_kwargs)` and caches
-    the result in a request-scoped dict keyed by
-    (fn_name, company, project, frozenset(accounts))."""
-    key = (fn_name, company, project, frozenset(accounts), frozenset(sorted(extra_kwargs.items())))
-    if key not in _cached_amounts:
-        _cached_amounts[key] = fn(company, project, accounts, **extra_kwargs)
-    return _cached_amounts[key]
+    """Calls `fn(company, project, accounts, **extra_kwargs)` once per
+    request for the same arguments. The cache lives in frappe.local, so it
+    ends with the request and never mixes sites or requests."""
+    return _cached_amount(fn, company, project, tuple(sorted(accounts)), tuple(sorted(extra_kwargs.items())))
+
+
+@frappe.request_cache
+def _cached_amount(fn, company, project, accounts, extra):
+    return fn(company, project, accounts, **dict(extra))
 
 
 # ---------------------------------------------------------------------------
