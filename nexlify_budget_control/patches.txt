@@ -25,3 +25,4 @@ nexlify_budget_control.patches.project_fetch_backfill  # one-time, remove in fin
 nexlify_budget_control.patches.legacy_estimation_totals  # one-time, remove in final Cleanup
 nexlify_budget_control.patches.drop_merged_module_sidebar  # one-time, remove in final Cleanup
 nexlify_budget_control.patches.disable_old_stage_notifications
+nexlify_budget_control.patches.document_type_rules_checked_only

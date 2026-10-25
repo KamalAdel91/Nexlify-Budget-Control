@@ -5,8 +5,23 @@ from frappe.model.document import Document
 
 class ProjectBudgetSettings(Document):
 	def validate(self):
+		self.validate_document_type_rules()
 		self.validate_alsa_landing_rules()
 		self.validate_project_invoice_items()
+
+	def validate_document_type_rules(self):
+		"""Only documents the budget is actually checked on (hooks.py), each once."""
+		from nexlify_budget_control.nexlify_budget_control.constants import COMMITMENT_DOCTYPES, GL_DOCTYPES
+
+		checked = set(COMMITMENT_DOCTYPES) | set(GL_DOCTYPES)
+		seen = set()
+		for row in self.get("document_rules") or []:
+			if row.document_type not in checked:
+				frappe.throw(_("Row {0}: the budget is not checked on {1}. It is checked on: {2}.").format(
+					row.idx, row.document_type, ", ".join(sorted(checked))))
+			if row.document_type in seen:
+				frappe.throw(_("Row {0}: {1} is listed more than once").format(row.idx, row.document_type))
+			seen.add(row.document_type)
 
 	def validate_alsa_landing_rules(self):
 		seen = set()

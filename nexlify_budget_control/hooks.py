@@ -9,6 +9,8 @@ app_license = "mit"
 # Document Events - Cost Budget Enforcement
 # ---------------------------------------------------------------------------
 
+from nexlify_budget_control.nexlify_budget_control.constants import GL_DOCTYPES
+
 doc_events = {
     "Opportunity": {
         "validate": [
@@ -40,18 +42,6 @@ doc_events = {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_submit",
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_cancel"
 	},
-	"Purchase Invoice": {
-		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_invoice_submit",
-		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_invoice_cancel"
-	},
-	"Journal Entry": {
-		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_journal_entry_submit",
-		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_journal_entry_cancel"
-	},
-	"Expense Claim": {
-		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_submit",
-		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_expense_claim_cancel"
-	},
 	"Project Estimation": {
 		"on_submit": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_submit", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_submit"],
 		"on_cancel": ["nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_project_estimation_cancel", "nexlify_budget_control.nexlify_budget_control.opportunity_rfq.on_estimation_cancel"],
@@ -72,6 +62,17 @@ doc_events = {
 		"on_update": ["nexlify_budget_control.nexlify_budget_control.project_sync.on_project_update", "nexlify_budget_control.nexlify_budget_control.project_links.sync_project_links"]
 	}
 }
+
+# Any document that posts to the General Ledger is checked against the budget from its own ledger rows
+# (budget_enforcement: the rows are brought up to date before the submit, compared after it, refreshed on cancel).
+for _doctype in GL_DOCTYPES:
+	_events = doc_events.setdefault(_doctype, {})
+	for _event, _fn in (("before_submit", "before_gl_document_submit"), ("on_submit", "on_gl_document_submit"),
+			("on_cancel", "on_gl_document_cancel")):
+		_fns = _events.get(_event) or []
+		_fns = [_fns] if isinstance(_fns, str) else list(_fns)
+		_fns.append("nexlify_budget_control.nexlify_budget_control.budget_enforcement." + _fn)
+		_events[_event] = _fns
 
 app_include_css = ["/assets/nexlify_budget_control/css/nexlify_budget_control.css"]
 

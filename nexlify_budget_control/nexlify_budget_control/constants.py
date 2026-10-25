@@ -29,6 +29,22 @@ BUDGET_TYPE_COST = "Cost"
 BUDGET_TYPE_REVENUE = "Revenue"
 
 # ---------------------------------------------------------------------------
+# The documents the budget is checked on
+# ---------------------------------------------------------------------------
+
+# Commitments: what their rows will cost, before anything is posted (each has its own calculation).
+COMMITMENT_DOCTYPES = ("Material Request", "Purchase Order")
+
+# Actual spending: any document that posts to the General Ledger; its own ledger rows are its spending, per
+# project and account, whatever the document (hooks.py wires before_submit / on_submit / on_cancel for each).
+# Landed Cost Voucher is not here: it reposts its receipts' ledger rows under their names, not its own.
+GL_DOCTYPES = ("Purchase Invoice", "Journal Entry", "Expense Claim", "Payment Entry", "Stock Entry",
+    "Purchase Receipt", "Delivery Note", "Sales Invoice", "Asset Repair", "Asset Capitalization")
+
+# Checked even without a Document Type Rule row (the app always did); the others only once a row says so.
+DEFAULT_ENFORCED_DOCTYPES = frozenset(COMMITMENT_DOCTYPES + ("Purchase Invoice", "Journal Entry", "Expense Claim"))
+
+# ---------------------------------------------------------------------------
 # Trigger stages
 # ---------------------------------------------------------------------------
 

@@ -72,6 +72,8 @@ from nexlify_budget_control.nexlify_budget_control.budget_utils import (
     get_purchase_order_amount,
 )
 from nexlify_budget_control.nexlify_budget_control.constants import (
+    DEFAULT_ENFORCED_DOCTYPES,
+    GL_DOCTYPES,
     ACTION_NONE,
     ACTION_STOP,
     ACTION_WARN,
@@ -297,34 +299,112 @@ def on_purchase_order_cancel(doc, method=None):
     _recalc_on_cancel(doc, "purchase_order")
 
 
-def on_purchase_invoice_submit(doc, method=None):
-    check_cost_budget(doc, "actual")
+# ---------------------------------------------------------------------------
+# Actual spending: any document that posts to the General Ledger
+# ---------------------------------------------------------------------------
+
+def before_gl_document_submit(doc, method=None):
+    """before_submit of every DocType in GL_DOCTYPES (hooks.py): nothing is posted yet, so the budget rows of
+    the projects the document names are brought up to date now. What they store is the "before" that on_submit
+    compares with."""
+    if not _is_budget_control_enabled(doc.doctype):
+        return
+    _clear_cached_amounts()
+    rows = set()
+    for project in _linked_projects(doc):
+        budget_name = _get_active_budget_name(project)
+        if budget_name:
+            rows.update((name, budget_name) for name in
+                frappe.get_all("Project Estimation Detail", filters={"parent": budget_name}, pluck="name"))
+    _recalc_rows(rows, _document_date(doc))
 
 
-def on_purchase_invoice_cancel(doc, method=None):
-    _recalc_on_cancel(doc, "actual")
+def on_gl_document_submit(doc, method=None):
+    """on_submit of every DocType in GL_DOCTYPES: the General Ledger rows the document just posted are its
+    spending, per project and account, whatever the document is (an invoice, a journal, an expense claim, a stock
+    issue, a payment...). Each budget row they touch is recalculated; what the document added is the row's new
+    cumulative less what it stored before the submit (so an invoice of an order it already committed adds nothing,
+    and a return takes away). The document is stopped (the submit is undone, its ledger rows with it) or warned
+    on, per its Document Type Rule."""
+    if not _is_budget_control_enabled(doc.doctype):
+        return
+    _clear_cached_amounts()
+    doc_date = _document_date(doc)
+    violations = []
+    in_range, out_of_range = set(), set()
+    for project, by_account in _gl_spending(doc).items():
+        company = next(iter(by_account.values()))["company"]
+        v = _check_category_restriction(company, project, list(by_account), doc.doctype, doc.name)
+        if v:
+            violations.append(v)
+        budget_name = _get_active_budget_name(project)
+        if not budget_name:
+            continue
+        for account in by_account:
+            categories = get_categories_for_account(company, account)
+            if categories:
+                rows_in, rows_out = _get_affected_detail_rows(budget_name, categories, doc_date)
+                in_range.update(rows_in)
+                out_of_range.update(rows_out)
+    violations.extend(_collect_date_range_violations(in_range, out_of_range, "actual", doc.doctype, doc.name))
 
-
-def on_journal_entry_submit(doc, method=None):
-    violations = _collect_journal_entry_violations(doc)
+    rows_batch = _load_rows_batch(list(in_range))
+    bulk_updates = []
+    for row_name, parent_name in in_range:
+        entry = rows_batch.get(row_name)
+        if not entry:
+            continue
+        row, parent = entry["row"], entry["parent"]
+        before = flt(row.get("cumulative_expense_amount"))
+        _recalculate_row_from_dict(row, parent, doc_date)
+        added = convert_to_company_currency(flt(row.get("cumulative_expense_amount")) - before, parent)
+        violations.extend(_evaluate_budget_row(row, parent, "actual", doc_date, current_doc_amount=added,
+            current_doctype=doc.doctype, current_docname=doc.name))
+        bulk_updates.append({"name": row_name, **{f: row.get(f) for f in STORED_ROW_FIELDS}})
+    _bulk_update_rows(bulk_updates)
     _finalize_violations(violations)
-    if not violations:
-        _recalc_journal_entry_rows(doc)
 
 
-def on_journal_entry_cancel(doc, method=None):
-    _recalc_journal_entry_rows(doc)
+def on_gl_document_cancel(doc, method=None):
+    """on_cancel: the reversing ledger rows are posted; the budget rows take the new figures, nothing is enforced."""
+    if not _is_budget_control_enabled(doc.doctype):
+        return
+    _clear_cached_amounts()
+    rows = set()
+    doc_date = _document_date(doc)
+    for project, by_account in _gl_spending(doc, cancelled=True).items():
+        budget_name = _get_active_budget_name(project)
+        if not budget_name:
+            continue
+        for account, entry in by_account.items():
+            categories = get_categories_for_account(entry["company"], account)
+            if categories:
+                rows.update(_get_affected_detail_rows(budget_name, categories, doc_date)[0])
+    _recalc_rows(rows, doc_date)
 
 
-def on_expense_claim_submit(doc, method=None):
-    violations = _collect_expense_claim_violations(doc)
-    _finalize_violations(violations)
-    if not violations:
-        _recalc_expense_claim_rows(doc)
+def _gl_spending(doc, cancelled=False):
+    """{project: {account: {"amount": net debit in company currency, "company": ...}}} from the document's own
+    General Ledger rows (the cancelled ones, for a cancellation)."""
+    out = {}
+    for gle in frappe.get_all("GL Entry", fields=["project", "account", "company", "debit", "credit"],
+            filters={"voucher_type": doc.doctype, "voucher_no": doc.name, "is_cancelled": 1 if cancelled else 0,
+                "project": ["is", "set"]}):
+        entry = out.setdefault(gle.project, {}).setdefault(gle.account, {"amount": 0.0, "company": gle.company})
+        entry["amount"] += flt(gle.debit) - flt(gle.credit)
+    return out
 
 
-def on_expense_claim_cancel(doc, method=None):
-    _recalc_expense_claim_rows(doc)
+def _document_date(doc):
+    return getdate(doc.get("posting_date") or doc.get("transaction_date") or frappe.utils.today())
+
+
+def convert_to_company_currency(amount, parent):
+    """An Estimation-currency figure back in company currency (the unit of current_doc_amount)."""
+    company_currency = frappe.get_cached_value("Company", parent.get("company"), "default_currency")
+    if parent.get("currency") == company_currency:
+        return flt(amount)
+    return flt(amount) * (flt(parent.get("conversion_rate")) or 1.0)
 
 
 # ---------------------------------------------------------------------------
@@ -1570,7 +1650,7 @@ def get_project_overview_summary(project):
 	}
 
 
-BUDGET_CHECKED_DOCTYPES = {"Material Request", "Purchase Order", "Purchase Invoice", "Journal Entry", "Expense Claim"}
+BUDGET_CHECKED_DOCTYPES = {"Material Request", "Purchase Order"} | set(GL_DOCTYPES)
 
 # Rows the system writes for a user's document (ERPNext submits every GL Entry): the guard is for the user's
 # documents, and a cancellation must be able to write its reversing entries on a Not Active project.
@@ -1660,6 +1740,7 @@ def get_button_visibility_settings():
 # ---------------------------------------------------------------------------
 
 def check_cost_budget(doc, trigger_stage):
+    """A Material Request or Purchase Order: what its rows commit, against the budget rows of their projects."""
     if not _is_budget_control_enabled(doc.doctype):
         return
     _clear_cached_amounts()
@@ -2110,26 +2191,6 @@ def _bulk_update_rows(updates):
 # Journal Entry / Expense Claim recalc (no violations)
 # ---------------------------------------------------------------------------
 
-def _recalc_journal_entry_rows(doc):
-    """Recalculate budget rows affected by a Journal Entry without enforcing.
-    Used for both submit (after _finalize_violations) and cancel."""
-    if not _is_budget_control_enabled(doc.doctype):
-        return
-    _clear_cached_amounts()
-
-    _recalc_generic(doc, "actual", is_je_or_ec=True)
-
-
-def _recalc_expense_claim_rows(doc):
-    """Recalculate budget rows affected by an Expense Claim without enforcing.
-    Used for both submit (after _finalize_violations) and cancel."""
-    if not _is_budget_control_enabled(doc.doctype):
-        return
-    _clear_cached_amounts()
-
-    _recalc_generic(doc, "actual", is_je_or_ec=True)
-
-
 def _recalc_on_cancel(doc, trigger_stage):
     """Recalculate budget rows when a document is cancelled, without any
     enforcement or throw. This keeps cumulative figures current."""
@@ -2140,9 +2201,8 @@ def _recalc_on_cancel(doc, trigger_stage):
     _recalc_generic(doc, trigger_stage)
 
 
-def _recalc_generic(doc, trigger_stage, is_je_or_ec=False):
-    """Common recalculation logic for all doctypes. Collects affected rows
-    and recalculates them without enforcement."""
+def _recalc_generic(doc, trigger_stage):
+    """Recalculates the budget rows a Material Request or Purchase Order touches, without enforcement."""
     doc_date = getdate(
         doc.get("posting_date")
         or doc.get("transaction_date")
@@ -2151,32 +2211,17 @@ def _recalc_generic(doc, trigger_stage, is_je_or_ec=False):
     company = doc.get("company")
 
     projects_touched = {}
-    if is_je_or_ec:
-        items = doc.get("accounts") if doc.get("accounts") else doc.get("expenses")
-        for item in items or []:
-            if doc.get("accounts"):
-                # Journal Entry
-                project = item.get("project")
-                account = item.get("account")
-            else:
-                # Expense Claim
-                project = item.get("project") or doc.get("project")
-                account = item.get("default_account")
-            if not project or not account:
-                continue
-            projects_touched.setdefault(project, set()).add(account)
-    else:
-        for item in doc.get("items") or []:
-            project = item.get("project")
-            account = item.get("expense_account")
-            if not project or not account:
-                continue
-            projects_touched.setdefault(project, set()).add(account)
+    for item in doc.get("items") or []:
+        project = item.get("project")
+        account = item.get("expense_account")
+        if not project or not account:
+            continue
+        projects_touched.setdefault(project, set()).add(account)
 
     budget_names = {p: _get_active_budget_name(p) for p in projects_touched}
 
     all_in_range_rows = set()
-    for item in (doc.get("items") if not is_je_or_ec else []):
+    for item in doc.get("items") or []:
         project = item.get("project")
         account = item.get("expense_account")
         if not project or not account:
@@ -2190,284 +2235,27 @@ def _recalc_generic(doc, trigger_stage, is_je_or_ec=False):
         in_range_rows, _ = _get_affected_detail_rows(budget_name, categories, doc_date)
         all_in_range_rows.update(in_range_rows)
 
-    if is_je_or_ec:
-        items_source = doc.get("accounts") if doc.get("accounts") else doc.get("expenses")
-        for item in items_source or []:
-            project = item.get("project")
-            account = item.get("account") if doc.get("accounts") else item.get("default_account")
-            if doc.get("expenses"):
-                project = project or doc.get("project")
-            if not project or not account:
-                continue
-            budget_name = budget_names.get(project)
-            if not budget_name:
-                continue
-            categories = get_categories_for_account(company, account)
-            if not categories:
-                continue
-            in_range_rows, _ = _get_affected_detail_rows(budget_name, categories, doc_date)
-            all_in_range_rows.update(in_range_rows)
+    _recalc_rows(all_in_range_rows, doc_date)
 
-    if not all_in_range_rows:
+
+def _recalc_rows(rows, doc_date):
+    """Recalculates and stores these (row, parent) budget rows from the ledgers, without enforcement."""
+    if not rows:
         return
-
-    rows_batch = _load_rows_batch(list(all_in_range_rows))
+    rows_batch = _load_rows_batch(list(rows))
     bulk_updates = []
-
-    for row_name, parent_name in all_in_range_rows:
+    for row_name, parent_name in rows:
         entry = rows_batch.get(row_name)
         if not entry:
             continue
-        row = entry["row"]
-        parent = entry["parent"]
-        _recalculate_row_from_dict(row, parent, doc_date)
-        bulk_updates.append({
-            "name": row_name,
-            "actual_expense_amount": row.get("actual_expense_amount"),
-            "material_request_amount": row.get("material_request_amount"),
-            "purchase_order_amount": row.get("purchase_order_amount"),
-            "cumulative_expense_amount": row.get("cumulative_expense_amount"),
-            "actual_amount_till_month": row.get("actual_amount_till_month"),
-            "cumulative_amount_till_month": row.get("cumulative_amount_till_month"),
-            "variance": row.get("variance"),
-            "variance_percentage": row.get("variance_percentage"),
-        })
-
+        _recalculate_row_from_dict(entry["row"], entry["parent"], doc_date)
+        bulk_updates.append({"name": row_name, **{f: entry["row"].get(f) for f in STORED_ROW_FIELDS}})
     _bulk_update_rows(bulk_updates)
 
 
-# ---------------------------------------------------------------------------
-# Journal Entry / Expense Claim submit with violation collection
-# ---------------------------------------------------------------------------
-
-def _collect_journal_entry_violations(doc):
-    """Collect all violations for a Journal Entry submission. Returns a list
-    of violation dicts, then performs recalc separately."""
-    if not _is_budget_control_enabled(doc.doctype):
-        return []
-    _clear_cached_amounts()
-
-    doc_date = getdate(doc.get("posting_date"))
-    company = doc.get("company")
-
-    projects_touched = {}
-    account_idx_map = {}
-    for account_row in doc.get("accounts") or []:
-        project = account_row.get("project")
-        account = account_row.get("account")
-        if not project or not account:
-            continue
-        projects_touched.setdefault(project, set()).add(account)
-        account_idx_map.setdefault(project, {}).setdefault(account, []).append(account_row.get("idx"))
-
-    violations = []
-    for project, accounts in projects_touched.items():
-        v = _check_category_restriction(
-            company, project, list(accounts), doc.doctype, doc.name,
-            account_idx_map=account_idx_map.get(project, {}),
-        )
-        if v:
-            violations.append(v)
-
-    budget_names = {p: _get_active_budget_name(p) for p in projects_touched}
-
-    net_by_project_account = {}
-    idx_by_project_account = {}
-    for account_row in doc.get("accounts") or []:
-        project = account_row.get("project")
-        account = account_row.get("account")
-        if not project or not account:
-            continue
-        debit_amt = flt(account_row.get("debit_in_account_currency"))
-        credit_amt = flt(account_row.get("credit_in_account_currency"))
-        key = (project, account)
-        net_by_project_account[key] = net_by_project_account.get(key, 0.0) + (debit_amt - credit_amt)
-        if debit_amt > 0 and account_row.get("idx") is not None:
-            idx_by_project_account.setdefault(key, []).append(account_row.get("idx"))
-
-    all_in_range_rows = set()
-    all_out_of_range_rows = set()
-    net_amounts_by_row = {}
-    source_rows_by_row = {}
-
-    for (project, account), net_amt in net_by_project_account.items():
-        if net_amt <= 0:
-            continue
-
-        budget_name = budget_names.get(project)
-        if not budget_name:
-            continue
-
-        categories = get_categories_for_account(company, account)
-        if not categories:
-            continue
-
-        in_range_rows, out_of_range_rows = _get_affected_detail_rows(
-            budget_name, categories, doc_date
-        )
-        all_in_range_rows.update(in_range_rows)
-        all_out_of_range_rows.update(out_of_range_rows)
-
-        for r in in_range_rows:
-            net_amounts_by_row[r] = net_amounts_by_row.get(r, 0.0) + net_amt
-            source_rows_by_row.setdefault(r, set()).update(
-                idx_by_project_account.get((project, account), [])
-            )
-
-    date_violations = _collect_date_range_violations(
-        all_in_range_rows, all_out_of_range_rows, "actual", doc.doctype, doc.name
-    )
-    violations.extend(date_violations)
-
-    if not all_in_range_rows:
-        return violations
-
-    rows_batch = _load_rows_batch(list(all_in_range_rows))
-    bulk_updates = []
-
-    for row_name, parent_name in all_in_range_rows:
-        entry = rows_batch.get(row_name)
-        if not entry:
-            continue
-
-        row = entry["row"]
-        parent = entry["parent"]
-        current_amt = net_amounts_by_row.get((row_name, parent_name), 0.0)
-        source_rows = sorted(source_rows_by_row.get((row_name, parent_name), set()))
-
-        _recalculate_row_from_dict(row, parent, doc_date)
-        row_violations = _evaluate_budget_row(
-            row, parent, "actual", doc_date,
-            current_doc_amount=current_amt,
-            current_doctype=doc.doctype,
-            current_docname=doc.name,
-            source_rows=source_rows,
-        )
-        violations.extend(row_violations)
-
-        bulk_updates.append({
-            "name": row_name,
-            "actual_expense_amount": row.get("actual_expense_amount"),
-            "material_request_amount": row.get("material_request_amount"),
-            "purchase_order_amount": row.get("purchase_order_amount"),
-            "cumulative_expense_amount": row.get("cumulative_expense_amount"),
-            "actual_amount_till_month": row.get("actual_amount_till_month"),
-            "cumulative_amount_till_month": row.get("cumulative_amount_till_month"),
-            "variance": row.get("variance"),
-            "variance_percentage": row.get("variance_percentage"),
-        })
-
-    _bulk_update_rows(bulk_updates)
-
-    return violations
-
-
-def _collect_expense_claim_violations(doc):
-    """Collect all violations for an Expense Claim submission. Returns a list
-    of violation dicts, then performs recalc separately."""
-    if not _is_budget_control_enabled(doc.doctype):
-        return []
-    _clear_cached_amounts()
-
-    doc_date = getdate(doc.get("posting_date") or frappe.utils.today())
-    company = doc.get("company")
-
-    projects_touched = {}
-    account_idx_map = {}
-    for expense_row in doc.get("expenses") or []:
-        project = expense_row.get("project") or doc.get("project")
-        account = expense_row.get("default_account")
-        if not project or not account:
-            continue
-        projects_touched.setdefault(project, set()).add(account)
-        account_idx_map.setdefault(project, {}).setdefault(account, []).append(expense_row.get("idx"))
-
-    violations = []
-    for project, accounts in projects_touched.items():
-        v = _check_category_restriction(
-            company, project, list(accounts), doc.doctype, doc.name,
-            account_idx_map=account_idx_map.get(project, {}),
-        )
-        if v:
-            violations.append(v)
-
-    budget_names = {p: _get_active_budget_name(p) for p in projects_touched}
-
-    all_in_range_rows = set()
-    all_out_of_range_rows = set()
-
-    for expense_row in doc.get("expenses") or []:
-        project = expense_row.get("project") or doc.get("project")
-        account = expense_row.get("default_account")
-        if not project or not account:
-            continue
-        sanctioned = flt(expense_row.get("sanctioned_amount"))
-        if sanctioned <= 0:
-            continue
-
-        budget_name = budget_names.get(project)
-        if not budget_name:
-            continue
-
-        categories = get_categories_for_account(company, account)
-        if not categories:
-            continue
-
-        in_range_rows, out_of_range_rows = _get_affected_detail_rows(
-            budget_name, categories, doc_date
-        )
-        all_in_range_rows.update(in_range_rows)
-        all_out_of_range_rows.update(out_of_range_rows)
-
-    date_violations = _collect_date_range_violations(
-        all_in_range_rows, all_out_of_range_rows, "actual", doc.doctype, doc.name
-    )
-    violations.extend(date_violations)
-
-    if not all_in_range_rows:
-        return violations
-
-    rows_batch = _load_rows_batch(list(all_in_range_rows))
-    bulk_updates = []
-
-    for row_name, parent_name in all_in_range_rows:
-        entry = rows_batch.get(row_name)
-        if not entry:
-            continue
-
-        row = entry["row"]
-        parent = entry["parent"]
-        row_accounts_ec = get_accounts_for_category(row.get("budget_category"))
-        amount_details = _get_current_doc_amount_details(
-            row_name, doc, "actual", accounts=set(row_accounts_ec), source_field="expenses"
-        )
-
-        _recalculate_row_from_dict(row, parent, doc_date)
-        row_violations = _evaluate_budget_row(
-            row, parent, "actual", doc_date,
-            current_doc_amount=amount_details["new_spending"],
-            current_doctype=doc.doctype,
-            current_docname=doc.name,
-            amount_details=amount_details,
-            source_rows=amount_details["source_rows"],
-        )
-        violations.extend(row_violations)
-
-        bulk_updates.append({
-            "name": row_name,
-            "actual_expense_amount": row.get("actual_expense_amount"),
-            "material_request_amount": row.get("material_request_amount"),
-            "purchase_order_amount": row.get("purchase_order_amount"),
-            "cumulative_expense_amount": row.get("cumulative_expense_amount"),
-            "actual_amount_till_month": row.get("actual_amount_till_month"),
-            "cumulative_amount_till_month": row.get("cumulative_amount_till_month"),
-            "variance": row.get("variance"),
-            "variance_percentage": row.get("variance_percentage"),
-        })
-
-    _bulk_update_rows(bulk_updates)
-
-    return violations
+STORED_ROW_FIELDS = ("actual_expense_amount", "material_request_amount", "purchase_order_amount",
+    "cumulative_expense_amount", "actual_amount_till_month", "cumulative_amount_till_month", "variance",
+    "variance_percentage")
 
 
 # ---------------------------------------------------------------------------
@@ -2602,9 +2390,9 @@ def _get_doctype_rule(doctype_name):
     """
     Returns (enabled: bool, action: str) for the given real document type
     name, read from the Document Type Rule child table on the Project
-    Budget Settings singleton. If no explicit row exists yet for this
-    doctype, defaults to (enabled=True, action="Stop") - the safest
-    behaviour until someone configures it otherwise.
+    Budget Settings singleton. With no row, the five DocTypes the app
+    always checked are enforced (Stop); any other DocType in GL_DOCTYPES
+    is checked only once it has a row.
     """
     rows = frappe.get_all(
         "Document Type Rule",
@@ -2617,7 +2405,7 @@ def _get_doctype_rule(doctype_name):
         limit=1,
     )
     if not rows:
-        return True, "Stop"
+        return doctype_name in DEFAULT_ENFORCED_DOCTYPES, "Stop"
     return bool(rows[0].enabled), (rows[0].action or "Stop")
 
 
