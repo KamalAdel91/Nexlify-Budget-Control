@@ -1542,30 +1542,44 @@ EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project Planning Scope",
 
 def block_inactive_project_reference(doc, method=None):
 	"""
-	Global guard (registered on doc_events["*"]["before_save"]): blocks
-	saving any document that links to a Project whose is_active = "No",
-	except our own app's doctypes, which must be able to operate on a
-	Not Active project (that's how it becomes Active in the first place).
+	Global guard (registered on doc_events["*"] before_save and
+	before_submit): blocks saving or submitting any document that links
+	to a Project whose is_active = "No", on the document or on any of its
+	rows (a Purchase Order carries its Project on the items), except our
+	own app's doctypes, which must be able to operate on a Not Active
+	project (that's how it becomes Active in the first place). A project
+	whose Estimation was cancelled is Not Active, so nothing is bought on
+	it until a new Estimation is approved.
 	"""
 	if doc.doctype in EXCLUDED_PROJECT_GATE_DOCTYPES:
 		return
 
+	projects = _linked_projects(doc)
+	if not projects:
+		return
+	inactive = frappe.get_all("Project", filters={"name": ["in", list(projects)], "is_active": "No"}, pluck="name")
+	if inactive:
+		frappe.throw(
+			_("Cannot save this {0}: the linked Project ({1}) is Not Active.").format(
+				_(doc.doctype), ", ".join(sorted(inactive))),
+			title=_("Project Not Active"),
+		)
+
+
+def _linked_projects(doc):
+	"""Every Project the document links to, on itself and on its table rows."""
 	meta = frappe.get_meta(doc.doctype)
-	for field in meta.fields:
-		if field.fieldtype != "Link" or field.options != "Project":
+	projects = {doc.get(f.fieldname) for f in meta.fields if f.fieldtype == "Link" and f.options == "Project"}
+	for table in meta.get_table_fields():
+		fields = [f.fieldname for f in frappe.get_meta(table.options).fields
+			if f.fieldtype == "Link" and f.options == "Project"]
+		if not fields:
 			continue
-
-		project_name = doc.get(field.fieldname)
-		if not project_name:
-			continue
-
-		is_active = frappe.db.get_value("Project", project_name, "is_active")
-		if is_active == "No":
-			frappe.throw(
-				_(
-					"Cannot save this {0}: the linked Project ({1}) is Not Active."
-				).format(_(doc.doctype), project_name)
-			)
+		for row in doc.get(table.fieldname) or []:
+			projects.update(row.get(f) for f in fields)
+	projects.discard(None)
+	projects.discard("")
+	return projects
 
 
 @frappe.whitelist()

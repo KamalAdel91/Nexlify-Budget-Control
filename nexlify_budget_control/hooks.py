@@ -29,7 +29,8 @@ doc_events = {
 			"nexlify_budget_control.nexlify_budget_control.project_life.seed_stage_notifications"],
 	},
 	"*": {
-		"before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference", "on_change": "nexlify_budget_control.nexlify_budget_control.project_life.on_change"
+		"before_save": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference",
+		"before_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference", "on_change": "nexlify_budget_control.nexlify_budget_control.project_life.on_change"
 	},
 	"Material Request": {
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_submit",
