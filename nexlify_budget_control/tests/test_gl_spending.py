@@ -46,6 +46,14 @@ class BudgetRow(RolledBack):
 		frappe.clear_cache()
 		frappe.flags.pop("nexlify_project_windows", None)
 
+	def service_item(self):
+		"""A non-stock item of our own, with no price list rate to override the rates the tests set."""
+		name = "_NBC Test Service"
+		if not frappe.db.exists("Item", name):
+			frappe.get_doc({"doctype": "Item", "item_code": name, "item_name": name, "is_stock_item": 0,
+				"item_group": frappe.db.get_value("Item Group", {"is_group": 0}, "name"), "stock_uom": "Nos"}).insert(ignore_permissions=True)
+		return name
+
 	def live(self):
 		"""The row's cumulative as the ledgers stand now (stored too)."""
 		be._clear_cached_amounts()
@@ -106,9 +114,9 @@ class TestSpendingIsChecked(BudgetRow):
 		from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_invoice
 
 		supplier = frappe.db.get_value("Supplier", {"disabled": 0}, "name")
-		item = frappe.db.get_value("Item", {"disabled": 0, "is_stock_item": 0, "is_purchase_item": 1, "has_variants": 0}, "name")
-		if not (supplier and item):
-			self.skipTest("the site has no supplier or non-stock purchase item")
+		item = self.service_item()
+		if not supplier:
+			self.skipTest("the site has no supplier")
 		before = self.live()
 		self.budget(before + 5000)
 		po = frappe.get_doc({"doctype": "Purchase Order", "supplier": supplier, "company": self.company,
@@ -133,13 +141,68 @@ class TestSpendingIsChecked(BudgetRow):
 		self.assertAlmostEqual(self.live(), before + 1000, places=2)
 
 
+	def test_an_order_from_a_request_adds_only_what_the_request_did_not_commit(self):
+		"""The request committed 10 units; ordering 2 of them at a higher price adds the difference only."""
+		from erpnext.stock.doctype.material_request.material_request import make_purchase_order
+
+		supplier = frappe.db.get_value("Supplier", {"disabled": 0}, "name")
+		item = self.service_item()
+		if not supplier:
+			self.skipTest("the site has no supplier")
+		before = self.live()
+		self.budget(before + 5000)
+		mr = frappe.get_doc({"doctype": "Material Request", "material_request_type": "Purchase", "company": self.company,
+			"transaction_date": today(), "schedule_date": today(),
+			"items": [{"item_code": item, "qty": 10, "rate": 100, "schedule_date": today(), "project": self.project,
+				"expense_account": self.account, "cost_center": self.cost_center}]})
+		mr.flags.ignore_permissions = True
+		try:
+			mr.insert().submit()
+		except frappe.ValidationError as e:
+			if "Budget" in str(e):
+				raise
+			self.skipTest(f"a Material Request cannot be made on this site: {str(e)[:100]}")
+		self.assertAlmostEqual(self.live(), before + 1000, places=2)
+		self.budget(before + 1000 + 500)  # room for 500 more
+		po = make_purchase_order(mr.name)
+		po.supplier, po.currency, po.conversion_rate = supplier, self.currency, 1
+		for row in po.items:
+			row.qty, row.rate, row.expense_account, row.project, row.cost_center = 2, 400, self.account, self.project, self.cost_center
+			row.custom_item_group = frappe.db.get_value("Item", item, "item_group")
+		po.flags.ignore_permissions = True
+		with self.assertRaises(frappe.ValidationError) as caught:  # 800 ordered, 200 of it was committed: adds 600
+			po.insert().submit()
+		self.assertIn("SAR 600.00", str(caught.exception))
+
+
+class TestStopIsLogged(RolledBack):
+	def test_a_stop_is_logged_by_a_job_and_a_warning_inline(self):
+		from unittest.mock import patch
+
+		frappe.db.set_single_value("Project Budget Settings", "import_mode", 0)
+		frappe.db.set_single_value("Project Budget Settings", "budget_bypass_role", None)
+		violation = {"action": "Stop", "message": "x", "project": "P", "budget_category": "C",
+			"violation_type": "Annual Exceeded", "reference_doctype": "Purchase Order", "reference_name": "PO-X"}
+		logs = frappe.db.count("Budget Violation Log")
+		with patch.object(frappe, "enqueue") as enqueue, self.assertRaises(frappe.ValidationError):
+			be._finalize_violations([violation])
+		self.assertEqual(enqueue.call_count, 1)
+		self.assertEqual(enqueue.call_args.kwargs["action_taken"], "Stop")
+		self.assertFalse(enqueue.call_args.kwargs.get("enqueue_after_commit"))
+		self.assertEqual(frappe.db.count("Budget Violation Log"), logs)  # not in this transaction: it is undone
+		with patch.object(frappe, "enqueue") as enqueue:
+			be._finalize_violations([dict(violation, action="Warn")])
+		self.assertEqual(enqueue.call_count, 0)
+		self.assertEqual(frappe.db.count("Budget Violation Log"), logs + 1)
+
+
 class TestWhatIsChecked(RolledBack):
 	def test_every_gl_doctype_is_wired(self):
 		events = frappe.get_hooks("doc_events")
 		for doctype in GL_DOCTYPES:
 			with self.subTest(doctype=doctype):
 				hooks = events.get(doctype, {})
-				self.assertIn(BE + "before_gl_document_submit", hooks.get("before_submit", []))
+				self.assertIn(BE + "before_budget_document_submit", hooks.get("before_submit", []))
 				self.assertIn(BE + "on_gl_document_submit", hooks.get("on_submit", []))
 				self.assertIn(BE + "on_gl_document_cancel", hooks.get("on_cancel", []))
 

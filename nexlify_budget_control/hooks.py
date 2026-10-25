@@ -35,10 +35,12 @@ doc_events = {
 		"before_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.block_inactive_project_reference", "on_change": "nexlify_budget_control.nexlify_budget_control.project_life.on_change"
 	},
 	"Material Request": {
+		"before_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.before_budget_document_submit",
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_submit",
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_material_request_cancel"
 	},
 	"Purchase Order": {
+		"before_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.before_budget_document_submit",
 		"on_submit": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_submit",
 		"on_cancel": "nexlify_budget_control.nexlify_budget_control.budget_enforcement.on_purchase_order_cancel"
 	},
@@ -67,7 +69,7 @@ doc_events = {
 # (budget_enforcement: the rows are brought up to date before the submit, compared after it, refreshed on cancel).
 for _doctype in GL_DOCTYPES:
 	_events = doc_events.setdefault(_doctype, {})
-	for _event, _fn in (("before_submit", "before_gl_document_submit"), ("on_submit", "on_gl_document_submit"),
+	for _event, _fn in (("before_submit", "before_budget_document_submit"), ("on_submit", "on_gl_document_submit"),
 			("on_cancel", "on_gl_document_cancel")):
 		_fns = _events.get(_event) or []
 		_fns = [_fns] if isinstance(_fns, str) else list(_fns)

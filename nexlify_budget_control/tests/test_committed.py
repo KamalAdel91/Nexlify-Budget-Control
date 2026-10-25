@@ -27,13 +27,15 @@ def make_po(amount, billed, rate=1.0, currency="SAR", status="To Receive and Bil
 		"amount": amount, "base_amount": amount * rate, "billed_amt": billed}).db_insert()
 
 
-def make_mr(amount, qty, ordered, status="Pending"):
+def make_mr(amount, qty, ordered, status="Pending", conversion_factor=1):
+	"""ordered is in stock units, as ERPNext keeps ordered_qty (qty is in the purchase unit)."""
 	mr = frappe.get_doc({"doctype": "Material Request", "name": "_NBC-MR-" + _uniq(), "company": COMPANY,
 		"docstatus": 1, "status": status})
 	mr.db_insert()
 	frappe.get_doc({"doctype": "Material Request Item", "name": _uniq(), "parent": mr.name,
 		"parenttype": "Material Request", "parentfield": "items", "project": PROJECT, "expense_account": ACCOUNT,
-		"qty": qty, "ordered_qty": ordered, "amount": amount}).db_insert()
+		"qty": qty, "stock_qty": qty * conversion_factor, "conversion_factor": conversion_factor,
+		"ordered_qty": ordered, "amount": amount}).db_insert()
 
 
 class RolledBack(IntegrationTestCase):
@@ -91,6 +93,11 @@ class TestMaterialRequestPending(RolledBack):
 	def test_stopped_request_is_not_pending(self):
 		make_mr(1000, qty=10, ordered=4, status="Stopped")
 		self.assertAlmostEqual(mr_pending(), 0)
+
+	def test_purchase_unit_differs_from_stock_unit(self):
+		# 10 boxes of 12 for 1,200; 5 boxes ordered = 60 in stock units: half is pending (it read 0 before)
+		make_mr(1200, qty=10, ordered=60, conversion_factor=12)
+		self.assertAlmostEqual(mr_pending(), 600)
 
 
 def make_gl(amount, account=ACCOUNT, posting_date="2026-06-01", voucher_type="Journal Entry", credit=False):

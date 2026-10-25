@@ -69,6 +69,7 @@ def get_material_request_amount(company, project, accounts):
 	rows = frappe.db.sql("""
 		SELECT
 			mri.qty,
+			mri.stock_qty,
 			mri.ordered_qty,
 			mri.amount
 		FROM `tabMaterial Request Item` mri
@@ -82,19 +83,12 @@ def get_material_request_amount(company, project, accounts):
 
 	total = 0.0
 	for r in rows:
-		qty = flt(r.qty)
-		ordered = flt(r.ordered_qty)
-		row_amount = flt(r.amount)
-
+		# ordered_qty is kept in stock units, like stock_qty (qty is in the purchase unit: 10 boxes of 12 is 120)
+		qty = flt(r.stock_qty) or flt(r.qty)
 		if qty <= 0:
 			continue
-
-		pending_qty = max(0.0, qty - ordered)
-		if pending_qty <= 0:
-			continue
-
-		pending_fraction = pending_qty / qty
-		total += row_amount * pending_fraction
+		pending_fraction = max(0.0, qty - flt(r.ordered_qty)) / qty
+		total += flt(r.amount) * pending_fraction
 
 	return total
 

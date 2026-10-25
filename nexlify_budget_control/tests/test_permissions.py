@@ -150,6 +150,13 @@ class TestBudgetFigures(RolledBack):
 		found = be.get_budget_check_preview(self.company, accounts, "purchase_order", items, "Purchase Order", "new-po")["violations"]
 		self.assertIn("Annual Exceeded", [v["violation_type"] for v in found])
 		self.assertEqual(frappe.db.count("Notification Log"), logs)
+		# a buyer who may make the order but not read the project's Estimation gets no figures of it
+		with as_user(make_user("Purchase User")):
+			self.assertTrue(frappe.has_permission("Purchase Order", "create"))
+			self.assertEqual(be.get_budget_check_preview(self.company, accounts, "purchase_order", items, "Purchase Order", "new-po")["violations"], [])
+		# a project sent as a filter instead of a name is ignored
+		odd = frappe.as_json([{"project": {"name": ["!=", ""]}, "account": r[0].account, "amount": 1, "idx": 1}])
+		self.assertEqual(be.get_budget_check_preview(self.company, accounts, "purchase_order", odd, "Purchase Order", "x")["violations"], [])
 
 
 class TestJobCompletion(RolledBack):

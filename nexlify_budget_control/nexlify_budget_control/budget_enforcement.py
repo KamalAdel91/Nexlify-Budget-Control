@@ -186,6 +186,7 @@ def _log_violation(project, budget_category, violation_type, action_taken,
             "source_rows": ", ".join(str(i) for i in (source_rows or [])),
             "via_import_mode": 1 if via_import_mode else 0,
         })
+        log.flags.ignore_links = True  # a log of what happened, even of a project or category since removed
         log.insert(ignore_permissions=True)
     except Exception:
         # Logging must never interfere with the enforcement itself
@@ -225,7 +226,7 @@ def _finalize_violations(violations):
 
         action_taken = "Bypassed" if (action == "Stop" and bypassed) else action
 
-        _log_violation(
+        log = dict(
             project=project,
             budget_category=budget_category,
             violation_type=violation_type,
@@ -237,6 +238,11 @@ def _finalize_violations(violations):
             source_rows=source_rows,
             via_import_mode=import_mode,
         )
+        if action_taken == "Stop" and not import_mode:
+            # the throw below undoes this transaction, so the log is written by a job of its own
+            frappe.enqueue(_log_violation, queue="short", enqueue_after_commit=False, **log)
+        else:
+            _log_violation(**log)
 
         if import_mode:
             continue
@@ -303,10 +309,10 @@ def on_purchase_order_cancel(doc, method=None):
 # Actual spending: any document that posts to the General Ledger
 # ---------------------------------------------------------------------------
 
-def before_gl_document_submit(doc, method=None):
-    """before_submit of every DocType in GL_DOCTYPES (hooks.py): nothing is posted yet, so the budget rows of
-    the projects the document names are brought up to date now. What they store is the "before" that on_submit
-    compares with."""
+def before_budget_document_submit(doc, method=None):
+    """before_submit of every document the budget is checked on (hooks.py): nothing is posted yet, so the budget
+    rows of the projects the document names are brought up to date now. What they store is the "before" that
+    on_submit compares with."""
     if not _is_budget_control_enabled(doc.doctype):
         return
     _clear_cached_amounts()
@@ -332,7 +338,9 @@ def on_gl_document_submit(doc, method=None):
     doc_date = _document_date(doc)
     violations = []
     in_range, out_of_range = set(), set()
-    for project, by_account in _gl_spending(doc).items():
+    spending = _gl_spending(doc)
+    _lock_budgets(_get_active_budget_name(p) for p in spending)
+    for project, by_account in spending.items():
         company = next(iter(by_account.values()))["company"]
         v = _check_category_restriction(company, project, list(by_account), doc.doctype, doc.name)
         if v:
@@ -1772,6 +1780,7 @@ def check_cost_budget(doc, trigger_stage):
             violations.append(v)
 
     budget_names = {p: _get_active_budget_name(p) for p in projects_touched}
+    _lock_budgets(budget_names.values())
 
     all_in_range_rows = set()
     all_out_of_range_rows = set()
@@ -1813,38 +1822,19 @@ def check_cost_budget(doc, trigger_stage):
         entry = rows_batch.get(row_name)
         if not entry:
             continue
-
-        row = entry["row"]
-        parent = entry["parent"]
-
-        row_accounts = get_accounts_for_category(row.get("budget_category"))
-        amount_details = _get_current_doc_amount_details(
-            row_name, doc, trigger_stage, accounts=set(row_accounts)
-        )
-
+        row, parent = entry["row"], entry["parent"]
+        # what this document adds: the row's cumulative now (the Material Request's ordered quantities and the
+        # Purchase Order's billed amounts are already updated) less what it stored before the submit
+        before = flt(row.get("cumulative_expense_amount"))
         _recalculate_row_from_dict(row, parent, doc_date)
-
-        row_violations = _evaluate_budget_row(
-            row, parent, trigger_stage, doc_date,
-            current_doc_amount=amount_details["new_spending"],
-            current_doctype=doc.doctype,
-            current_docname=doc.name,
-            amount_details=amount_details,
-            source_rows=amount_details["source_rows"],
-        )
-        violations.extend(row_violations)
-
-        bulk_updates.append({
-            "name": row_name,
-            "actual_expense_amount": row.get("actual_expense_amount"),
-            "material_request_amount": row.get("material_request_amount"),
-            "purchase_order_amount": row.get("purchase_order_amount"),
-            "cumulative_expense_amount": row.get("cumulative_expense_amount"),
-            "actual_amount_till_month": row.get("actual_amount_till_month"),
-            "cumulative_amount_till_month": row.get("cumulative_amount_till_month"),
-            "variance": row.get("variance"),
-            "variance_percentage": row.get("variance_percentage"),
-        })
+        added = convert_to_company_currency(flt(row.get("cumulative_expense_amount")) - before, parent)
+        row_accounts = set(get_accounts_for_category(row.get("budget_category")))
+        source_rows = sorted({item.get("idx") for item in doc.get("items") or []
+            if item.get("project") == parent.get("project") and item.get("expense_account") in row_accounts
+            and item.get("idx") is not None})
+        violations.extend(_evaluate_budget_row(row, parent, trigger_stage, doc_date, current_doc_amount=added,
+            current_doctype=doc.doctype, current_docname=doc.name, source_rows=source_rows))
+        bulk_updates.append({"name": row_name, **{f: row.get(f) for f in STORED_ROW_FIELDS}})
 
     _bulk_update_rows(bulk_updates)
     _finalize_violations(violations)
@@ -2260,6 +2250,13 @@ STORED_ROW_FIELDS = ("actual_expense_amount", "material_request_amount", "purcha
 # Existing helper functions (adapted for dict-based rows where needed)
 # ---------------------------------------------------------------------------
 
+def _lock_budgets(budget_names):
+    """Locks these Estimations (by primary key) until the transaction ends: two documents checked against one
+    budget at the same time would each pass on the figures before the other, so the second waits for the first."""
+    for name in sorted({n for n in budget_names if n}):
+        frappe.db.get_value("Project Estimation", name, "name", for_update=True)
+
+
 def _get_active_budget_name(project):
     budget_name = frappe.db.get_value("Project", project, "custom_budget_cost")
     if not budget_name:
@@ -2304,8 +2301,9 @@ def _get_affected_detail_rows(budget_name, categories, doc_date):
     return in_range, out_of_range
 
 
-def _get_current_doc_amount_details(row_name, doc, trigger_stage, accounts=None, source_field="items"):
+def _get_current_doc_amount_details(row_name, doc, trigger_stage, accounts=None, source_field="items", project=None):
     """
+    For the submit preview (the real check compares the row before and after the submit).
     Returns the document's own contribution to a given budget row, plus
     the list of document row numbers (idx) that contributed to it
     ("source_rows"). If `accounts` is provided (as a set), it is used
@@ -2330,7 +2328,7 @@ def _get_current_doc_amount_details(row_name, doc, trigger_stage, accounts=None,
 
     for item in doc.get(source_field) or []:
         account = item.get("expense_account") or item.get("account") or item.get("default_account")
-        if account not in accounts:
+        if account not in accounts or (project and item.get("project") != project):
             continue
 
         item_amount = flt(item.get("base_amount") if item.get("base_amount") is not None else item.get(amount_field))
@@ -2640,7 +2638,7 @@ def get_budget_check_preview(
     for item in items:
         proj = item.get("project")
         acc = item.get("account")
-        if not proj or not acc:
+        if not proj or not acc or not isinstance(proj, str):  # a filter sent as the project is ignored
             continue
         items_by_project.setdefault(proj, []).append(item)
         if item.get("idx") is not None:
@@ -2672,9 +2670,11 @@ def get_budget_check_preview(
     violations = []
 
     for project, proj_items in items_by_project.items():
-        proj_accounts = list({i.get("account") for i in proj_items if i.get("account")})
-
+        # the figures of a project the user may not read stay out of the preview (the submit still checks them)
         active_budget_name = _get_active_budget_name(project)
+        if not active_budget_name or not frappe.has_permission("Project Estimation", "read", doc=active_budget_name):
+            continue
+        proj_accounts = list({i.get("account") for i in proj_items if i.get("account")})
 
         v = _check_category_restriction(
             company, project, proj_accounts, current_doctype, current_docname,
@@ -2723,7 +2723,7 @@ def get_budget_check_preview(
 
             row_accounts = get_accounts_for_category(row.get("budget_category"))
             amount_details = _get_current_doc_amount_details(
-                row_name, preview_doc, trigger_stage, accounts=set(row_accounts)
+                row_name, preview_doc, trigger_stage, accounts=set(row_accounts), project=parent.get("project")
             )
 
             added = convert_to_doc_currency(
