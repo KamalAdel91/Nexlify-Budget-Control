@@ -1509,6 +1509,7 @@ def get_project_invoicings(project_planning):
 @frappe.whitelist()
 def get_project_overview_summary(project):
 	frappe.has_permission("Project Overview", "read", throw=True)
+	_require("Project", project)
 	from frappe.utils import flt
 
 	has_opportunity_field = frappe.get_meta("Project").has_field("custom_opportunity")
@@ -1569,7 +1570,9 @@ def get_project_overview_summary(project):
 	}
 
 
-EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project Planning Scope", 
+BUDGET_CHECKED_DOCTYPES = {"Material Request", "Purchase Order", "Purchase Invoice", "Journal Entry", "Expense Claim"}
+
+EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project Planning Scope",
 	"Project",
 	"Project Planning",
 	"Project Estimation",
@@ -1925,7 +1928,7 @@ def _collect_date_range_violations(in_range_rows, out_of_range_rows, trigger_sta
 def _evaluate_budget_row(row, parent, trigger_stage, doc_date,
                          current_doc_amount=0.0, current_doctype=None,
                          current_docname=None, amount_details=None,
-                         source_rows=None):
+                         source_rows=None, notify=True):
     """current_doc_amount is what the document adds to the row, in company currency. A document that adds
     nothing (a return, a debit note, an invoice of what its order already committed) cannot break the
     budget, even on a row that is already over it."""
@@ -1990,9 +1993,10 @@ def _evaluate_budget_row(row, parent, trigger_stage, doc_date,
             "current_doc_amount": current_doc_amount,
             "currency": currency,
         })
-        notify_project_stakeholders(
-            parent.get("project"), msg, "Project Estimation", parent.get("name")
-        )
+        if notify:
+            notify_project_stakeholders(
+                parent.get("project"), msg, "Project Estimation", parent.get("name")
+            )
 
     return violations
 
@@ -2864,7 +2868,10 @@ def get_budget_check_preview(
     # with no create rights on the doctype at all still cannot call this
     # endpoint to snoop on any project's budget figures. Fail-safe: if
     # current_doctype was not supplied at all, block rather than allow.
-    if not current_doctype or not frappe.has_permission(current_doctype, ptype="create"):
+    # only the documents the budget is checked on (any other DocType the user may create, a ToDo, opened the
+    # figures to everyone)
+    if (current_doctype not in BUDGET_CHECKED_DOCTYPES
+            or not frappe.has_permission(current_doctype, ptype="create")):
         return {"violations": []}
 
     violations = []
@@ -2937,6 +2944,7 @@ def get_budget_check_preview(
                 current_docname=current_docname,
                 amount_details=amount_details,
                 source_rows=amount_details["source_rows"],
+                notify=False,  # a preview: the stakeholders hear of it only when the document is submitted
             )
             for rv in row_violations:
                 rv["can_bypass"] = can_bypass
@@ -2952,8 +2960,15 @@ def get_budget_check_preview(
 def get_related_documents_page(
     company, project, pages, exclude_doctype=None, exclude_name=None
 ):
-    frappe.has_permission("Project Estimation", "read", throw=True)
+    """The project's purchase documents, for a user who may read its Estimation; always of the project's own
+    company, whatever company is sent."""
     import json
+
+    _require("Project", project)
+    budget_name = frappe.db.get_value("Project", project, "custom_budget_cost")
+    if not budget_name or not frappe.has_permission("Project Estimation", "read", doc=budget_name):
+        frappe.throw(_("Not permitted to see the budget documents of this project."), frappe.PermissionError)
+    company = frappe.db.get_value("Project", project, "company")
 
     if isinstance(pages, str):
         pages = json.loads(pages)
@@ -2969,14 +2984,15 @@ def get_project_budget_dashboard(project):
     Cost Budget: each Budget Category row with its estimated amount,
     live actual/cumulative spend, remaining balance, and percentage used.
     Numbers are recalculated live (not read from the stored cache) so the
-    dashboard always reflects the current state.
+    dashboard always reflects the current state. Only for a user who may
+    read the project and this very Estimation (User Permissions included).
     """
-    if not frappe.has_permission("Project Estimation", "read"):
-        return {"restricted": True}
-
+    _require("Project", project)
     budget_name = frappe.db.get_value("Project", project, "custom_budget_cost")
     if not budget_name:
         return {"has_budget": False}
+    if not frappe.has_permission("Project Estimation", "read", doc=budget_name):
+        return {"restricted": True}
 
     parent = frappe.get_doc("Project Estimation", budget_name)
     if parent.docstatus != 1:
@@ -3057,10 +3073,18 @@ def get_all_projects_budget_summary(company=None, project=None, extra_filters=No
     Each (source_doctype, target_field) pair is validated against that
     doctype's real fields before being used in the query, to prevent
     building SQL with an arbitrary/unsafe column name.
+
+    Only the Estimations the user may read are summed (frappe.get_list
+    applies their roles and User Permissions).
     """
     import json
 
     _clear_cached_amounts()
+    if not frappe.has_permission("Project Estimation", "read"):
+        return {"rows": []}  # the CEO dashboard calls it for whoever opens it: nothing to show, not an error
+    readable = frappe.get_list("Project Estimation", filters={"docstatus": 1}, pluck="name", limit_page_length=0)
+    if not readable:
+        return {"rows": []}
 
     if isinstance(extra_filters, str):
         try:
@@ -3077,8 +3101,8 @@ def get_all_projects_budget_summary(company=None, project=None, extra_filters=No
     }
     alias_by_doctype = {"Project Estimation": "p", "Project": "proj"}
 
-    conditions = ["p.docstatus = 1"]
-    params = {}
+    conditions = ["p.docstatus = 1", "p.name IN %(readable)s"]
+    params = {"readable": tuple(readable)}
     if company:
         conditions.append("p.company = %(company)s")
         params["company"] = company

@@ -89,3 +89,77 @@ class TestWritesTakeOnlyFormFields(PlanData):
 		locked_plan = first("Project Planning", {"name": ["!=", self.plan]})
 		be.bulk_update_project_visits([{"visit_name": self.visit, "project_planning": locked_plan}])
 		self.assertEqual(frappe.db.get_value("Project Visits", self.visit, "project_planning"), self.plan)
+
+
+def restrict(user, doctype, value):
+	"""A User Permission: the user sees only this record of the DocType (and what links to it)."""
+	frappe.get_doc({"doctype": "User Permission", "user": user, "allow": doctype, "for_value": value,
+		"apply_to_all_doctypes": 1}).insert(ignore_permissions=True)
+	frappe.clear_cache(user=user)
+
+
+class TestBudgetFigures(RolledBack):
+	"""Cost figures follow read permission on the project's own Estimation."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.set_user("Administrator")
+		self.addCleanup(frappe.set_user, "Administrator")
+		rows = frappe.db.sql("""select p.name, p.company, p.custom_budget_cost est from tabProject p
+			join `tabProject Estimation` e on e.name = p.custom_budget_cost and e.docstatus = 1
+			order by p.company""", as_dict=True)
+		if not rows:
+			self.skipTest("the site has no project with a submitted Estimation")
+		self.project, self.company = rows[0].name, rows[0].company
+		self.other_company_projects = {r.name for r in rows if r.company != self.company}
+
+	def test_a_user_without_access_sees_no_figures(self):
+		with as_user(make_user()):
+			for method, args in {"get_project_budget_dashboard": (self.project,),
+					"get_project_overview_summary": (self.project,),
+					"get_related_documents_page": (self.company, self.project, "{}")}.items():
+				with self.subTest(method=method), self.assertRaises(frappe.PermissionError):
+					getattr(be, method)(*args)
+			self.assertEqual(be.get_all_projects_budget_summary()["rows"], [])
+
+	def test_the_planner_sees_no_cost_dashboard(self):
+		with as_user(make_user("Planning Manager")):
+			self.assertTrue(be.get_project_budget_dashboard(self.project).get("restricted"))
+
+	def test_the_summary_keeps_to_the_users_company(self):
+		if not self.other_company_projects:
+			self.skipTest("the submitted Estimations are all of one company")
+		accountant = make_user("Accounts User")
+		restrict(accountant, "Company", self.company)
+		with as_user(accountant):
+			projects = {r["project"] for r in be.get_all_projects_budget_summary()["rows"]}
+		self.assertIn(self.project, projects)
+		self.assertFalse(projects & self.other_company_projects)
+
+	def test_the_preview_is_only_for_budget_checked_documents_and_notifies_nobody(self):
+		r = frappe.db.sql("""select bca.account, d.estimated_amount from `tabProject Estimation Detail` d
+			join `tabBudget Category Account` bca on bca.parent = d.budget_category and bca.company = %s
+			where d.parent = %s limit 1""", (self.company, frappe.db.get_value("Project", self.project, "custom_budget_cost")),
+			as_dict=True)
+		if not r:
+			self.skipTest("the Estimation has no budget row with an account")
+		items = frappe.as_json([{"project": self.project, "account": r[0].account, "amount": frappe.utils.flt(r[0].estimated_amount) * 3 + 1, "idx": 1}])
+		accounts = frappe.as_json([r[0].account])
+		logs = frappe.db.count("Notification Log")
+		self.assertEqual(be.get_budget_check_preview(self.company, accounts, "purchase_order", items, "ToDo", "x")["violations"], [])
+		found = be.get_budget_check_preview(self.company, accounts, "purchase_order", items, "Purchase Order", "new-po")["violations"]
+		self.assertIn("Annual Exceeded", [v["violation_type"] for v in found])
+		self.assertEqual(frappe.db.count("Notification Log"), logs)
+
+
+class TestJobCompletion(RolledBack):
+	def test_a_planner_of_another_project_cannot_complete_this_invoice(self):
+		from nexlify_budget_control.nexlify_budget_control.job_completion import mark_job_completed
+
+		invoice = first("Project Invoicing")
+		project = frappe.db.get_value("Project Invoicing", invoice, "project")
+		other = first("Project", {"name": ["!=", project]})
+		planner = make_user("Planning Manager")
+		restrict(planner, "Project", other)
+		with as_user(planner), self.assertRaises(frappe.PermissionError):
+			mark_job_completed(invoice, "/private/files/x.pdf")

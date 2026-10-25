@@ -14,7 +14,9 @@ JOB_COMPLETION, DOWN_PAYMENT = "Job Completion", "Down Payment"  # Project Invoi
 
 
 def _invoice_of_approved_plan(invoicing):
-	frappe.has_permission("Project Invoicing", "write", throw=True)
+	if not invoicing or not isinstance(invoicing, str):
+		frappe.throw(_("Invalid Project Invoicing."))
+	frappe.has_permission("Project Invoicing", "write", doc=invoicing, throw=True)  # this invoice, its project's too
 	doc = frappe.get_doc("Project Invoicing", invoicing)
 	if frappe.db.get_value("Project Planning", doc.project_planning, "docstatus") != 1:
 		frappe.throw(_("Job Completion is marked on an approved Plan."))
