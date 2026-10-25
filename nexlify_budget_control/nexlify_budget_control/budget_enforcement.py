@@ -2096,11 +2096,9 @@ def _evaluate_budget_row(row, parent, trigger_stage, doc_date,
 # ---------------------------------------------------------------------------
 
 def _recalculate_row_from_dict(row, parent, doc_date):
+    """The row's figures from the ledgers: everything ever booked on the project, whatever its date (the planned
+    period decides which documents may be booked, through the date-range check, not what counts)."""
     accounts = get_accounts_for_category(row.get("budget_category"))
-    p_from, p_to = _project_window(parent.get("project"))
-    # reports on a project without a planned period show every expense
-    eff_from = getdate(p_from) if p_from else getdate("1900-01-01")
-    eff_to = getdate(p_to) if p_to else getdate("2999-12-31")
     cr = flt(parent.get("conversion_rate")) or 1.0
 
     mr_base = _get_cached_amount(
@@ -2113,7 +2111,7 @@ def _recalculate_row_from_dict(row, parent, doc_date):
     )
     actual_base = _get_cached_amount(
         parent.get("company"), parent.get("project"), accounts,
-        get_actual_expense, "actual", from_date=eff_from, to_date=eff_to
+        get_actual_expense, "actual"
     )
     cumulative_base = get_cumulative_amount(actual_base, mr_base, po_base)
 

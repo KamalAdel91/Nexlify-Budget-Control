@@ -10,7 +10,7 @@ stage to the next.
 """
 
 import frappe
-from frappe.utils import flt, getdate
+from frappe.utils import flt
 
 
 # ---------------------------------------------------------------------------
@@ -135,56 +135,33 @@ def get_purchase_order_amount(company, project, accounts):
 	return total
 
 
-def get_actual_expense(company, project, accounts, from_date=None, to_date=None):
+def get_actual_expense(company, project, accounts):
 	"""
 	Returns the NET actual booked expense (debit - credit) from GL Entry
-	for this project/accounts/company, scoped to a date range.
+	for this project/accounts/company: everything ever booked on the
+	project, whatever its date.
 
 	Using GL Entry (rather than Purchase Invoice Item alone) ensures this
 	correctly nets out Journal Entries, Purchase Returns, Debit/Credit
 	Notes, and any other document type that posts to these accounts -
 	since all of them ultimately produce GL Entry rows. Cancelled entries
-	are automatically excluded via is_cancelled.
-
-	NOTE: Parameters are passed safely to prevent SQL injection - the WHERE
-	clause conditions are built using a fixed template, never user input.
+	are automatically excluded via is_cancelled. A Period Closing Voucher
+	is not spending: it closes the year's expense accounts (per project,
+	in ERPNext 16) against the profit and loss, so it is left out, or the
+	project's spending of a closed year would read as zero.
 	"""
-	if not accounts:
+	if not accounts or not isinstance(accounts, (list, tuple)):
 		return 0.0
 
-	# Validate inputs to prevent potential injection
-	if not isinstance(accounts, (list, tuple)):
-		return 0.0
-
-	params = {
-		"company": company,
-		"project": project,
-		"accounts": tuple(accounts),
-	}
-
-	# Build date conditions safely using a fixed template
-	date_conditions = []
-	if from_date:
-		date_conditions.append("AND gle.posting_date >= %(from_date)s")
-		params["from_date"] = getdate(from_date)
-	if to_date:
-		date_conditions.append("AND gle.posting_date <= %(to_date)s")
-		params["to_date"] = getdate(to_date)
-
-	date_filter = " ".join(date_conditions)
-
-	# Fixed query template - no user input in the SQL structure
-	query = """
+	result = frappe.db.sql("""
 		SELECT COALESCE(SUM(gle.debit), 0) - COALESCE(SUM(gle.credit), 0) AS net_amount
 		FROM `tabGL Entry` gle
 		WHERE gle.is_cancelled = 0
 			AND gle.company = %(company)s
 			AND gle.project = %(project)s
 			AND gle.account IN %(accounts)s
-			{date_filter}
-	""".format(date_filter=date_filter)
-
-	result = frappe.db.sql(query, params, as_dict=True)
+			AND gle.voucher_type != 'Period Closing Voucher'
+	""", {"company": company, "project": project, "accounts": tuple(accounts)}, as_dict=True)
 	return flt(result[0].net_amount) if result else 0.0
 
 

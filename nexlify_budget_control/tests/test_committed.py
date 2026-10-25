@@ -91,3 +91,47 @@ class TestMaterialRequestPending(RolledBack):
 	def test_stopped_request_is_not_pending(self):
 		make_mr(1000, qty=10, ordered=4, status="Stopped")
 		self.assertAlmostEqual(mr_pending(), 0)
+
+
+def make_gl(amount, account=ACCOUNT, posting_date="2026-06-01", voucher_type="Journal Entry", credit=False):
+	"""A bare General Ledger row on the project (rolled back with the test)."""
+	frappe.get_doc({"doctype": "GL Entry", "name": _uniq(), "company": COMPANY, "project": PROJECT, "account": account,
+		"posting_date": posting_date, "voucher_type": voucher_type, "voucher_no": "_NBC-" + _uniq(),
+		"debit": 0 if credit else amount, "credit": amount if credit else 0, "is_cancelled": 0}).db_insert()
+
+
+class TestActualSpending(RolledBack):
+	"""Everything ever booked on the project counts, whatever its date; a year's closing is not spending."""
+
+	def actual(self):
+		from nexlify_budget_control.nexlify_budget_control.budget_utils import get_actual_expense
+		return get_actual_expense(COMPANY, PROJECT, (ACCOUNT,))
+
+	def test_every_date_counts(self):
+		make_gl(50000, posting_date="2025-01-15")  # before any planned period
+		make_gl(1000, posting_date="2026-06-01")
+		make_gl(10, posting_date="2031-01-01")
+		self.assertAlmostEqual(self.actual(), 51010)
+
+	def test_a_credit_takes_away(self):
+		make_gl(1000)
+		make_gl(300, credit=True)
+		self.assertAlmostEqual(self.actual(), 700)
+
+	def test_the_years_closing_is_not_spending(self):
+		make_gl(400000, posting_date="2025-11-10")
+		make_gl(400000, posting_date="2025-12-31", voucher_type="Period Closing Voucher", credit=True)
+		self.assertAlmostEqual(self.actual(), 400000)
+
+	def test_the_row_takes_every_date(self):
+		from nexlify_budget_control.nexlify_budget_control import budget_enforcement as be
+		frappe.get_doc({"doctype": "Project", "name": PROJECT, "project_name": PROJECT, "company": COMPANY,
+			"expected_start_date": "2026-02-01", "expected_end_date": "2026-12-31", "is_active": "No"}).db_insert()
+		frappe.get_doc({"doctype": "Budget Category Account", "name": _uniq(), "parent": "_NBC Cat",
+			"parenttype": "Budget Category", "parentfield": "accounts", "account": ACCOUNT, "company": COMPANY}).db_insert()
+		make_gl(50000, posting_date="2026-01-15")  # booked before the plan's start
+		row = frappe._dict(budget_category="_NBC Cat", estimated_amount=60000)
+		be._recalculate_row_from_dict(row, frappe._dict(project=PROJECT, company=COMPANY, currency="SAR", conversion_rate=1),
+			frappe.utils.getdate("2026-06-01"))
+		self.assertAlmostEqual(row["actual_expense_amount"], 50000)
+		self.assertAlmostEqual(row["variance"], 10000)
