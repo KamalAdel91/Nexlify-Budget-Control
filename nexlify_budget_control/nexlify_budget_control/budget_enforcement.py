@@ -1887,9 +1887,17 @@ def _evaluate_budget_row(row, parent, trigger_stage, doc_date,
                          current_doc_amount=0.0, current_doctype=None,
                          current_docname=None, amount_details=None,
                          source_rows=None):
+    """current_doc_amount is what the document adds to the row, in company currency. A document that adds
+    nothing (a return, a debit note, an invoice of what its order already committed) cannot break the
+    budget, even on a row that is already over it."""
+    if flt(current_doc_amount) <= 0:
+        return []
     violations = []
     source_rows = source_rows or []
     currency = parent.get("currency")
+    current_doc_amount = convert_to_doc_currency(
+        current_doc_amount, parent.get("company"), currency, parent.get("conversion_rate")
+    )
 
     threshold = flt(row.get("warning_threshold_percentage")) or DEFAULT_WARNING_THRESHOLD_PERCENT
     estimated = flt(row.get("estimated_amount"))
@@ -2468,6 +2476,10 @@ def _get_current_doc_amount_details(row_name, doc, trigger_stage, accounts=None,
     (default "items" for MR/PO/PI, "expenses" for Expense Claim). For
     Expense Claim the amount field is "sanctioned_amount" and the account
     field is "default_account" instead of "amount"/"expense_account".
+    Amounts are in company currency (base_amount where the row has it),
+    like the committed and actual figures. What the row it was made from
+    (material_request_item on a PO row, po_detail on a PI row) already
+    committed is not new spending.
     """
     if accounts is None:
         row = frappe.get_doc("Project Estimation Detail", row_name)
@@ -2483,28 +2495,17 @@ def _get_current_doc_amount_details(row_name, doc, trigger_stage, accounts=None,
         if account not in accounts:
             continue
 
-        item_amount = flt(item.get(amount_field))
+        item_amount = flt(item.get("base_amount") if item.get("base_amount") is not None else item.get(amount_field))
         total_amount += item_amount
         if item.get("idx") is not None:
             source_rows.append(item.get("idx"))
 
-        if trigger_stage == "purchase_order" and item.get("material_request"):
-            prior_amount = flt(
-                frappe.db.get_value(
-                    "Material Request Item",
-                    {"parent": item.get("material_request"), "expense_account": account},
-                    "amount",
-                )
-            )
-            already_counted += min(prior_amount, item_amount)
-        elif trigger_stage == "actual" and item.get("purchase_order"):
-            prior_amount = flt(
-                frappe.db.get_value(
-                    "Purchase Order Item",
-                    {"parent": item.get("purchase_order"), "expense_account": account},
-                    "amount",
-                )
-            )
+        prior_amount = 0.0
+        if trigger_stage == "purchase_order" and item.get("material_request_item"):
+            prior_amount = flt(frappe.db.get_value("Material Request Item", item.get("material_request_item"), "amount"))
+        elif trigger_stage == "actual" and item.get("po_detail"):
+            prior_amount = flt(frappe.db.get_value("Purchase Order Item", item.get("po_detail"), "base_amount"))
+        if item_amount > 0:
             already_counted += min(prior_amount, item_amount)
 
     new_spending = max(0.0, total_amount - already_counted)
@@ -2884,8 +2885,11 @@ def get_budget_check_preview(
                 row_name, preview_doc, trigger_stage, accounts=set(row_accounts)
             )
 
-            row["cumulative_expense_amount"] = flt(row.get("cumulative_expense_amount")) + amount_details["new_spending"]
-            row["actual_amount_till_month"] = flt(row.get("actual_amount_till_month")) + amount_details["new_spending"]
+            added = convert_to_doc_currency(
+                amount_details["new_spending"], parent.get("company"), parent.get("currency"), parent.get("conversion_rate")
+            )
+            row["cumulative_expense_amount"] = flt(row.get("cumulative_expense_amount")) + added
+            row["actual_amount_till_month"] = flt(row.get("actual_amount_till_month")) + added
 
             row_violations = _evaluate_budget_row(
                 row, parent, trigger_stage, doc_date,

@@ -8,7 +8,8 @@ import unittest
 import frappe
 from frappe.tests.utils import toggle_test_mode
 
-MODULES = ("nexlify_budget_control.tests.test_committed", "nexlify_budget_control.tests.test_inactive_project")
+MODULES = ("nexlify_budget_control.tests.test_committed", "nexlify_budget_control.tests.test_inactive_project",
+	"nexlify_budget_control.tests.test_new_spending")
 
 
 def run(verbosity=2):
