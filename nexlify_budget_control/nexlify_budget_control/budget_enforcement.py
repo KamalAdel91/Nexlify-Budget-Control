@@ -721,8 +721,34 @@ def _staff_days_num(value):
     """At most 2 decimals, without trailing zeros: 33.0 -> 33, 4.50 -> 4.5."""
     return ("%.2f" % frappe.utils.flt(value)).rstrip("0").rstrip(".")
 
+def _require(doctype, name, ptype="read"):
+	"""The user may `ptype` this very document (User Permissions included), else an error. A name that is not a plain
+	string (a filter list sent instead of a name) is refused before it reaches a query."""
+	if not name or not isinstance(name, str):
+		frappe.throw(_("Invalid {0}.").format(_(doctype)))
+	frappe.has_permission(doctype, ptype, doc=name, throw=True)
+
+
+def _readable_doc(doctype, name):
+	"""The document as a dict, for a user who may read it, without the fields their permission level hides
+	(the invoice amount for the Planner)."""
+	_require(doctype, name)
+	doc = frappe.get_doc(doctype, name)
+	doc.apply_fieldlevel_read_permissions()
+	return doc.as_dict()
+
+
+def _values_for(doctype, row, excluded):
+	"""Only the row's values for real fields of the DocType that the form may set (no system fields, no links that
+	would move the record to another Plan)."""
+	allowed = {f.fieldname for f in frappe.get_meta(doctype).fields
+		if f.fieldname not in excluded and f.fieldtype not in NON_VALUE_FIELDTYPES}
+	return {k: v for k, v in row.items() if k in allowed}
+
+
 @frappe.whitelist()
 def get_project_visits(project_planning):
+	_require("Project Planning", project_planning)
 	visits = frappe.get_all(
 		"Project Visits",
 		filters={"project_planning": project_planning},
@@ -759,8 +785,8 @@ def _recalculate_cost_budget_total_work_days(cost_budget):
 
 
 @frappe.whitelist()
-@frappe.whitelist()
 def get_project_equipment_scope_rows_for_planning(project_planning):
+    _require("Project Planning", project_planning)
     project = frappe.db.get_value("Project Planning", project_planning, "project")
     cost_budget = frappe.db.get_value("Project", project, "custom_budget_cost") if project else None
     if not cost_budget:
@@ -768,11 +794,16 @@ def get_project_equipment_scope_rows_for_planning(project_planning):
     status = frappe.db.get_value("Project Estimation", cost_budget, "docstatus")
     if status != 1:
         return {"rows": [], "trade_columns": [], "estimation_status": status, "cost_budget": cost_budget}
-    return get_project_equipment_scope_rows(cost_budget)
+    return _equipment_scope_rows(cost_budget)
 
 
 @frappe.whitelist()
 def get_project_equipment_scope_rows(cost_budget):
+    _require("Project Estimation", cost_budget)
+    return _equipment_scope_rows(cost_budget)
+
+
+def _equipment_scope_rows(cost_budget):
     rows = frappe.get_all(
         "Project Equipment Scope",
         filters={"cost_budget": cost_budget},
@@ -797,6 +828,7 @@ def get_project_equipment_scope_rows(cost_budget):
 
 @frappe.whitelist()
 def get_project_equipment_scope_full(name):
+    _require("Project Equipment Scope", name)
     doc = frappe.get_doc("Project Equipment Scope", name)
     return {
         "name": doc.name,
@@ -812,12 +844,13 @@ def get_project_equipment_scope_full(name):
 @frappe.whitelist()
 def bulk_create_project_equipment_scope(cost_budget, rows):
     frappe.has_permission("Project Equipment Scope", "create", throw=True)
+    _require("Project Estimation", cost_budget, "write")
     if isinstance(rows, str):
         rows = frappe.parse_json(rows)
 
     cost_budget_status = frappe.db.get_value("Project Estimation", cost_budget, "docstatus")
-    if cost_budget_status == 1:
-        frappe.throw(_("Cannot add Equipment Scope: the Cost Budget is already submitted."))
+    if cost_budget_status != 0:
+        frappe.throw(_("Cannot add Equipment Scope: the Cost Budget is submitted or cancelled."))
 
     created = []
     for row in rows:
@@ -872,6 +905,7 @@ def bulk_update_project_equipment_scope(rows, deleted=None):
         name = row.get("name")
         if not name:
             continue
+        _require("Project Equipment Scope", name, "write")
         doc = frappe.get_doc("Project Equipment Scope", name)
         if doc.docstatus == 1:
             frappe.throw(_("Cannot edit '{0}': already submitted.").format(name))
@@ -1051,6 +1085,7 @@ def _assert_records_plan_editable(doctype, rows, key, deleted=None):
 
 @frappe.whitelist()
 def copy_estimation_to_planning_scope(project_planning, reset=0):
+    _require("Project Planning", project_planning, "write")
     _assert_plan_editable(project_planning)
     frappe.has_permission("Project Planning Scope", "create", throw=True)
     if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 0:
@@ -1063,8 +1098,12 @@ def copy_estimation_to_planning_scope(project_planning, reset=0):
 
 @frappe.whitelist()
 def get_planning_scope_rows(project_planning):
+    _require("Project Planning", project_planning)
     flt = frappe.utils.flt
-    current_cb = _reconcile_planning_scope(project_planning) or _planning_cost_budget(project_planning)
+    # matching the rows to the Estimation writes to them: only for a user who may change the plan
+    reconciled = (_reconcile_planning_scope(project_planning)
+                  if frappe.has_permission("Project Planning", "write", doc=project_planning) else None)
+    current_cb = reconciled or _planning_cost_budget(project_planning)
     rows = frappe.get_all(
         "Project Planning Scope",
         filters={"project_planning": project_planning, "docstatus": ["<", 2]},
@@ -1147,8 +1186,9 @@ def delete_planning_scope(name):
 
 @frappe.whitelist()
 def remove_planning_scope_not_in_estimation(project_planning):
-    _assert_plan_editable(project_planning)
     """Delete the draft Planning Scope rows whose equipment is not in the submitted Estimation (unless used in visits)."""
+    _require("Project Planning", project_planning, "write")
+    _assert_plan_editable(project_planning)
     frappe.has_permission("Project Planning Scope", "delete", throw=True)
     if frappe.db.get_value("Project Planning", project_planning, "docstatus") != 0:
         frappe.throw(_("The plan is not in Draft."))
@@ -1196,6 +1236,7 @@ def _cancel_planning_scope(project_planning):
 @frappe.whitelist()
 def get_visit_allocation_context(project_planning, visit=None):
     """Planning Scope rows with the quantity already allocated in the other visits (for live remaining)."""
+    _require("Project Planning", project_planning)
     flt, cint = frappe.utils.flt, frappe.utils.cint
     scope = frappe.get_all(
         "Project Planning Scope",
@@ -1271,11 +1312,12 @@ def get_project_visits_editable_fields():
 
 @frappe.whitelist()
 def get_project_visit_full(visit_name):
-	return frappe.get_doc("Project Visits", visit_name).as_dict()
+	return _readable_doc("Project Visits", visit_name)
 
 
 @frappe.whitelist()
 def get_visit_count(project_planning):
+	_require("Project Planning", project_planning)
 	return frappe.db.count("Project Visits", {"project_planning": project_planning})
 
 
@@ -1292,10 +1334,8 @@ def bulk_update_project_visits(rows, deleted=None):
 		if not row.get("visit_name"):
 			continue
 		doc = frappe.get_doc("Project Visits", row["visit_name"])
-		for fieldname, value in row.items():
-			if fieldname == "visit_name":
-				continue
-			doc.set(fieldname, value)
+		# never project_planning: moving a visit to another plan would skip that plan's lock
+		doc.update(_values_for("Project Visits", row, EXCLUDED_VISIT_EDIT_FIELDS))
 		doc.save()
 
 	for name in (deleted or []):
@@ -1311,21 +1351,17 @@ def bulk_create_project_visits(project_planning, rows):
 	if isinstance(rows, str):
 		rows = _json.loads(rows)
 
+	_require("Project Planning", project_planning, "write")
 	project = frappe.db.get_value("Project Planning", project_planning, "project")
-	skip_keys = {"label", "visit_name"}
 
 	created = []
 	for row in rows:
-		doc_dict = {
+		doc = frappe.get_doc({
+			**_values_for("Project Visits", row, EXCLUDED_VISIT_EDIT_FIELDS),
 			"doctype": "Project Visits",
 			"project_planning": project_planning,
 			"project": project,
-		}
-		for fieldname, value in row.items():
-			if fieldname in skip_keys:
-				continue
-			doc_dict[fieldname] = value
-		doc = frappe.get_doc(doc_dict)
+		})
 		doc.insert()
 		created.append(doc.name)
 
@@ -1379,7 +1415,7 @@ def get_project_invoicing_editable_fields():
 
 @frappe.whitelist()
 def get_project_invoicing_full(invoice_name):
-	return frappe.get_doc("Project Invoicing", invoice_name).as_dict()
+	return _readable_doc("Project Invoicing", invoice_name)
 
 
 @frappe.whitelist()
@@ -1432,20 +1468,20 @@ def bulk_create_project_invoicing(project_planning, rows):
 	if isinstance(rows, str):
 		rows = _json.loads(rows)
 
+	_require("Project Planning", project_planning, "write")
 	project = frappe.db.get_value("Project Planning", project_planning, "project")
 
 	frappe.flags.bulk_invoicing_operation = True
 	created = []
 	try:
 		for row in rows:
-			doc_dict = {
+			# the system's fields (status, amount, Sales Order/Invoice...) are never taken from the request
+			doc = frappe.get_doc({
+				**_values_for("Project Invoicing", row, EXCLUDED_INVOICING_EDIT_FIELDS),
 				"doctype": "Project Invoicing",
 				"project_planning": project_planning,
 				"project": project,
-			}
-			for fieldname, value in row.items():
-				doc_dict[fieldname] = value
-			doc = frappe.get_doc(doc_dict)
+			})
 			doc.insert()
 			created.append(doc.name)
 	finally:
@@ -1458,6 +1494,7 @@ def bulk_create_project_invoicing(project_planning, rows):
 @frappe.whitelist()
 def get_project_invoicings(project_planning):
 	"""The Plan's invoices for its table (never an amount: the Planner doesn't see them)."""
+	_require("Project Planning", project_planning)
 	return frappe.get_all(
 		"Project Invoicing",
 		filters={"project_planning": project_planning},

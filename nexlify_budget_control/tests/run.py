@@ -9,7 +9,8 @@ import frappe
 from frappe.tests.utils import toggle_test_mode
 
 MODULES = ("nexlify_budget_control.tests.test_committed", "nexlify_budget_control.tests.test_inactive_project",
-	"nexlify_budget_control.tests.test_new_spending", "nexlify_budget_control.tests.test_amount_cache")
+	"nexlify_budget_control.tests.test_new_spending", "nexlify_budget_control.tests.test_amount_cache",
+	"nexlify_budget_control.tests.test_permissions")
 
 
 def run(verbosity=2):
