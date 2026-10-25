@@ -56,3 +56,37 @@ class TestInactiveProjectGuard(RolledBack):
 		with self.assertRaises(frappe.ValidationError) as caught:
 			po.submit()
 		self.assertIn("Not Active", str(caught.exception))
+
+
+class TestGuardLeavesTheSystemAlone(RolledBack):
+	"""The guard is for the user's documents: the ledgers ERPNext writes for them, and this app's own records, pass."""
+
+	def test_ledger_rows_pass(self):
+		project = make_project(active=False)
+		for doctype in ("GL Entry", "Payment Ledger Entry", "Stock Ledger Entry"):
+			with self.subTest(doctype=doctype):
+				block_inactive_project_reference(frappe.get_doc({"doctype": doctype, "project": project}))
+
+	def test_this_apps_records_pass(self):
+		project = make_project(active=False)
+		for doctype in ("Budget Violation Log", "Project Life", "Supply Request", "Project Estimation"):
+			with self.subTest(doctype=doctype):
+				block_inactive_project_reference(frappe.get_doc({"doctype": doctype, "project": project}))
+
+	def test_an_invoice_on_a_project_gone_not_active_can_still_be_cancelled(self):
+		"""Cancelling writes reversing GL Entries (each one submitted): they must not be blocked."""
+		name = frappe.db.get_value("Sales Invoice", {"docstatus": 1, "project": ["is", "set"], "is_return": 0,
+			"outstanding_amount": [">", 0]}, "name", order_by="creation desc")
+		if not name:
+			self.skipTest("the site has no unpaid submitted Sales Invoice with a project")
+		si = frappe.get_doc("Sales Invoice", name)
+		frappe.db.set_value("Project", si.project, "is_active", "No")  # its Estimation was cancelled
+		si.flags.ignore_permissions = True
+		try:
+			si.cancel()
+		except frappe.ValidationError as e:
+			if "Not Active" in str(e):
+				raise
+			self.skipTest(f"{name} cannot be cancelled for another reason: {str(e)[:80]}")
+		self.assertEqual(frappe.db.get_value("Sales Invoice", name, "docstatus"), 2)
+		self.assertTrue(frappe.db.exists("GL Entry", {"voucher_no": name, "is_cancelled": 1}))

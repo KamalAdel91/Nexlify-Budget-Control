@@ -1572,14 +1572,24 @@ def get_project_overview_summary(project):
 
 BUDGET_CHECKED_DOCTYPES = {"Material Request", "Purchase Order", "Purchase Invoice", "Journal Entry", "Expense Claim"}
 
-EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project Planning Scope",
-	"Project",
-	"Project Planning",
-	"Project Estimation",
-	"Project Visits",
-	"Project Invoicing",
-	"Project Overview",
-}
+# Rows the system writes for a user's document (ERPNext submits every GL Entry): the guard is for the user's
+# documents, and a cancellation must be able to write its reversing entries on a Not Active project.
+LEDGER_DOCTYPES = {"GL Entry", "Payment Ledger Entry", "Stock Ledger Entry", "Account Closing Balance"}
+EXCLUDED_PROJECT_GATE_DOCTYPES = {"Project"} | LEDGER_DOCTYPES
+
+
+@frappe.request_cache
+def _gate_exempt(doctype):
+	"""Project itself, the ledgers, and every DocType of this app (an Estimation, a Plan, a Project Life, the
+	violation log...) must work on a Not Active project: that is how it becomes Active in the first place."""
+	from frappe.modules.utils import get_module_app
+
+	if doctype in EXCLUDED_PROJECT_GATE_DOCTYPES:
+		return True
+	try:
+		return get_module_app(frappe.get_meta(doctype).module) == "nexlify_budget_control"
+	except Exception:
+		return False
 
 
 def block_inactive_project_reference(doc, method=None):
@@ -1587,13 +1597,12 @@ def block_inactive_project_reference(doc, method=None):
 	Global guard (registered on doc_events["*"] before_save and
 	before_submit): blocks saving or submitting any document that links
 	to a Project whose is_active = "No", on the document or on any of its
-	rows (a Purchase Order carries its Project on the items), except our
-	own app's doctypes, which must be able to operate on a Not Active
-	project (that's how it becomes Active in the first place). A project
+	rows (a Purchase Order carries its Project on the items). A project
 	whose Estimation was cancelled is Not Active, so nothing is bought on
-	it until a new Estimation is approved.
+	it until a new Estimation is approved. See _gate_exempt for what the
+	guard leaves alone.
 	"""
-	if doc.doctype in EXCLUDED_PROJECT_GATE_DOCTYPES:
+	if _gate_exempt(doc.doctype):
 		return
 
 	projects = _linked_projects(doc)
