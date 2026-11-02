@@ -170,3 +170,16 @@ class TestJobCompletion(RolledBack):
 		restrict(planner, "Project", other)
 		with as_user(planner), self.assertRaises(frappe.PermissionError):
 			mark_job_completed(invoice, "/private/files/x.pdf")
+
+
+class TestDashboardPage(RolledBack):
+	def test_the_page_opens_only_for_who_may_read_its_figures(self):
+		from nexlify_budget_control.nexlify_budget_control.ceo_dashboard import OV, get_ceo_dashboard_data
+
+		page = frappe.get_doc("Page", "projexlify-dashboard")
+		with as_user(make_user("Projects User")):
+			self.assertFalse(frappe.has_permission(OV, "read"))
+			self.assertFalse(page.is_permitted())
+		with as_user(make_user("COO")):
+			self.assertTrue(page.is_permitted())
+			get_ceo_dashboard_data(extra_filters="[]")
