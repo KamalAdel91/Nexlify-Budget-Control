@@ -109,7 +109,6 @@ fixtures = [
 				[
 					"Estimation Manager",
 					"Planning Manager",
-					"O&M Manager",
 					"COO",
 					"CEO",
 					"Supply Chain Manager"
@@ -248,6 +247,7 @@ auto_cancel_exempted_doctypes = [
 ]
 
 after_install = [
+	"nexlify_budget_control.nexlify_budget_control.setup_permissions.ensure_app_role_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup_permissions.grant_link_select_permissions",
 	"nexlify_budget_control.nexlify_budget_control.setup.seed.seed_master_data",
 	"nexlify_budget_control.nexlify_budget_control.supply_chain.seed_notifications",

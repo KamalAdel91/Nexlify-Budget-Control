@@ -3,7 +3,9 @@
 
 """
 Permissions that this app's own roles need on doctypes owned by other apps
-(ERPNext / HRMS), and on our own doctypes where a site's Custom DocPerm hides the JSON permissions. Applied automatically after every migrate (idempotent).
+(ERPNext / HRMS), and on our own doctypes where a site's Custom DocPerm hides the JSON permissions.
+Each entry is applied once per site (on install, or on the first migrate that ships it); after that
+Role Permissions Manager owns it, so a permission removed there stays removed.
 Permissions for ERPNext's default roles are managed from the UI, not here.
 """
 
@@ -11,7 +13,7 @@ import frappe
 from frappe.permissions import add_permission, update_permission_property
 
 ESTIMATION_PLANNING = ["Estimation Manager", "Planning Manager"]
-ALL_APP_ROLES = ESTIMATION_PLANNING + ["O&M Manager", "COO", "CEO"]
+ALL_APP_ROLES = ESTIMATION_PLANNING + ["COO", "CEO"]
 SUPPLY_CHAIN = ["Supply Chain Manager"]
 
 # Sensitive numbers (contract value, estimated cost) sit on permlevel 2: ERPNext gives Desk User read on level 1.
@@ -31,23 +33,25 @@ APP_ROLE_PERMISSIONS = [
 ]
 
 
+APPLIED_APP_ROLE_PERMS = "nexlify_applied_app_role_perms"
+
+
 def ensure_app_role_permissions():
+    """Applies each APP_ROLE_PERMISSIONS / SENSITIVE_READ entry once per site, then leaves it to the UI.
+    An entry whose DocType or Role is missing is retried on the next migrate."""
+    applied = set(frappe.parse_json(frappe.db.get_default(APPLIED_APP_ROLE_PERMS) or "[]"))
+    new = set()
     for doctype, roles, ptypes in APP_ROLE_PERMISSIONS:
-        if not frappe.db.exists("DocType", doctype):
-            continue
-        for role in roles:
-            if not frappe.db.exists("Role", role):
-                continue
-            add_permission(doctype, role, 0, ptypes[0])
-            for ptype in ptypes:
-                update_permission_property(doctype, role, 0, ptype, 1)
-            if "read" not in ptypes:
-                update_permission_property(doctype, role, 0, "read", 0)
+        for role in _pending_roles(doctype, roles, 0, applied):
+            _grant(doctype, role, ptypes)
+            new.add(_perm_key(doctype, role, 0))
     for (doctype, level), roles in SENSITIVE_READ.items():
-        for role in roles:
-            if frappe.db.exists("Role", role):
-                add_permission(doctype, role, level, "read")
-    frappe.db.commit()
+        for role in _pending_roles(doctype, roles, level, applied):
+            add_permission(doctype, role, level, "read")
+            new.add(_perm_key(doctype, role, level))
+    if new:
+        frappe.db.set_default(APPLIED_APP_ROLE_PERMS, frappe.as_json(sorted(applied | new)))
+        frappe.clear_cache()
 
 
 # Roles that only need to pick a record in a Link field (and see its name), not open it.
@@ -131,4 +135,23 @@ def merge_standard_into_custom_perms():
     if changed:
         frappe.db.set_default("nexlify_applied_perm_merge", frappe.as_json(sorted(applied)))
         frappe.clear_cache()
+
+
+def _pending_roles(doctype, roles, level, applied):
+    """Roles of one entry not yet applied on this site whose DocType and Role both exist."""
+    if not frappe.db.exists("DocType", doctype):
+        return []
+    return [r for r in roles if _perm_key(doctype, r, level) not in applied and frappe.db.exists("Role", r)]
+
+
+def _grant(doctype, role, ptypes):
+    add_permission(doctype, role, 0, ptypes[0])
+    for ptype in ptypes:
+        update_permission_property(doctype, role, 0, ptype, 1)
+    if "read" not in ptypes:
+        update_permission_property(doctype, role, 0, "read", 0)
+
+
+def _perm_key(doctype, role, level):
+    return f"{doctype}|{role}|{level}"
 
